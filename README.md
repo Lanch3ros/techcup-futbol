@@ -9,11 +9,13 @@
 
 ## TECHCUP FUTBOL
 Plataforma web centralizada para la gestión integral del torneo semestral de fútbol de los programas de ingeniería de la Escuela Colombiana de Ingeniería Julio Garavito. Este sistema reemplaza los procesos manuales mediante la automatización de inscripciones, administración de equipos, verificación de pagos y cálculo de estadísticas en tiempo real.
+
 ---
 
 # ÍNDICE
 
 ### 1. DIAGRAMA DE CONTEXTO DEL SISTEMA
+<img width="551" height="264" alt="image" src="https://github.com/user-attachments/assets/1fd96d76-19aa-48a5-8a0d-be62d870a394" />
 
 ### 2. DEFINICIÓN DE REQUERIMIENTOS
 #### 2.1 FUNCIONALES
@@ -26,9 +28,8 @@ https://wispy-food-88352886.figma.site
 <img width="1366" height="651" alt="image" src="https://github.com/user-attachments/assets/4edf6ce2-f687-4a1a-8db7-42699abab8b1" />
 <img width="1366" height="648" alt="image" src="https://github.com/user-attachments/assets/45c3c59b-4c1f-46fd-86a7-fce7b47ff433" />
 
-
-
 ### 5. MANUAL DE IDENTIDAD 
+<img width="916" height="513" alt="image" src="https://github.com/user-attachments/assets/ab8ca01d-ab5f-4d48-8058-bc8c32ecc309" />
 
 ### 6. JIRA 
 <img width="1256" height="870" alt="Captura de pantalla 2026-03-05 233921" src="https://github.com/user-attachments/assets/05485541-9a94-46fb-b4ca-d8ad8df6825d" />

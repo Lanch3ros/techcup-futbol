@@ -24,6 +24,11 @@ Plataforma web centralizada para la gestión integral del torneo semestral de f�
 ### 3. ANÁLISIS DE REQUERIMIENTOS
 
 ### 4. MOCKUP 
+https://wispy-food-88352886.figma.site
+<img width="1366" height="651" alt="image" src="https://github.com/user-attachments/assets/4edf6ce2-f687-4a1a-8db7-42699abab8b1" />
+<img width="1366" height="648" alt="image" src="https://github.com/user-attachments/assets/45c3c59b-4c1f-46fd-86a7-fce7b47ff433" />
+
+
 
 ### 5. MANUAL DE IDENTIDAD 
 

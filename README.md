@@ -13,6 +13,8 @@ Plataforma web centralizada para la gestión integral del torneo semestral de f�
 ---
 
 # ÍNDICE
+### 0. LINK DE PRESENTACIÓN (SEMANA SEIS): https://www.canva.com/design/DAHDIhwNdzU/ynjiJ__QOQWReNaZfXhO7Q/edit?utm_content=DAHDIhwNdzU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+
 
 ### 1. DIAGRAMA DE CONTEXTO DEL SISTEMA
 <img width="551" height="264" alt="image" src="https://github.com/user-attachments/assets/1fd96d76-19aa-48a5-8a0d-be62d870a394" />

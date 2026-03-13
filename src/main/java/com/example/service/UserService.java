@@ -17,6 +17,9 @@ public class UserService {
     }
 
     public User registerUser(User user) {
+        if (user.getEmail() == null || user.getEmail().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
         userRepository.save(user);
         return user;
     }

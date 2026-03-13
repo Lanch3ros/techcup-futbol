@@ -5,8 +5,7 @@ import com.example.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class UserServiceTest {
     private UserService userService;
@@ -38,5 +37,10 @@ public class UserServiceTest {
                 "Jugador");
         userService.registerUser(user);
         assertEquals(1, userService.getAllUsers().size());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenEmailIsMissing() {
+        assertThrows(IllegalArgumentException.class, () -> userService.registerUser(new User()));
     }
 }

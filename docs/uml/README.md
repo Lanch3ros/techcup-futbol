@@ -2,6 +2,8 @@
 
 ---
 
+Link diagramas: https://lucid.app/lucidchart/3777f7f9-49cb-4f47-859d-86e581460502/edit?view_items=1IvEfELT4osh&page=0_0&invitationId=inv_96e5594f-9313-43cc-99e2-2ea8478b8063
+
 ## Diagrama De Clases
 
 **Patrón utilizado: Factory Method**

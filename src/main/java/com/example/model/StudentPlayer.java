@@ -1,0 +1,46 @@
+package com.example.model;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Data
+@EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
+public class StudentPlayer extends User implements Player {
+    private String department;
+    private String program;
+    private int jerseyNumber;
+    private String position;
+    private Long teamId;
+    private boolean available;
+
+    @Override
+    public boolean validateEmail() { return false; }
+
+    @Override
+    public void acceptInvitation(Long teamId) {}
+
+    @Override
+    public void rejectInvitation(Long teamId) {}
+
+    @Override
+    public void setAvailable(boolean available) { this.available = available; }
+
+    @Override
+    public String getUserType() { return "STUDENT"; }
+
+    public Object getProfile() { return null; }
+
+    @Override
+    public boolean login() {
+        return false;
+    }
+
+    @Override
+    public void logout() {
+
+    }
+}

@@ -16,8 +16,15 @@ Plataforma web centralizada para la gestión integral del torneo semestral de f�
 ### 0. LINK DE PRESENTACIÓN (SEMANA SEIS): https://www.canva.com/design/DAHDIhwNdzU/ynjiJ__QOQWReNaZfXhO7Q/edit?utm_content=DAHDIhwNdzU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
 
 
-### 1. DIAGRAMA DE CONTEXTO DEL SISTEMA
+### 1. DIAGRAMAS
+#### 1.1 DIAGRAMA DE CONTEXTO DEL SISTEMA
+
 [DiagramaContexto.pdf](docs/uml/DiagramaContexto.pdf)
+
+#### 1.2 DIAGRAMA DE CLASES
+
+[DiagramaClases.pdf](docs/uml/DiagramaClases.pdf)
+
 ### 2. DEFINICIÓN DE REQUERIMIENTOS
 #### 2.1 FUNCIONALES
 #### 2.2 NO FUNCIONALES

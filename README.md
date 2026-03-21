@@ -17,8 +17,7 @@ Plataforma web centralizada para la gestión integral del torneo semestral de f�
 
 
 ### 1. DIAGRAMA DE CONTEXTO DEL SISTEMA
-![DiagramaContextoProyecto.png](docs/uml/DiagramaContextoProyecto.png)
-
+[DiagramaContexto.pdf](docs/uml/DiagramaContexto.pdf)
 ### 2. DEFINICIÓN DE REQUERIMIENTOS
 #### 2.1 FUNCIONALES
 #### 2.2 NO FUNCIONALES

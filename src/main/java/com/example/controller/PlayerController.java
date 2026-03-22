@@ -4,6 +4,8 @@ import com.example.dto.RegistrationDTO;
 import com.example.dto.response.GenericResponse;
 import com.example.model.Player;
 import com.example.service.PlayerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/v1/players") 
+@RequestMapping("/api/v1/players")
+@Tag(name = "Jugadores", description = "Endpoints para la gestión y registro de jugadores en TechCup")
 public class PlayerController {
 
     private final PlayerService playerService;
@@ -20,6 +23,7 @@ public class PlayerController {
         this.playerService = playerService;
     }
 
+    @Operation(summary = "Registrar un nuevo jugador", description = "Permite registrar estudiantes, profesores, graduados o familiares. Soporta la subida de una foto de perfil en formato imagen.")
     @PostMapping(value = "/register", consumes = {"multipart/form-data"})
     public ResponseEntity<GenericResponse> registerPlayer(
             @Valid @RequestPart("playerData") RegistrationDTO request,
@@ -30,7 +34,6 @@ public class PlayerController {
         }
 
         try {
-          
             playerService.registerPlayer(request);
             return new ResponseEntity<>(new GenericResponse("Éxito", "Jugador creado correctamente"), HttpStatus.CREATED);
         } catch (Exception e) {
@@ -38,6 +41,7 @@ public class PlayerController {
         }
     }
 
+    @Operation(summary = "Buscar jugador por ID", description = "Retorna la información detallada de un jugador previamente registrado utilizando su identificador único.")
     @GetMapping("/{id}")
     public ResponseEntity<Player> search(@PathVariable Long id) {
         Player player = playerService.searchPlayer(id);

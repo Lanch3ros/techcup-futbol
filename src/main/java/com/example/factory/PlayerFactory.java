@@ -9,7 +9,7 @@ public abstract class PlayerFactory {
         if (!validateBasicData(data)) {
             throw new IllegalArgumentException("Datos básicos inválidos");
         }
-        if (!validateEmail(data.getEmail())) {
+        if (!validateEmail(data.email())) {
             throw new IllegalArgumentException("Correo inválido para este tipo de usuario");
         }
         return createPlayer(data);
@@ -19,6 +19,6 @@ public abstract class PlayerFactory {
     protected abstract boolean validateEmail(String email);
 
     private boolean validateBasicData(RegistrationDTO data) {
-        return data != null && data.getFullName() != null && data.getEmail() != null;
+        return data != null && data.fullName() != null && data.email() != null;
     }
 }

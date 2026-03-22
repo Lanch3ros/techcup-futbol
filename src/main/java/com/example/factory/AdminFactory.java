@@ -12,8 +12,8 @@ public class AdminFactory extends PlayerFactory {
     @Override
     protected Player createPlayer(RegistrationDTO data) {
         AdminPlayer admin = new AdminPlayer();
-        admin.setFullName(data.getFullName());
-        admin.setEmail(data.getEmail());
+        admin.setFullName(data.fullName());
+        admin.setEmail(data.email());
         return admin;
     }
 

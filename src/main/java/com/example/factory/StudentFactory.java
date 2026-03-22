@@ -12,8 +12,8 @@ public class StudentFactory extends PlayerFactory {
     @Override
     protected Player createPlayer(RegistrationDTO data) {
         StudentPlayer student = new StudentPlayer();
-        student.setFullName(data.getFullName());
-        student.setEmail(data.getEmail());
+        student.setFullName(data.fullName());
+        student.setEmail(data.email());
         return student;
     }
 

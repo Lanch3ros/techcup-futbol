@@ -12,8 +12,8 @@ public class TeacherFactory extends PlayerFactory {
     @Override
     protected Player createPlayer(RegistrationDTO data) {
         TeacherPlayer teacher = new TeacherPlayer();
-        teacher.setFullName(data.getFullName());
-        teacher.setEmail(data.getEmail());
+        teacher.setFullName(data.fullName());
+        teacher.setEmail(data.email());
         return teacher;
     }
 

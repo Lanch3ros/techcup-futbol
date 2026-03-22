@@ -2,6 +2,7 @@ package com.example.service;
 
 import com.example.dto.RegistrationDTO;
 import com.example.model.Player;
+import com.example.model.StudentPlayer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,27 +19,37 @@ public class PlayerServiceTest {
 
     @Test
     public void testRegisterStudentSuccess() {
-        RegistrationDTO data = new RegistrationDTO();
-        data.setFullName("Jose Lancheros");
-        data.setEmail("jose.lancheros@mail.escuelaing.edu.co");
-        data.setRole("STUDENT");
+        RegistrationDTO data = new RegistrationDTO(
+                "Jose Lancheros",
+                "jose.lancheros@mail.escuelaing.edu.co",
+                "miPasswordSeguro123",
+                "STUDENT",
+                null,
+                null,
+                null,
+                null,
+                null
+        );
 
         Player registeredPlayer = playerService.registerPlayer(data);
 
-        assertNotNull(registeredPlayer, "El jugador registrado no debe ser nulo");
-        assertEquals("STUDENT", registeredPlayer.getUserType(), "El tipo de usuario debe ser STUDENT");
+        assertNotNull(registeredPlayer);
+        assertEquals("STUDENT", registeredPlayer.getUserType());
 
         Player savedPlayer = playerService.searchPlayer(0L);
-        assertNotNull(savedPlayer, "El jugador debe estar guardado en la lista en memoria");
-        assertEquals("Jose Lancheros", ((com.example.model.StudentPlayer) savedPlayer).getFullName());
+        assertNotNull(savedPlayer);
+        assertEquals("Jose Lancheros", ((StudentPlayer) savedPlayer).getFullName());
     }
 
     @Test
     public void testRegisterPlayerInvalidRole() {
-        RegistrationDTO data = new RegistrationDTO();
-        data.setFullName("Juan Perez");
-        data.setEmail("juan@gmail.com");
-        data.setRole("INVALID_ROLE");
+        RegistrationDTO data = new RegistrationDTO(
+                "Juan Perez",
+                "juan@gmail.com",
+                null,
+                "INVALID_ROLE",
+                null, null, null, null, null
+        );
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             playerService.registerPlayer(data);
@@ -49,8 +60,13 @@ public class PlayerServiceTest {
 
     @Test
     public void testRegisterPlayerNullData() {
-        RegistrationDTO data = new RegistrationDTO();
-        data.setRole("STUDENT");
+        RegistrationDTO data = new RegistrationDTO(
+                null,
+                null,
+                null,
+                "STUDENT",
+                null, null, null, null, null
+        );
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             playerService.registerPlayer(data);

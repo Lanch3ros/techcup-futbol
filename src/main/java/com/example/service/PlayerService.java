@@ -13,7 +13,7 @@ public class PlayerService {
     private final List<Player> registeredPlayers = new ArrayList<>();
 
     public Player registerPlayer(RegistrationDTO data) {
-        PlayerFactory factory = getFactoryByRole(data.getRole());
+        PlayerFactory factory = getFactoryByRole(data.role());
         Player newPlayer = factory.registerPlayerData(data);
         registeredPlayers.add(newPlayer);
         return newPlayer;

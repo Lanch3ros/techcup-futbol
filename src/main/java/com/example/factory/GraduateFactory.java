@@ -12,8 +12,8 @@ public class GraduateFactory extends PlayerFactory {
     @Override
     protected Player createPlayer(RegistrationDTO data) {
         GraduatePlayer graduate = new GraduatePlayer();
-        graduate.setFullName(data.getFullName());
-        graduate.setEmail(data.getEmail());
+        graduate.setFullName(data.fullName());
+        graduate.setEmail(data.email());
         return graduate;
     }
 

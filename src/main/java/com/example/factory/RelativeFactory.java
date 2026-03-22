@@ -12,8 +12,8 @@ public class RelativeFactory extends PlayerFactory {
     @Override
     protected Player createPlayer(RegistrationDTO data) {
         RelativePlayer relative = new RelativePlayer();
-        relative.setFullName(data.getFullName());
-        relative.setEmail(data.getEmail());
+        relative.setFullName(data.fullName());
+        relative.setEmail(data.email());
         return relative;
     }
 

@@ -31,7 +31,7 @@ public class PlayerController {
 
         try {
           
-            playerService.registerPlayer(request, profilePhoto);
+            playerService.registerPlayer(request);
             return new ResponseEntity<>(new GenericResponse("Éxito", "Jugador creado correctamente"), HttpStatus.CREATED);
         } catch (Exception e) {
             return new ResponseEntity<>(new GenericResponse("Error", e.getMessage()), HttpStatus.BAD_REQUEST);

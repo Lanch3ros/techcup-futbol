@@ -5,9 +5,12 @@ import com.example.dto.response.GenericResponse;
 import com.example.model.Player;
 import com.example.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,9 +27,13 @@ public class PlayerController {
     }
 
     @Operation(summary = "Registrar un nuevo jugador", description = "Permite registrar estudiantes, profesores, graduados o familiares. Soporta la subida de una foto de perfil en formato imagen.")
-    @PostMapping(value = "/register", consumes = {"multipart/form-data"})
+    @PostMapping(value = "/register", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<GenericResponse> registerPlayer(
+            // Le indicamos explícitamente a Swagger que este bloque es un JSON
+            @Parameter(description = "Datos del jugador en formato JSON", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
             @Valid @RequestPart("playerData") RegistrationDTO request,
+
+            @Parameter(description = "Foto de perfil opcional (JPG, PNG)")
             @RequestPart(value = "profilePhoto", required = false) MultipartFile profilePhoto) {
 
         if (profilePhoto != null && !profilePhoto.getContentType().startsWith("image/")) {

@@ -1,10 +1,10 @@
 package com.example.controller;
 
-import com.example.dto.RegistrationDTO;
-import com.example.dto.response.GenericResponse;
-import com.example.model.Player;
-import com.example.model.StudentPlayer;
-import com.example.service.PlayerService;
+import com.example.controller.dto.RegistrationDTO;
+import com.example.controller.dto.response.GenericResponse;
+import com.example.core.model.Player;
+import com.example.core.model.StudentPlayer;
+import com.example.core.service.PlayerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

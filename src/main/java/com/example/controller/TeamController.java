@@ -1,7 +1,7 @@
 package com.example.controller;
 
-import com.example.dto.request.TeamCreationRequest;
-import com.example.dto.response.GenericResponse;
+import com.example.controller.dto.request.TeamCreationRequest;
+import com.example.controller.dto.response.GenericResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

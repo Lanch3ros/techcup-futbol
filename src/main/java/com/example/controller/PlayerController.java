@@ -1,9 +1,9 @@
 package com.example.controller;
 
-import com.example.dto.RegistrationDTO;
-import com.example.dto.response.GenericResponse;
-import com.example.model.Player;
-import com.example.service.PlayerService;
+import com.example.controller.dto.RegistrationDTO;
+import com.example.controller.dto.response.GenericResponse;
+import com.example.core.model.Player;
+import com.example.core.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

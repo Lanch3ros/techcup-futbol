@@ -12,6 +12,25 @@ Plataforma web centralizada para la gestión integral del torneo semestral de f�
 
 ---
 
+## Instrucciones de Ejecución
+
+### Prerrequisitos
+* Java 21
+* Maven 3.8+
+
+### Pasos para ejecutar localmente
+1. Clonar el repositorio:
+   `git clone https://github.com/Lanch3ros/techcup-futbol.git `
+2. Navegar a la carpeta del proyecto:
+   `cd techcup-futbol`
+3. Compilar el proyecto y descargar dependencias:
+   `mvn clean install`
+4. Ejecutar la aplicación Spring Boot:
+   `mvn spring-boot:run`
+5. La aplicación estará disponible en `http://localhost:8080`
+6. Para visualizar la documentación de la API interactiva (Swagger), ingresa a:
+   `http://localhost:8080/swagger-ui.html`
+
 # ÍNDICE
 ### 0. LINK DE PRESENTACIÓN (SEMANA SEIS): https://www.canva.com/design/DAHDIhwNdzU/ynjiJ__QOQWReNaZfXhO7Q/edit?utm_content=DAHDIhwNdzU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
 

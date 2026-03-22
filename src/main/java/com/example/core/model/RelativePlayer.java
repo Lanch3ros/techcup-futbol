@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RelativePlayer extends User implements Player {
+    private Long id;
     private String relationship;
     private int jerseyNumber;
     private String position;

@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GraduatePlayer extends User implements Player {
+    private Long id;
     private String program;
     private int jerseyNumber;
     private String position;

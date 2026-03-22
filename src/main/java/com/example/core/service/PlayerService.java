@@ -39,4 +39,6 @@ public class PlayerService {
             default -> throw new IllegalArgumentException("Rol no válido: " + role);
         };
     }
+
+
 }

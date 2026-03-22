@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminPlayer extends User implements Player {
+    private Long id;
     private String department;
     private String position;
     private int jerseyNumber;

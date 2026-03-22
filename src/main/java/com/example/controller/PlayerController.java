@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/players")
 @Tag(name = "Jugadores", description = "Endpoints para la gestión y registro de jugadores en TechCup")
@@ -29,7 +31,6 @@ public class PlayerController {
     @Operation(summary = "Registrar un nuevo jugador", description = "Permite registrar estudiantes, profesores, graduados o familiares. Soporta la subida de una foto de perfil en formato imagen.")
     @PostMapping(value = "/register", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<GenericResponse> registerPlayer(
-            // Le indicamos explícitamente a Swagger que este bloque es un JSON
             @Parameter(description = "Datos del jugador en formato JSON", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
             @Valid @RequestPart("playerData") RegistrationDTO request,
 
@@ -53,5 +54,11 @@ public class PlayerController {
     public ResponseEntity<Player> search(@PathVariable Long id) {
         Player player = playerService.searchPlayer(id);
         return player != null ? ResponseEntity.ok(player) : ResponseEntity.notFound().build();
+    }
+
+    @Operation(summary = "Listar todos los jugadores", description = "Retorna una lista completa de todos los jugadores registrados en la plataforma.")
+    @GetMapping
+    public ResponseEntity<List<Player>> getAllPlayers() {
+        return ResponseEntity.ok(playerService.getAllPlayers());
     }
 }

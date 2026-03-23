@@ -3,27 +3,33 @@ package com.example.core.service;
 import com.example.core.factory.*;
 import com.example.controller.dto.RegistrationDTO;
 import com.example.core.model.Player;
+import com.example.repository.PlayerRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class PlayerService {
-    private final List<Player> registeredPlayers = new ArrayList<>();
+
+    private final PlayerRepository playerRepository;
+
+    public PlayerService(PlayerRepository playerRepository) {
+        this.playerRepository = playerRepository;
+    }
 
     public Player registerPlayer(RegistrationDTO data) {
         PlayerFactory factory = getFactoryByRole(data.role());
         Player newPlayer = factory.registerPlayerData(data);
-        registeredPlayers.add(newPlayer);
-        return newPlayer;
+
+        return playerRepository.save(newPlayer);
     }
 
     public Player searchPlayer(Long id) {
-        if (id != null && id >= 0 && id < registeredPlayers.size()) {
-            return registeredPlayers.get(id.intValue());
-        }
-        return null;
+        return playerRepository.findById(id);
+    }
+
+    public List<Player> getAllPlayers() {
+        return playerRepository.findAll();
     }
 
     private PlayerFactory getFactoryByRole(String role) {
@@ -39,6 +45,4 @@ public class PlayerService {
             default -> throw new IllegalArgumentException("Rol no válido: " + role);
         };
     }
-
-
 }

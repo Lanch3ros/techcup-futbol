@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -41,4 +42,6 @@ public class AdminPlayer extends User implements Player {
     public void logout() {
 
     }
+
+    public Object getProfile() { return null; }
 }

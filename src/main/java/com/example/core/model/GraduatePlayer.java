@@ -39,6 +39,7 @@ public class GraduatePlayer extends User implements Player {
 
     @Override
     public void logout() {
-
     }
+
+    public Object getProfile() { return null; }
 }

@@ -1,7 +1,9 @@
 package com.example.controller;
 
 import com.example.controller.dto.RegistrationDTO;
+import com.example.controller.dto.ProfileDTO;
 import com.example.controller.dto.response.GenericResponse;
+import com.example.controller.mapper.PlayerMapper;
 import com.example.core.model.Player;
 import com.example.core.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,9 +27,11 @@ import java.util.List;
 public class PlayerController {
 
     private final PlayerService playerService;
+    private final PlayerMapper playerMapper;
 
-    public PlayerController(PlayerService playerService) {
+    public PlayerController(PlayerService playerService, PlayerMapper playerMapper) {
         this.playerService = playerService;
+        this.playerMapper = playerMapper;
     }
 
     @Operation(summary = "Registrar un nuevo jugador", description = "Permite registrar estudiantes, profesores, graduados o familiares. Soporta la subida de una foto de perfil en formato imagen.")
@@ -58,14 +62,14 @@ public class PlayerController {
 
     @Operation(summary = "Buscar jugador por ID", description = "Retorna la información detallada de un jugador previamente registrado utilizando su identificador único.")
     @GetMapping("/{id}")
-    public ResponseEntity<Player> search(@PathVariable Long id) {
+    public ResponseEntity<ProfileDTO> search(@PathVariable Long id) {
         log.info("Petición REST GET recibida en /api/v1/players/{}", id);
 
         Player player = playerService.searchPlayer(id);
 
         if (player != null) {
             log.info("Jugador encontrado. Retornando código HTTP 200 (OK).");
-            return ResponseEntity.ok(player);
+            return ResponseEntity.ok(playerMapper.toDto(player));
         } else {
             log.warn("Jugador no encontrado en la base de datos. Retornando código HTTP 404 (NOT FOUND).");
             return ResponseEntity.notFound().build();
@@ -74,12 +78,16 @@ public class PlayerController {
 
     @Operation(summary = "Listar todos los jugadores", description = "Retorna una lista completa de todos los jugadores registrados en la plataforma.")
     @GetMapping
-    public ResponseEntity<List<Player>> getAllPlayers() {
+    public ResponseEntity<List<ProfileDTO>> getAllPlayers() {
         log.info("Petición REST GET recibida en /api/v1/players");
 
         List<Player> players = playerService.getAllPlayers();
-        log.info("Retornando lista con {} jugadores. Código HTTP 200 (OK).", players.size());
+        List<ProfileDTO> profiles = players.stream()
+                .map(playerMapper::toDto)
+                .toList();
 
-        return ResponseEntity.ok(players);
+        log.info("Retornando lista con {} jugadores. Código HTTP 200 (OK).", profiles.size());
+
+        return ResponseEntity.ok(profiles);
     }
 }

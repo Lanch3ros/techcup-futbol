@@ -2,10 +2,12 @@ package com.example.controller;
 
 import com.example.controller.dto.request.TeamCreationRequest;
 import com.example.controller.dto.response.GenericResponse;
+import com.example.controller.mapper.TeamMapper;
 import com.example.core.model.Team;
 import com.example.core.service.TeamService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,18 +22,24 @@ import java.util.List;
 public class TeamController {
 
     private final TeamService teamService;
+    private final TeamMapper teamMapper;
 
-    public TeamController(TeamService teamService) {
+    // Se inyecta el mapper en el constructor
+    public TeamController(TeamService teamService, TeamMapper teamMapper) {
         this.teamService = teamService;
+        this.teamMapper = teamMapper;
     }
 
     @Operation(summary = "Crear un nuevo equipo", description = "Registra un equipo con su nombre y colores oficiales.")
     @PostMapping
-    public ResponseEntity<GenericResponse> createTeam(@RequestBody TeamCreationRequest request) {
+    public ResponseEntity<GenericResponse> createTeam(@RequestBody @Valid TeamCreationRequest request) {
         log.info("Petición REST POST recibida en /api/v1/teams para crear equipo: {}", request.getName());
 
         try {
-            teamService.createTeam(request.getName(), request.getColors());
+            Team teamEntity = teamMapper.toEntity(request);
+
+            teamService.createTeam(teamEntity);
+
             log.info("Petición procesada exitosamente. Retornando código HTTP 201 (CREATED).");
             return new ResponseEntity<>(new GenericResponse("Éxito", "Equipo creado correctamente"), HttpStatus.CREATED);
         } catch (Exception e) {
@@ -40,6 +48,7 @@ public class TeamController {
         }
     }
 
+    // Los métodos getAllTeams y getTeamById se mantienen igual
     @Operation(summary = "Listar todos los equipos", description = "Obtiene una lista con todos los equipos registrados en el sistema.")
     @GetMapping
     public ResponseEntity<List<Team>> getAllTeams() {

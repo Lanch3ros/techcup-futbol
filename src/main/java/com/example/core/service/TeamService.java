@@ -17,13 +17,10 @@ public class TeamService {
         this.teamRepository = teamRepository;
     }
 
-    public Team createTeam(String name, String colors) {
-        log.info("Iniciando creación de equipo con nombre: {}", name);
+    public Team createTeam(Team team) {
+        log.info("Iniciando creación de equipo con nombre: {}", team.getName());
 
-        Team newTeam = new Team();
-        newTeam.setName(name);
-        newTeam.setColors(colors);
-        Team savedTeam = teamRepository.save(newTeam);
+        Team savedTeam = teamRepository.save(team);
 
         log.info("Equipo creado exitosamente con ID: {}", savedTeam.getId());
         return savedTeam;

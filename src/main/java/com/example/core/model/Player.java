@@ -4,6 +4,9 @@ public interface Player {
     Long getId();
     void setId(Long id);
 
+    String getFullName();
+    String getEmail();
+    String getProfilePhoto();
     boolean validateEmail();
     void acceptInvitation(Long teamId);
     void rejectInvitation(Long teamId);

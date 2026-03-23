@@ -13,7 +13,7 @@ public class TournamentCreationRequest {
     private LocalDate endDate;
 
     @Min(value = 0, message = "Team cost must be greater than or equal to 0")
-    private Double teamCost; // RN-10: Costo >= 0
+    private Double teamCost;
 
     @NotBlank(message = "Rules cannot be empty")
     private String rules;

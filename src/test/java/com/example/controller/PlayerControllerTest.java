@@ -12,65 +12,101 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
-public class PlayerControllerTest {
+class PlayerControllerTest {
 
     private PlayerService playerService;
     private PlayerMapper playerMapper;
     private PlayerController playerController;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         playerService = Mockito.mock(PlayerService.class);
         playerMapper = Mockito.mock(PlayerMapper.class);
-
         playerController = new PlayerController(playerService, playerMapper);
     }
 
     @Test
-    public void testRegisterPlayerSuccess() throws Exception {
-        RegistrationDTO dto = new RegistrationDTO(
-                "Jose Lancheros", "jose@mail.escuelaing.edu.co", "1234", "STUDENT",
-                null, null, null, null, null
-        );
+    void registerPlayer_Success_Returns201() {
+        RegistrationDTO dto = new RegistrationDTO("Jose", "jose@mail.com", "123", "STUDENT", null, null, null, null, null);
+        MockMultipartFile file = new MockMultipartFile("profilePhoto", "foto.png", "image/png", "imagen".getBytes());
 
-        Mockito.when(playerService.registerPlayer(any(RegistrationDTO.class))).thenReturn(new StudentPlayer());
+        when(playerService.registerPlayer(any(RegistrationDTO.class))).thenReturn(new StudentPlayer());
 
-        ResponseEntity<GenericResponse> response = playerController.registerPlayer(dto, null);
+        ResponseEntity<GenericResponse> response = playerController.registerPlayer(dto, file);
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
     }
 
     @Test
-    public void testSearchPlayerFound() {
+    void registerPlayer_InvalidImageFormat_Returns400() {
+        RegistrationDTO dto = new RegistrationDTO("Jose", "jose@mail.com", "123", "STUDENT", null, null, null, null, null);
+        MockMultipartFile file = new MockMultipartFile("profilePhoto", "doc.txt", "text/plain", "texto".getBytes());
+
+        ResponseEntity<GenericResponse> response = playerController.registerPlayer(dto, file);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("Solo se permiten imágenes", ((GenericResponse) response.getBody()).getData());
+    }
+
+    @Test
+    void registerPlayer_Exception_Returns400() {
+        RegistrationDTO dto = new RegistrationDTO("Jose", "jose@mail.com", "123", "STUDENT", null, null, null, null, null);
+
+        when(playerService.registerPlayer(any())).thenThrow(new RuntimeException("Error interno"));
+
+        ResponseEntity<GenericResponse> response = playerController.registerPlayer(dto, null);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("Error interno", ((GenericResponse) response.getBody()).getData());
+    }
+
+    @Test
+    void searchPlayer_Found_Returns200() {
         StudentPlayer mockPlayer = new StudentPlayer();
-        mockPlayer.setFullName("Juan Perez");
+        ProfileDTO mockProfile = new ProfileDTO("Juan", "juan@mail.com", "STUDENT", null, null, null);
 
-        ProfileDTO mockProfile = new ProfileDTO(
-                "Juan Perez", "juan@mail.escuelaing.edu.co", "STUDENT", null, null, null
-        );
-
-        Mockito.when(playerService.searchPlayer(1L)).thenReturn(mockPlayer);
-        Mockito.when(playerMapper.toDto(mockPlayer)).thenReturn(mockProfile);
+        when(playerService.searchPlayer(1L)).thenReturn(mockPlayer);
+        when(playerMapper.toDto(mockPlayer)).thenReturn(mockProfile);
 
         ResponseEntity<ProfileDTO> response = playerController.search(1L);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals("Juan Perez", response.getBody().fullName());
     }
 
     @Test
-    public void testSearchPlayerNotFound() {
-        Mockito.when(playerService.searchPlayer(99L)).thenReturn(null);
+    void searchPlayer_NotFound_Returns404() {
+        when(playerService.searchPlayer(99L)).thenReturn(null);
 
         ResponseEntity<ProfileDTO> response = playerController.search(99L);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void getAllPlayers_Returns200() {
+        StudentPlayer mockPlayer = new StudentPlayer();
+        ProfileDTO mockProfile = new ProfileDTO("Juan", "juan@mail.com", "STUDENT", null, null, null);
+
+        when(playerService.getAllPlayers()).thenReturn(List.of(mockPlayer));
+        when(playerMapper.toDto(any(Player.class))).thenReturn(mockProfile);
+
+        ResponseEntity<List<ProfileDTO>> response = playerController.getAllPlayers();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
     }
 }

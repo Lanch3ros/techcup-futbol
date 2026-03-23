@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/players")
 @Tag(name = "Jugadores", description = "Endpoints para la gestión y registro de jugadores en TechCup")
@@ -37,14 +39,19 @@ public class PlayerController {
             @Parameter(description = "Foto de perfil opcional (JPG, PNG)")
             @RequestPart(value = "profilePhoto", required = false) MultipartFile profilePhoto) {
 
+        log.info("Petición REST POST recibida en /api/v1/players/register");
+
         if (profilePhoto != null && !profilePhoto.getContentType().startsWith("image/")) {
+            log.warn("Validación fallida: El archivo subido no es una imagen. ContentType: {}", profilePhoto.getContentType());
             return new ResponseEntity<>(new GenericResponse("Error", "Solo se permiten imágenes"), HttpStatus.BAD_REQUEST);
         }
 
         try {
             playerService.registerPlayer(request);
+            log.info("Petición procesada exitosamente. Retornando código HTTP 201 (CREATED).");
             return new ResponseEntity<>(new GenericResponse("Éxito", "Jugador creado correctamente"), HttpStatus.CREATED);
         } catch (Exception e) {
+            log.error("Fallo al procesar la petición de registro: {}", e.getMessage(), e);
             return new ResponseEntity<>(new GenericResponse("Error", e.getMessage()), HttpStatus.BAD_REQUEST);
         }
     }
@@ -52,13 +59,27 @@ public class PlayerController {
     @Operation(summary = "Buscar jugador por ID", description = "Retorna la información detallada de un jugador previamente registrado utilizando su identificador único.")
     @GetMapping("/{id}")
     public ResponseEntity<Player> search(@PathVariable Long id) {
+        log.info("Petición REST GET recibida en /api/v1/players/{}", id);
+
         Player player = playerService.searchPlayer(id);
-        return player != null ? ResponseEntity.ok(player) : ResponseEntity.notFound().build();
+
+        if (player != null) {
+            log.info("Jugador encontrado. Retornando código HTTP 200 (OK).");
+            return ResponseEntity.ok(player);
+        } else {
+            log.warn("Jugador no encontrado en la base de datos. Retornando código HTTP 404 (NOT FOUND).");
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @Operation(summary = "Listar todos los jugadores", description = "Retorna una lista completa de todos los jugadores registrados en la plataforma.")
     @GetMapping
     public ResponseEntity<List<Player>> getAllPlayers() {
-        return ResponseEntity.ok(playerService.getAllPlayers());
+        log.info("Petición REST GET recibida en /api/v1/players");
+
+        List<Player> players = playerService.getAllPlayers();
+        log.info("Retornando lista con {} jugadores. Código HTTP 200 (OK).", players.size());
+
+        return ResponseEntity.ok(players);
     }
 }

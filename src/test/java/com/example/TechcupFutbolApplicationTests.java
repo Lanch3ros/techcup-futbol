@@ -8,6 +8,7 @@ class TechcupFutbolApplicationTests {
 
 	@Test
 	void contextLoads() {
+        TechcupFutbolApplication.main(new String[]{});
 	}
 
 }

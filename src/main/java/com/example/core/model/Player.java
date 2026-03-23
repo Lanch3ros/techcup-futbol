@@ -12,4 +12,6 @@ public interface Player {
     void rejectInvitation(Long teamId);
     void setAvailable(boolean available);
     String getUserType();
+
+    void setFullName(String jugadorNuevo);
 }

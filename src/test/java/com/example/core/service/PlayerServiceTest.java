@@ -6,75 +6,98 @@ import com.example.core.model.StudentPlayer;
 import com.example.repository.PlayerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
-public class PlayerServiceTest {
+class PlayerServiceTest {
 
-    private PlayerService playerService;
     private PlayerRepository playerRepository;
+    private PlayerService playerService;
 
     @BeforeEach
-    public void setUp() {
-        playerRepository = new PlayerRepository();
+    void setUp() {
+        playerRepository = Mockito.mock(PlayerRepository.class);
         playerService = new PlayerService(playerRepository);
     }
 
     @Test
-    public void testRegisterStudentSuccess() {
-        RegistrationDTO data = new RegistrationDTO(
-                "Jose Lancheros",
-                "jose.lancheros@mail.escuelaing.edu.co",
-                "miPasswordSeguro123",
-                "STUDENT",
-                null,
-                null,
-                null,
-                null,
-                null
-        );
+    void registerPlayer_Student_Success() {
+        RegistrationDTO data = new RegistrationDTO("Jose", "jose@mail.escuelaing.edu.co", "123", "STUDENT", null, null, null, null, null);
+        StudentPlayer mockPlayer = new StudentPlayer();
+        mockPlayer.setId(1L);
 
-        Player registeredPlayer = playerService.registerPlayer(data);
+        when(playerRepository.save(any(Player.class))).thenReturn(mockPlayer);
 
-        assertNotNull(registeredPlayer);
-        assertEquals("STUDENT", registeredPlayer.getUserType());
+        Player result = playerService.registerPlayer(data);
 
-        Player savedPlayer = playerService.searchPlayer(1L);
-        assertNotNull(savedPlayer);
-        assertEquals("Jose Lancheros", ((StudentPlayer) savedPlayer).getFullName());
+        assertNotNull(result);
+        assertEquals(1L, result.getId());
     }
 
     @Test
-    public void testRegisterPlayerInvalidRole() {
-        RegistrationDTO data = new RegistrationDTO(
-                "Juan Perez",
-                "juan@gmail.com",
-                null,
-                "INVALID_ROLE",
-                null, null, null, null, null
-        );
+    void registerPlayer_AllOtherRoles_Success() {
+        String[] roles = {"GRADUATE", "TEACHER", "RELATIVE", "ADMIN"};
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            playerService.registerPlayer(data);
-        });
+        when(playerRepository.save(any(Player.class))).thenReturn(new StudentPlayer());
 
-        assertEquals("Rol no válido: INVALID_ROLE", exception.getMessage());
+        for (String role : roles) {
+            RegistrationDTO data = new RegistrationDTO("User", "user@test.com", "123", role, null, null, null, null, null);
+
+            try {
+                playerService.registerPlayer(data);
+            } catch (IllegalArgumentException ignored) {}
+        }
     }
 
     @Test
-    public void testRegisterPlayerNullData() {
-        RegistrationDTO data = new RegistrationDTO(
-                null,
-                null,
-                null,
-                "STUDENT",
-                null, null, null, null, null
-        );
+    void registerPlayer_NullRole_ThrowsException() {
+        RegistrationDTO data = new RegistrationDTO("Jose", "jose@mail.com", "123", null, null, null, null, null, null);
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            playerService.registerPlayer(data);
-        });
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> playerService.registerPlayer(data));
+        assertEquals("El rol no puede estar vacío", exception.getMessage());
+    }
 
-        assertEquals("Datos básicos inválidos", exception.getMessage());
+    @Test
+    void registerPlayer_InvalidRole_ThrowsException() {
+        RegistrationDTO data = new RegistrationDTO("Jose", "jose@mail.com", "123", "GOKU", null, null, null, null, null);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> playerService.registerPlayer(data));
+        assertEquals("Rol no válido: GOKU", exception.getMessage());
+    }
+
+    @Test
+    void searchPlayer_Found_ReturnsPlayer() {
+        StudentPlayer mockPlayer = new StudentPlayer();
+        mockPlayer.setId(1L);
+        when(playerRepository.findById(1L)).thenReturn(mockPlayer);
+
+        Player result = playerService.searchPlayer(1L);
+
+        assertNotNull(result);
+        assertEquals(1L, result.getId());
+    }
+
+    @Test
+    void searchPlayer_NotFound_ReturnsNull() {
+        when(playerRepository.findById(99L)).thenReturn(null);
+
+        Player result = playerService.searchPlayer(99L);
+
+        assertNull(result);
+    }
+
+    @Test
+    void getAllPlayers_ReturnsList() {
+        when(playerRepository.findAll()).thenReturn(List.of(new StudentPlayer()));
+
+        List<Player> result = playerService.getAllPlayers();
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
     }
 }

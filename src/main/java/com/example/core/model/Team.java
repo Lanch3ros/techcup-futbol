@@ -11,7 +11,7 @@ import java.util.List;
 public class Team {
     private Long id;
     private String name;
-    private String uniformColors;
+    private String colors;
     private String paymentStatus;
     private List<Player> players;
     private Player captain;

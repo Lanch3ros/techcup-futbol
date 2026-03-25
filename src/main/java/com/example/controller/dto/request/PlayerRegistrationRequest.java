@@ -22,7 +22,7 @@ public class PlayerRegistrationRequest {
     @Max(value = 99, message = "El número del dorsal debe ser igual o menor a 99")
     private int jerseyNumber;
 
-    @Pattern(regexp = "^(Portero | Defensa | Centro | Delantero)$", message = "Posición invalida")
+    @Pattern(regexp = "^(Portero|Defensa|Volante|Delantero)$", message = "Posición invalida")
     private String position;
 
 }

@@ -14,7 +14,7 @@ public class AdminPlayer extends User implements Player {
     private Long id;
     private String department;
     private String position;
-    private int jerseyNumber;
+    private Integer jerseyNumber;
     private boolean available;
     private Long teamId;
 

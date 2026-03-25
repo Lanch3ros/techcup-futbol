@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 public class TeacherPlayer extends User implements Player {
     private Long id;
     private String department;
-    private int jerseyNumber;
+    private Integer jerseyNumber;
     private String position;
     private Long teamId;
     private boolean available;

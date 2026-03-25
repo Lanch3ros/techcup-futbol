@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 public class RelativePlayer extends User implements Player {
     private Long id;
     private String relationship;
-    private int jerseyNumber;
+    private Integer jerseyNumber;
     private String position;
     private Long teamId;
     private boolean available;

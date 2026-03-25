@@ -1,7 +1,7 @@
 package com.example.core.service;
 
+import com.example.controller.dto.request.PlayerRegistrationRequest;
 import com.example.core.factory.*;
-import com.example.controller.dto.RegistrationDTO;
 import com.example.core.model.Player;
 import com.example.repository.PlayerRepository;
 import com.example.core.exception.ResourceNotFoundException;
@@ -20,10 +20,10 @@ public class PlayerService {
         this.playerRepository = playerRepository;
     }
 
-    public Player registerPlayer(RegistrationDTO data) {
-        log.info("Iniciando registro de jugador con rol: {}", data.role());
+    public Player registerPlayer(PlayerRegistrationRequest data) {
 
-        PlayerFactory factory = getFactoryByRole(data.role());
+        log.info("Iniciando registro de jugador con rol: {}", data.getUserType());
+        PlayerFactory factory = getFactoryByRole(data.getUserType());
         Player newPlayer = factory.registerPlayerData(data);
         Player savedPlayer = playerRepository.save(newPlayer);
 

@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.example.controller.dto.request.PlayerRegistrationRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,7 @@ public class PlayerController {
     @PostMapping(value = "/register", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<GenericResponse> registerPlayer(
             @Parameter(description = "Datos del jugador en formato JSON", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
-            @Valid @RequestPart("playerData") RegistrationDTO request,
+            @Valid @RequestPart("playerData") PlayerRegistrationRequest request,
 
             @Parameter(description = "Foto de perfil opcional (JPG, PNG)")
             @RequestPart(value = "profilePhoto", required = false) MultipartFile profilePhoto) {

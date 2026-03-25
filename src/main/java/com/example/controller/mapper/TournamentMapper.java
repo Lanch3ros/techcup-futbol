@@ -15,11 +15,11 @@ public class TournamentMapper {
         Tournament tournament = new Tournament();
         tournament.setStartDate(request.getStartDate());
         tournament.setEndDate(request.getEndDate());
+        tournament.setMaxTeams(request.getNumberOfTeams());
         tournament.setTeamCost(request.getTeamCost());
-
         tournament.setRegulations(request.getRules());
 
-        tournament.setStatus("CREATED");
+        tournament.setStatus("Borrador");
 
         return tournament;
     }

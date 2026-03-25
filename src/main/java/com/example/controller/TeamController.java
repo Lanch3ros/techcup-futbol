@@ -1,5 +1,6 @@
 package com.example.controller;
 
+import com.example.controller.dto.request.LineupRequest;
 import com.example.controller.dto.request.TeamCreationRequest;
 import com.example.controller.dto.response.GenericResponse;
 import com.example.controller.mapper.TeamMapper;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -24,20 +26,18 @@ public class TeamController {
     private final TeamService teamService;
     private final TeamMapper teamMapper;
 
-    // Se inyecta el mapper en el constructor
     public TeamController(TeamService teamService, TeamMapper teamMapper) {
         this.teamService = teamService;
         this.teamMapper = teamMapper;
     }
 
-    @Operation(summary = "Crear un nuevo equipo", description = "Registra un equipo con su nombre y colores oficiales.")
+    @Operation(summary = "Crear un nuevo equipo", description = "Registra un equipo con su nombre y colores oficiales. El usuario que lo crea queda designado como capitán.")
     @PostMapping
     public ResponseEntity<GenericResponse> createTeam(@RequestBody @Valid TeamCreationRequest request) {
         log.info("Petición REST POST recibida en /api/v1/teams para crear equipo: {}", request.getName());
 
         try {
             Team teamEntity = teamMapper.toEntity(request);
-
             teamService.createTeam(teamEntity);
 
             log.info("Petición procesada exitosamente. Retornando código HTTP 201 (CREATED).");
@@ -48,7 +48,6 @@ public class TeamController {
         }
     }
 
-    // Los métodos getAllTeams y getTeamById se mantienen igual
     @Operation(summary = "Listar todos los equipos", description = "Obtiene una lista con todos los equipos registrados en el sistema.")
     @GetMapping
     public ResponseEntity<List<Team>> getAllTeams() {
@@ -73,6 +72,41 @@ public class TeamController {
         } else {
             log.warn("Equipo no encontrado en la base de datos con ID: {}. Retornando código HTTP 404 (NOT FOUND).", id);
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Operation(summary = "Enviar invitación a un jugador para unirse al equipo", description = "El capitán envía una solicitud a un jugador disponible usando su ID. El sistema validará que el equipo no exceda el máximo de 12 jugadores.")
+    @PostMapping("/{id}/invitations")
+    public ResponseEntity<GenericResponse> sendInvitation(@PathVariable Long id, @RequestBody Map<String, Long> payload) {
+        log.info("Petición REST POST recibida en /api/v1/teams/{}/invitations", id);
+        try {
+            Long playerId = payload.get("playerId");
+            if (playerId == null) {
+                return ResponseEntity.badRequest().body(new GenericResponse("Error", "El campo 'playerId' es obligatorio"));
+            }
+
+            teamService.sendInvitation(id, playerId);
+            log.info("Invitación enviada exitosamente del equipo {} al jugador {}.", id, playerId);
+
+            return ResponseEntity.ok(new GenericResponse("Éxito", "Invitación enviada correctamente al jugador"));
+        } catch (Exception e) {
+            log.error("Error al enviar invitación del equipo {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Configurar alineación titular (Mín. 7 jugadores)", description = "Permite al capitán organizar su formación antes del partido, seleccionando los titulares y la formación táctica.")
+    @PutMapping("/{id}/lineup")
+    public ResponseEntity<GenericResponse> configureLineup(@PathVariable Long id, @RequestBody @Valid LineupRequest request) {
+        log.info("Petición REST PUT recibida en /api/v1/teams/{}/lineup", id);
+        try {
+            teamService.configureLineup(id, request);
+            log.info("Alineación configurada exitosamente para el equipo {}.", id);
+
+            return ResponseEntity.ok(new GenericResponse("Éxito", "Alineación guardada correctamente"));
+        } catch (Exception e) {
+            log.error("Error al configurar la alineación del equipo {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
 }

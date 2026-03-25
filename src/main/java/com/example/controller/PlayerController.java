@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -89,5 +90,89 @@ public class PlayerController {
         log.info("Retornando lista con {} jugadores. Código HTTP 200 (OK).", profiles.size());
 
         return ResponseEntity.ok(profiles);
+    }
+
+    @Operation(summary = "Actualizar la posición de juego del jugador", description = "Modifica la posición preferida del jugador en la cancha.")
+    @PatchMapping("/{id}/position")
+    public ResponseEntity<GenericResponse> updatePosition(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        log.info("Petición REST PATCH recibida en /api/v1/players/{}/position", id);
+        try {
+            String newPosition = payload.get("position");
+            if (newPosition == null || newPosition.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(new GenericResponse("Error", "El campo 'position' no puede estar vacío"));
+            }
+
+            playerService.updatePosition(id, newPosition);
+            log.info("Posición del jugador {} actualizada exitosamente a {}.", id, newPosition);
+
+            return ResponseEntity.ok(new GenericResponse("Éxito", "Posición actualizada correctamente"));
+        } catch (Exception e) {
+            log.error("Error al actualizar la posición del jugador {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Cambiar el estado de disponibilidad del jugador", description = "Marca si el jugador está disponible como agente libre para ser reclutado o si ya pertenece a un equipo.")
+    @PatchMapping("/{id}/availability")
+    public ResponseEntity<GenericResponse> updateAvailability(@PathVariable Long id, @RequestBody Map<String, Boolean> payload) {
+        log.info("Petición REST PATCH recibida en /api/v1/players/{}/availability", id);
+        try {
+            Boolean isAvailable = payload.get("available");
+            if (isAvailable == null) {
+                return ResponseEntity.badRequest().body(new GenericResponse("Error", "El campo 'available' es obligatorio"));
+            }
+
+            playerService.updateAvailability(id, isAvailable);
+            log.info("Disponibilidad del jugador {} actualizada exitosamente a {}.", id, isAvailable);
+
+            return ResponseEntity.ok(new GenericResponse("Éxito", "Estado de disponibilidad actualizado"));
+        } catch (Exception e) {
+            log.error("Error al actualizar la disponibilidad del jugador {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Asignar o cambiar el número dorsal", description = "Permite al jugador elegir el número que usará en su camiseta durante el torneo.")
+    @PatchMapping("/{id}/jersey-number")
+    public ResponseEntity<GenericResponse> updateJerseyNumber(@PathVariable Long id, @RequestBody Map<String, Integer> payload) {
+        log.info("Petición REST PATCH recibida en /api/v1/players/{}/jersey-number", id);
+        try {
+            Integer jerseyNumber = payload.get("jerseyNumber");
+            if (jerseyNumber == null || jerseyNumber <= 0 || jerseyNumber > 99) {
+                return ResponseEntity.badRequest().body(new GenericResponse("Error", "El número dorsal debe ser válido (ej. entre 1 y 99)"));
+            }
+
+            playerService.updateJerseyNumber(id, jerseyNumber);
+            log.info("Dorsal del jugador {} actualizado exitosamente a {}.", id, jerseyNumber);
+
+            return ResponseEntity.ok(new GenericResponse("Éxito", "Número dorsal actualizado correctamente"));
+        } catch (Exception e) {
+            log.error("Error al actualizar el dorsal del jugador {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Responder a una invitación de equipo", description = "Permite a un jugador aceptar o rechazar la invitación para unirse a un equipo específico.")
+    @PatchMapping("/{id}/invitations/{teamId}")
+    public ResponseEntity<GenericResponse> respondToInvitation(
+            @PathVariable Long id,
+            @PathVariable Long teamId,
+            @RequestBody Map<String, String> payload) {
+
+        log.info("Petición REST PATCH recibida en /api/v1/players/{}/invitations/{}", id, teamId);
+        try {
+            String action = payload.get("action");
+            if (action == null || (!action.equalsIgnoreCase("ACCEPT") && !action.equalsIgnoreCase("REJECT"))) {
+                return ResponseEntity.badRequest().body(new GenericResponse("Error", "La acción debe ser ACCEPT o REJECT"));
+            }
+
+            playerService.respondToInvitation(id, teamId, action.toUpperCase());
+            log.info("Jugador {} ha respondido {} a la invitación del equipo {}.", id, action, teamId);
+
+            return ResponseEntity.ok(new GenericResponse("Éxito", "Respuesta a la invitación procesada correctamente"));
+        } catch (Exception e) {
+            log.error("Error al procesar la invitación del jugador {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
     }
 }

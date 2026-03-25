@@ -1,6 +1,5 @@
 package com.example.core.factory;
 
-import com.example.controller.dto.RegistrationDTO;
 import com.example.core.model.*;
 import org.junit.jupiter.api.Test;
 

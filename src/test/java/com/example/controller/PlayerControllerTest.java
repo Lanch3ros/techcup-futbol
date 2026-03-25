@@ -1,7 +1,6 @@
 package com.example.controller;
 
-import com.example.controller.dto.ProfileDTO;
-import com.example.controller.dto.RegistrationDTO;
+import com.example.controller.dto.response.ProfileDTO;
 import com.example.controller.dto.response.GenericResponse;
 import com.example.controller.mapper.PlayerMapper;
 import com.example.core.model.Player;

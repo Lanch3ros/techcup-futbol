@@ -1,6 +1,5 @@
 package com.example.core.service;
 
-import com.example.controller.dto.RegistrationDTO;
 import com.example.core.model.Player;
 import com.example.core.model.StudentPlayer;
 import com.example.repository.PlayerRepository;

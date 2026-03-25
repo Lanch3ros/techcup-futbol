@@ -1,6 +1,6 @@
 package com.example.controller.mapper;
 
-import com.example.controller.dto.ProfileDTO;
+import com.example.controller.dto.response.ProfileDTO;
 import com.example.core.model.StudentPlayer;
 import org.junit.jupiter.api.Test;
 

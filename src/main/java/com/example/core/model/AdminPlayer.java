@@ -15,7 +15,7 @@ public class AdminPlayer extends User implements Player {
     private String department;
     private String position;
     private Integer jerseyNumber;
-    private boolean available;
+    private boolean available = true;
     private Long teamId;
 
     @Override

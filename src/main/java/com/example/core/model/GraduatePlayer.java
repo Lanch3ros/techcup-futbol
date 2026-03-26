@@ -15,8 +15,7 @@ public class GraduatePlayer extends User implements Player {
     private Integer jerseyNumber;
     private String position;
     private Long teamId;
-    private boolean available;
-
+    private boolean available = true;
     @Override
     public boolean validateEmail() { return false; }
 

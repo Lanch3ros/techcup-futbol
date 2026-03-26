@@ -1,6 +1,8 @@
 package com.example.core.service;
 
+import com.example.core.exception.ResourceNotFoundException;
 import com.example.core.model.Team;
+import com.example.repository.PlayerRepository;
 import com.example.repository.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,12 +17,14 @@ import static org.mockito.Mockito.when;
 class TeamServiceTest {
 
     private TeamRepository teamRepository;
+    private PlayerRepository playerRepository;
     private TeamService teamService;
 
     @BeforeEach
     void setUp() {
         teamRepository = Mockito.mock(TeamRepository.class);
-        teamService = new TeamService(teamRepository);
+        playerRepository = Mockito.mock(PlayerRepository.class);
+        teamService = new TeamService(teamRepository, playerRepository);
     }
 
     @Test
@@ -68,11 +72,10 @@ class TeamServiceTest {
     }
 
     @Test
-    void getTeamById_NotFound_ReturnsNull() {
+    void getTeamById_NotFound_ThrowsResourceNotFoundException() {
         when(teamRepository.findById(99L)).thenReturn(null);
 
-        Team result = teamService.getTeamById(99L);
-
-        assertNull(result);
+        // TeamService lanza ResourceNotFoundException cuando no encuentra el equipo
+        assertThrows(ResourceNotFoundException.class, () -> teamService.getTeamById(99L));
     }
 }

@@ -1,5 +1,6 @@
 package com.example.core.service;
 
+import com.example.controller.dto.request.PlayerRegistrationRequest;
 import com.example.core.model.Player;
 import com.example.core.model.StudentPlayer;
 import com.example.repository.PlayerRepository;
@@ -24,9 +25,21 @@ class PlayerServiceTest {
         playerService = new PlayerService(playerRepository);
     }
 
+    private PlayerRegistrationRequest buildRequest(String name, String email, String role) {
+        PlayerRegistrationRequest request = new PlayerRegistrationRequest();
+        request.setName(name);
+        request.setEmail(email);
+        request.setPassword("12345678");
+        request.setUserType(role);
+        request.setJerseyNumber(10);
+        request.setPosition("Delantero");
+        return request;
+    }
+
     @Test
     void registerPlayer_Student_Success() {
-        RegistrationDTO data = new RegistrationDTO("Jose", "jose@mail.escuelaing.edu.co", "123", "STUDENT", null, null, null, null, null);
+        PlayerRegistrationRequest data = buildRequest("Jose", "jose@mail.escuelaing.edu.co", "STUDENT");
+
         StudentPlayer mockPlayer = new StudentPlayer();
         mockPlayer.setId(1L);
 
@@ -39,33 +52,48 @@ class PlayerServiceTest {
     }
 
     @Test
-    void registerPlayer_AllOtherRoles_Success() {
-        String[] roles = {"GRADUATE", "TEACHER", "RELATIVE", "ADMIN"};
-
+    void registerPlayer_Graduate_Success() {
+        PlayerRegistrationRequest data = buildRequest("Ana", "ana@mail.escuelaing.edu.co", "GRADUATE");
         when(playerRepository.save(any(Player.class))).thenReturn(new StudentPlayer());
+        assertDoesNotThrow(() -> playerService.registerPlayer(data));
+    }
 
-        for (String role : roles) {
-            RegistrationDTO data = new RegistrationDTO("User", "user@test.com", "123", role, null, null, null, null, null);
+    @Test
+    void registerPlayer_Teacher_Success() {
+        PlayerRegistrationRequest data = buildRequest("Prof", "prof@escuelaing.edu.co", "TEACHER");
+        when(playerRepository.save(any(Player.class))).thenReturn(new StudentPlayer());
+        assertDoesNotThrow(() -> playerService.registerPlayer(data));
+    }
 
-            try {
-                playerService.registerPlayer(data);
-            } catch (IllegalArgumentException ignored) {}
-        }
+    @Test
+    void registerPlayer_Relative_Success() {
+        PlayerRegistrationRequest data = buildRequest("Fam", "fam@gmail.com", "RELATIVE");
+        when(playerRepository.save(any(Player.class))).thenReturn(new StudentPlayer());
+        assertDoesNotThrow(() -> playerService.registerPlayer(data));
+    }
+
+    @Test
+    void registerPlayer_Admin_Success() {
+        PlayerRegistrationRequest data = buildRequest("Admin", "admin@escuelaing.edu.co", "ADMIN");
+        when(playerRepository.save(any(Player.class))).thenReturn(new StudentPlayer());
+        assertDoesNotThrow(() -> playerService.registerPlayer(data));
     }
 
     @Test
     void registerPlayer_NullRole_ThrowsException() {
-        RegistrationDTO data = new RegistrationDTO("Jose", "jose@mail.com", "123", null, null, null, null, null, null);
+        PlayerRegistrationRequest data = buildRequest("Jose", "jose@mail.com", null);
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> playerService.registerPlayer(data));
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> playerService.registerPlayer(data));
         assertEquals("El rol no puede estar vacío", exception.getMessage());
     }
 
     @Test
     void registerPlayer_InvalidRole_ThrowsException() {
-        RegistrationDTO data = new RegistrationDTO("Jose", "jose@mail.com", "123", "GOKU", null, null, null, null, null);
+        PlayerRegistrationRequest data = buildRequest("Jose", "jose@mail.com", "GOKU");
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> playerService.registerPlayer(data));
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> playerService.registerPlayer(data));
         assertEquals("Rol no válido: GOKU", exception.getMessage());
     }
 

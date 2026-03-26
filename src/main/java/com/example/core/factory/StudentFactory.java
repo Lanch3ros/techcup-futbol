@@ -14,6 +14,10 @@ public class StudentFactory extends PlayerFactory {
         StudentPlayer student = new StudentPlayer();
         student.setFullName(data.getName());
         student.setEmail(data.getEmail());
+        student.setPassword(data.getPassword());
+        student.setPosition(data.getPosition());
+        student.setJerseyNumber(data.getJerseyNumber());
+        student.setAvailable(true);
         return student;
     }
 

@@ -17,5 +17,6 @@ public interface Player {
     String getPosition();
     boolean isAvailable();
     void setJerseyNumber(Integer jerseyNumber);
+    Integer getJerseyNumber();
     void setTeamId(Long teamId);
 }

@@ -17,8 +17,8 @@ public class PlayerMapper {
                 player.getEmail(),
                 player.getUserType(),
                 player.getProfilePhoto(),
-                null,
-                null
+                player.getJerseyNumber(),
+                player.getPosition()
         );
     }
 }

@@ -71,6 +71,10 @@ https://lucid.app/lucidchart/3777f7f9-49cb-4f47-859d-86e581460502/edit?viewport_
 
 ![componentesespecifico.png](docs/images/componentesespecifico.png)
 
+#### 1.5 DIAGRAMA ER (ENTIDAD-RELACIÓN)
+
+![DiagramaER.png](docs/images/DiagramaER.png)
+
 ### 2. ANÁLISIS DE REQUERIMIENTOS
 
 [Plantilla Analisis de requerimientos.pdf](docs/requirements/Plantilla%20Analisis%20de%20requerimientos.pdf)

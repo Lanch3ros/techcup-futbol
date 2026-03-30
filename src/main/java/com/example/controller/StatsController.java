@@ -25,45 +25,54 @@ public class StatsController {
     }
 
 
-    @Operation(summary = "Máximos goleadores (global)",
-            description = "Retorna la tabla de goleadores ordenada de mayor a menor cantidad de goles.")
+    @Operation(summary = "Máximos goleadores (global)")
     @GetMapping("/top-scorers")
     public ResponseEntity<List<PlayerStats>> getTopScorers() {
         log.info("GET /api/v1/stats/top-scorers");
-        return ResponseEntity.ok(statsService.getTopScorers());
+        List<PlayerStats> scorers = statsService.getTopScorers();
+        log.info("Tabla de goleadores globales retornada: {} jugadores", scorers.size());
+        return ResponseEntity.ok(scorers);
     }
 
 
-    @Operation(summary = "Máximos goleadores de un torneo",
-            description = "Retorna los goleadores filtrados por torneo específico.")
+    @Operation(summary = "Máximos goleadores de un torneo")
     @GetMapping("/tournaments/{tournamentId}/top-scorers")
     public ResponseEntity<List<PlayerStats>> getTopScorersByTournament(@PathVariable Long tournamentId) {
         log.info("GET /api/v1/stats/tournaments/{}/top-scorers", tournamentId);
-        return ResponseEntity.ok(statsService.getTopScorersByTournament(tournamentId));
+        List<PlayerStats> scorers = statsService.getTopScorersByTournament(tournamentId);
+        log.info("Goleadores del torneo ID {}: {} jugadores", tournamentId, scorers.size());
+        return ResponseEntity.ok(scorers);
     }
 
 
-    @Operation(summary = "Estadísticas individuales de un jugador",
-            description = "Retorna goles, tarjetas amarillas, tarjetas rojas y partidos jugados de un jugador.")
+    @Operation(summary = "Estadísticas individuales de un jugador")
     @GetMapping("/players/{id}")
     public ResponseEntity<PlayerStats> getPlayerStats(@PathVariable Long id) {
         log.info("GET /api/v1/stats/players/{}", id);
         try {
-            return ResponseEntity.ok(statsService.getPlayerStats(id));
+            PlayerStats stats = statsService.getPlayerStats(id);
+            log.info("Estadísticas del jugador ID {}: {} goles, {} amarillas, {} rojas",
+                    id, stats.getGoals(), stats.getYellowCards(), stats.getRedCards());
+            return ResponseEntity.ok(stats);
         } catch (Exception e) {
+            log.warn("Jugador no encontrado para estadísticas - ID: {}", id);
             return ResponseEntity.notFound().build();
         }
     }
 
 
-    @Operation(summary = "Estadísticas de un equipo",
-            description = "Retorna partidos jugados, ganados, empatados, perdidos, goles y puntos del equipo.")
+    @Operation(summary = "Estadísticas de un equipo")
     @GetMapping("/teams/{id}")
     public ResponseEntity<StandingDTO> getTeamStats(@PathVariable Long id) {
         log.info("GET /api/v1/stats/teams/{}", id);
         try {
-            return ResponseEntity.ok(statsService.getTeamStats(id));
+            StandingDTO stats = statsService.getTeamStats(id);
+            log.info("Estadísticas del equipo ID {}: {} pts, {} PJ, {} PG, {} PE, {} PP",
+                    id, stats.getPoints(), stats.getMatchesPlayed(),
+                    stats.getMatchesWon(), stats.getMatchesDrawn(), stats.getMatchesLost());
+            return ResponseEntity.ok(stats);
         } catch (Exception e) {
+            log.warn("Equipo no encontrado para estadísticas - ID: {}", id);
             return ResponseEntity.notFound().build();
         }
     }

@@ -8,7 +8,6 @@ import com.example.core.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -44,16 +43,19 @@ public class PlayerController {
             @Valid @RequestPart("playerData") PlayerRegistrationRequest request,
             @RequestPart(value = "profilePhoto", required = false) MultipartFile profilePhoto) {
 
-        log.info("POST /api/v1/players/register");
+        log.info("POST /api/v1/players/register - userType: {}, email: {}", request.getUserType(), request.getEmail());
 
         if (profilePhoto != null && !profilePhoto.getContentType().startsWith("image/")) {
+            log.warn("Formato de imagen inválido: {}", profilePhoto.getContentType());
             return new ResponseEntity<>(new GenericResponse("Error", "Solo se permiten imágenes"), HttpStatus.BAD_REQUEST);
         }
 
         try {
             playerService.registerPlayer(request);
+            log.info("Jugador registrado exitosamente - email: {}", request.getEmail());
             return new ResponseEntity<>(new GenericResponse("Éxito", "Jugador creado correctamente"), HttpStatus.CREATED);
         } catch (Exception e) {
+            log.error("Error al registrar jugador - email: {}, causa: {}", request.getEmail(), e.getMessage());
             return new ResponseEntity<>(new GenericResponse("Error", e.getMessage()), HttpStatus.BAD_REQUEST);
         }
     }
@@ -64,7 +66,11 @@ public class PlayerController {
     public ResponseEntity<ProfileDTO> search(@PathVariable Long id) {
         log.info("GET /api/v1/players/{}", id);
         Player player = playerService.searchPlayer(id);
-        if (player != null) return ResponseEntity.ok(playerMapper.toDto(player));
+        if (player != null) {
+            log.info("Jugador encontrado - ID: {}", id);
+            return ResponseEntity.ok(playerMapper.toDto(player));
+        }
+        log.warn("Jugador no encontrado - ID: {}", id);
         return ResponseEntity.notFound().build();
     }
 
@@ -75,6 +81,7 @@ public class PlayerController {
         log.info("GET /api/v1/players");
         List<ProfileDTO> profiles = playerService.getAllPlayers().stream()
                 .map(playerMapper::toDto).toList();
+        log.info("Total de jugadores retornados: {}", profiles.size());
         return ResponseEntity.ok(profiles);
     }
 
@@ -85,6 +92,7 @@ public class PlayerController {
         log.info("GET /api/v1/players/available");
         List<ProfileDTO> profiles = playerService.getAvailablePlayers().stream()
                 .map(playerMapper::toDto).toList();
+        log.info("Jugadores disponibles retornados: {}", profiles.size());
         return ResponseEntity.ok(profiles);
     }
 
@@ -98,6 +106,7 @@ public class PlayerController {
         log.info("GET /api/v1/players/search - position: {}, name: {}", position, name);
         List<ProfileDTO> profiles = playerService.searchPlayers(position, name).stream()
                 .map(playerMapper::toDto).toList();
+        log.info("Resultados de búsqueda: {} jugadores encontrados", profiles.size());
         return ResponseEntity.ok(profiles);
     }
 
@@ -109,11 +118,14 @@ public class PlayerController {
         try {
             String newPosition = payload.get("position");
             if (newPosition == null || newPosition.trim().isEmpty()) {
+                log.warn("Campo 'position' vacío en la petición para jugador ID: {}", id);
                 return ResponseEntity.badRequest().body(new GenericResponse("Error", "El campo 'position' no puede estar vacío"));
             }
             playerService.updatePosition(id, newPosition);
+            log.info("Posición actualizada para jugador ID: {} -> {}", id, newPosition);
             return ResponseEntity.ok(new GenericResponse("Éxito", "Posición actualizada correctamente"));
         } catch (Exception e) {
+            log.error("Error al actualizar posición del jugador ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
@@ -126,11 +138,14 @@ public class PlayerController {
         try {
             Boolean isAvailable = payload.get("available");
             if (isAvailable == null) {
+                log.warn("Campo 'available' no proporcionado para jugador ID: {}", id);
                 return ResponseEntity.badRequest().body(new GenericResponse("Error", "El campo 'available' es obligatorio"));
             }
             playerService.updateAvailability(id, isAvailable);
+            log.info("Disponibilidad actualizada para jugador ID: {} -> {}", id, isAvailable);
             return ResponseEntity.ok(new GenericResponse("Éxito", "Estado de disponibilidad actualizado"));
         } catch (Exception e) {
+            log.error("Error al actualizar disponibilidad del jugador ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
@@ -143,11 +158,14 @@ public class PlayerController {
         try {
             Integer jerseyNumber = payload.get("jerseyNumber");
             if (jerseyNumber == null || jerseyNumber <= 0 || jerseyNumber > 99) {
+                log.warn("Número dorsal inválido: {} para jugador ID: {}", jerseyNumber, id);
                 return ResponseEntity.badRequest().body(new GenericResponse("Error", "El número dorsal debe ser válido (entre 1 y 99)"));
             }
             playerService.updateJerseyNumber(id, jerseyNumber);
+            log.info("Número dorsal actualizado para jugador ID: {} -> {}", id, jerseyNumber);
             return ResponseEntity.ok(new GenericResponse("Éxito", "Número dorsal actualizado correctamente"));
         } catch (Exception e) {
+            log.error("Error al actualizar dorsal del jugador ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
@@ -164,11 +182,14 @@ public class PlayerController {
         try {
             String action = payload.get("action");
             if (action == null || (!action.equalsIgnoreCase("ACCEPT") && !action.equalsIgnoreCase("REJECT"))) {
+                log.warn("Acción inválida '{}' para invitación - jugador ID: {}, equipo ID: {}", action, id, teamId);
                 return ResponseEntity.badRequest().body(new GenericResponse("Error", "La acción debe ser ACCEPT o REJECT"));
             }
             playerService.respondToInvitation(id, teamId, action.toUpperCase());
+            log.info("Invitación procesada - jugador ID: {}, equipo ID: {}, acción: {}", id, teamId, action);
             return ResponseEntity.ok(new GenericResponse("Éxito", "Respuesta a la invitación procesada correctamente"));
         } catch (Exception e) {
+            log.error("Error al procesar invitación - jugador ID: {}, equipo ID: {} - {}", id, teamId, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
@@ -183,14 +204,18 @@ public class PlayerController {
         log.info("PATCH /api/v1/players/{}/photo", id);
         try {
             if (photo == null || !photo.getContentType().startsWith("image/")) {
+                log.warn("Formato de archivo inválido para foto de jugador ID: {}", id);
                 return ResponseEntity.badRequest().body(new GenericResponse("Error", "Solo se permiten archivos de imagen"));
             }
             Player player = playerService.searchPlayer(id);
             if (player == null) {
+                log.warn("Jugador no encontrado al actualizar foto - ID: {}", id);
                 return ResponseEntity.notFound().build();
             }
+            log.info("Foto de perfil actualizada para jugador ID: {}", id);
             return ResponseEntity.ok(new GenericResponse("Éxito", "Foto de perfil actualizada correctamente"));
         } catch (Exception e) {
+            log.error("Error al actualizar foto del jugador ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }

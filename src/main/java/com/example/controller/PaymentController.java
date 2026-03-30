@@ -28,44 +28,47 @@ public class PaymentController {
     }
 
 
-    @Operation(summary = "Registrar comprobante de pago",
-            description = "El capitán sube el comprobante de pago del equipo. El estado inicial es 'Pendiente'.")
+    @Operation(summary = "Registrar comprobante de pago")
     @PostMapping
     public ResponseEntity<GenericResponse> createPayment(@RequestBody @Valid PaymentRequest request) {
-        log.info("POST /api/v1/payments - equipo: {}", request.getTeamId());
+        log.info("POST /api/v1/payments - equipo ID: {}", request.getTeamId());
         try {
             Payment payment = paymentService.createPayment(request);
+            log.info("Comprobante de pago registrado exitosamente - ID: {}, equipo ID: {}", payment.getId(), request.getTeamId());
             return new ResponseEntity<>(new GenericResponse("Éxito", payment), HttpStatus.CREATED);
         } catch (Exception e) {
+            log.error("Error al registrar comprobante de pago para equipo ID: {} - {}", request.getTeamId(), e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
 
 
-    @Operation(summary = "Listar todos los pagos",
-            description = "Vista del organizador para revisar todos los comprobantes de pago registrados.")
+    @Operation(summary = "Listar todos los pagos")
     @GetMapping
     public ResponseEntity<List<Payment>> getAllPayments() {
         log.info("GET /api/v1/payments");
-        return ResponseEntity.ok(paymentService.getAllPayments());
+        List<Payment> payments = paymentService.getAllPayments();
+        log.info("Total de pagos retornados: {}", payments.size());
+        return ResponseEntity.ok(payments);
     }
 
 
-    @Operation(summary = "Consultar un pago específico",
-            description = "Retorna el detalle de un comprobante de pago por su ID.")
+    @Operation(summary = "Consultar un pago específico")
     @GetMapping("/{id}")
     public ResponseEntity<Payment> getPaymentById(@PathVariable Long id) {
         log.info("GET /api/v1/payments/{}", id);
         try {
-            return ResponseEntity.ok(paymentService.getPaymentById(id));
+            Payment payment = paymentService.getPaymentById(id);
+            log.info("Pago encontrado - ID: {}, estado: {}", id, payment.getStatus());
+            return ResponseEntity.ok(payment);
         } catch (Exception e) {
+            log.warn("Pago no encontrado - ID: {}", id);
             return ResponseEntity.notFound().build();
         }
     }
 
 
-    @Operation(summary = "Aprobar un pago",
-            description = "El organizador aprueba el comprobante de pago. El equipo queda inscrito en el torneo.")
+    @Operation(summary = "Aprobar un pago")
     @PatchMapping("/{id}/approve")
     public ResponseEntity<GenericResponse> approvePayment(
             @PathVariable Long id,
@@ -75,15 +78,16 @@ public class PaymentController {
         try {
             String approvedBy = payload.getOrDefault("approvedBy", "Organizador");
             paymentService.approvePayment(id, approvedBy);
+            log.info("Pago ID: {} aprobado por: {}", id, approvedBy);
             return ResponseEntity.ok(new GenericResponse("Éxito", "Pago aprobado correctamente. El equipo queda inscrito."));
         } catch (Exception e) {
+            log.error("Error al aprobar pago ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
 
 
-    @Operation(summary = "Rechazar un pago",
-            description = "El organizador rechaza el comprobante indicando el motivo.")
+    @Operation(summary = "Rechazar un pago")
     @PatchMapping("/{id}/reject")
     public ResponseEntity<GenericResponse> rejectPayment(
             @PathVariable Long id,
@@ -93,24 +97,29 @@ public class PaymentController {
         try {
             String comments = payload.get("comments");
             if (comments == null || comments.isBlank()) {
+                log.warn("Motivo de rechazo no proporcionado para pago ID: {}", id);
                 return ResponseEntity.badRequest().body(new GenericResponse("Error", "Debe indicar el motivo del rechazo en 'comments'"));
             }
             paymentService.rejectPayment(id, comments);
+            log.info("Pago ID: {} rechazado. Motivo: {}", id, comments);
             return ResponseEntity.ok(new GenericResponse("Éxito", "Pago rechazado. Se notificará al capitán."));
         } catch (Exception e) {
+            log.error("Error al rechazar pago ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
 
 
-    @Operation(summary = "Consultar estado de pago de un equipo",
-            description = "Retorna el comprobante y estado de pago del equipo especificado.")
+    @Operation(summary = "Consultar estado de pago de un equipo")
     @GetMapping("/team/{teamId}")
     public ResponseEntity<Payment> getPaymentByTeam(@PathVariable Long teamId) {
         log.info("GET /api/v1/payments/team/{}", teamId);
         try {
-            return ResponseEntity.ok(paymentService.getPaymentByTeam(teamId));
+            Payment payment = paymentService.getPaymentByTeam(teamId);
+            log.info("Pago encontrado para equipo ID: {}, estado: {}", teamId, payment.getStatus());
+            return ResponseEntity.ok(payment);
         } catch (Exception e) {
+            log.warn("No se encontró pago para equipo ID: {}", teamId);
             return ResponseEntity.notFound().build();
         }
     }

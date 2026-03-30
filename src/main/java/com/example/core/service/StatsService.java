@@ -31,21 +31,28 @@ public class StatsService {
 
     public List<PlayerStats> getTopScorers() {
         log.info("Consultando tabla de goleadores globales");
-        return buildPlayerStatsFromEvents(matchEventRepository.findAll());
+        List<PlayerStats> scorers = buildPlayerStatsFromEvents(matchEventRepository.findAll());
+        log.info("Tabla de goleadores globales calculada: {} jugadores", scorers.size());
+        return scorers;
     }
 
     public List<PlayerStats> getTopScorersByTournament(Long tournamentId) {
-        log.info("Consultando goleadores del torneo {}", tournamentId);
+        log.info("Consultando goleadores del torneo ID: {}", tournamentId);
         List<MatchEvent> events = matchEventRepository.findAll().stream()
                 .filter(e -> "GOL".equals(e.getType()))
                 .collect(Collectors.toList());
-        return buildPlayerStatsFromEvents(events);
+        List<PlayerStats> scorers = buildPlayerStatsFromEvents(events);
+        log.info("Goleadores del torneo ID {}: {} jugadores", tournamentId, scorers.size());
+        return scorers;
     }
 
     public PlayerStats getPlayerStats(Long playerId) {
-        log.info("Consultando estadísticas del jugador {}", playerId);
+        log.info("Consultando estadísticas del jugador ID: {}", playerId);
         Player player = playerRepository.findById(playerId);
-        if (player == null) throw new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
+        if (player == null) {
+            log.warn("Jugador no encontrado al consultar estadísticas - ID: {}", playerId);
+            throw new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
+        }
 
         List<MatchEvent> playerEvents = matchEventRepository.findAll().stream()
                 .filter(e -> e.getPlayerId().equals(playerId))
@@ -54,18 +61,21 @@ public class StatsService {
         PlayerStats stats = new PlayerStats();
         stats.setPlayerId(playerId);
         stats.setPlayerName(player.getFullName());
-
         stats.setGoals((int) playerEvents.stream().filter(e -> "GOL".equals(e.getType())).count());
         stats.setYellowCards((int) playerEvents.stream().filter(e -> "AMARILLA".equals(e.getType())).count());
         stats.setRedCards((int) playerEvents.stream().filter(e -> "ROJA".equals(e.getType())).count());
 
+        log.info("Estadísticas del jugador ID {}: {} goles, {} amarillas, {} rojas", playerId, stats.getGoals(), stats.getYellowCards(), stats.getRedCards());
         return stats;
     }
 
     public StandingDTO getTeamStats(Long teamId) {
-        log.info("Consultando estadísticas del equipo {}", teamId);
+        log.info("Consultando estadísticas del equipo ID: {}", teamId);
         Team team = teamRepository.findById(teamId);
-        if (team == null) throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        if (team == null) {
+            log.warn("Equipo no encontrado al consultar estadísticas - ID: {}", teamId);
+            throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        }
 
         StandingDTO dto = new StandingDTO();
         dto.setTeamId(teamId);
@@ -79,12 +89,13 @@ public class StatsService {
         dto.setGoalDifference(team.getGoalDifference());
         dto.setPoints(team.getPoints());
 
+        log.info("Estadísticas del equipo ID {}: {} pts, {} PJ, {} PG, {} PE, {} PP", teamId, dto.getPoints(), dto.getMatchesPlayed(), dto.getMatchesWon(), dto.getMatchesDrawn(), dto.getMatchesLost());
         return dto;
     }
 
     public List<StandingDTO> getTournamentStandings(Long tournamentId) {
-        log.info("Calculando tabla de posiciones del torneo {}", tournamentId);
-        return teamRepository.findAll().stream()
+        log.info("Calculando tabla de posiciones del torneo ID: {}", tournamentId);
+        List<StandingDTO> standings = teamRepository.findAll().stream()
                 .map(team -> {
                     StandingDTO dto = new StandingDTO();
                     dto.setTeamId(team.getId());
@@ -101,6 +112,8 @@ public class StatsService {
                 })
                 .sorted(Comparator.comparingInt(StandingDTO::getPoints).reversed())
                 .collect(Collectors.toList());
+        log.info("Tabla de posiciones calculada para torneo ID {}: {} equipos", tournamentId, standings.size());
+        return standings;
     }
 
     private List<PlayerStats> buildPlayerStatsFromEvents(List<MatchEvent> events) {

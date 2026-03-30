@@ -33,14 +33,23 @@ public class MatchService {
     }
 
     public Match createMatch(MatchCreationRequest request) {
-        log.info("Creando partido entre equipo {} y equipo {}", request.getHomeTeamId(), request.getAwayTeamId());
+        log.info("Creando partido entre equipo local ID: {} y equipo visitante ID: {}", request.getHomeTeamId(), request.getAwayTeamId());
 
         Team homeTeam = teamRepository.findById(request.getHomeTeamId());
         Team awayTeam = teamRepository.findById(request.getAwayTeamId());
 
-        if (homeTeam == null) throw new ResourceNotFoundException("Equipo local con ID " + request.getHomeTeamId() + " no encontrado");
-        if (awayTeam == null) throw new ResourceNotFoundException("Equipo visitante con ID " + request.getAwayTeamId() + " no encontrado");
-        if (request.getHomeTeamId().equals(request.getAwayTeamId())) throw new BusinessRuleException("Un equipo no puede jugar contra sí mismo");
+        if (homeTeam == null) {
+            log.warn("Equipo local no encontrado - ID: {}", request.getHomeTeamId());
+            throw new ResourceNotFoundException("Equipo local con ID " + request.getHomeTeamId() + " no encontrado");
+        }
+        if (awayTeam == null) {
+            log.warn("Equipo visitante no encontrado - ID: {}", request.getAwayTeamId());
+            throw new ResourceNotFoundException("Equipo visitante con ID " + request.getAwayTeamId() + " no encontrado");
+        }
+        if (request.getHomeTeamId().equals(request.getAwayTeamId())) {
+            log.warn("Intento de crear partido con el mismo equipo como local y visitante - ID: {}", request.getHomeTeamId());
+            throw new BusinessRuleException("Un equipo no puede jugar contra sí mismo");
+        }
 
         Match match = new Match();
         match.setHomeTeam(homeTeam);
@@ -51,30 +60,41 @@ public class MatchService {
         match.setEvents(new ArrayList<>());
         match.setLineups(new ArrayList<>());
 
-        return matchRepository.save(match);
+        Match saved = matchRepository.save(match);
+        log.info("Partido creado exitosamente - ID: {}, estado: {}", saved.getId(), saved.getStatus());
+        return saved;
     }
 
     public List<Match> getAllMatches() {
-        return matchRepository.findAll();
+        log.info("Consultando la lista de todos los partidos");
+        List<Match> matches = matchRepository.findAll();
+        log.info("Total de partidos obtenidos: {}", matches.size());
+        return matches;
     }
 
     public Match getMatchById(Long id) {
+        log.info("Buscando partido con ID: {}", id);
         Match match = matchRepository.findById(id);
-        if (match == null) throw new ResourceNotFoundException("Partido con ID " + id + " no encontrado");
+        if (match == null) {
+            log.warn("Partido no encontrado - ID: {}", id);
+            throw new ResourceNotFoundException("Partido con ID " + id + " no encontrado");
+        }
+        log.info("Partido encontrado - ID: {}, estado: {}", id, match.getStatus());
         return match;
     }
 
     public void registerResult(Long matchId, MatchResultRequest request) {
-        log.info("Registrando resultado del partido {}: {} - {}", matchId, request.getHomeGoals(), request.getAwayGoals());
+        log.info("Registrando resultado del partido ID: {} - marcador: {} - {}", matchId, request.getHomeGoals(), request.getAwayGoals());
         Match match = getMatchById(matchId);
         match.setHomeGoals(request.getHomeGoals());
         match.setAwayGoals(request.getAwayGoals());
         match.setStatus("Finalizado");
         matchRepository.save(match);
+        log.info("Resultado registrado exitosamente para partido ID: {} -> {} - {}", matchId, request.getHomeGoals(), request.getAwayGoals());
     }
 
     public MatchEvent registerEvent(Long matchId, MatchEventRequest request) {
-        log.info("Registrando evento tipo {} en el partido {}", request.getType(), matchId);
+        log.info("Registrando evento tipo '{}' en partido ID: {}, jugador ID: {}, minuto: {}", request.getType(), matchId, request.getPlayerId(), request.getMinute());
         getMatchById(matchId);
 
         MatchEvent event = new MatchEvent();
@@ -84,24 +104,34 @@ public class MatchService {
         event.setType(request.getType());
         event.setMinute(request.getMinute());
 
-        return matchEventRepository.save(event);
+        MatchEvent saved = matchEventRepository.save(event);
+        log.info("Evento '{}' registrado exitosamente en partido ID: {} - ID evento: {}", request.getType(), matchId, saved.getId());
+        return saved;
     }
 
     public List<MatchEvent> getMatchEvents(Long matchId) {
+        log.info("Consultando eventos del partido ID: {}", matchId);
         getMatchById(matchId);
-        return matchEventRepository.findByMatchId(matchId);
+        List<MatchEvent> events = matchEventRepository.findByMatchId(matchId);
+        log.info("Total de eventos encontrados para partido ID {}: {}", matchId, events.size());
+        return events;
     }
 
     public void assignReferee(Long matchId, Long refereeId) {
-        log.info("Asignando árbitro {} al partido {}", refereeId, matchId);
+        log.info("Asignando árbitro ID: {} al partido ID: {}", refereeId, matchId);
         Match match = getMatchById(matchId);
+
         Referee referee = refereeRepository.findById(refereeId);
-        if (referee == null) throw new ResourceNotFoundException("Árbitro con ID " + refereeId + " no encontrado");
+        if (referee == null) {
+            log.warn("Árbitro no encontrado - ID: {}", refereeId);
+            throw new ResourceNotFoundException("Árbitro con ID " + refereeId + " no encontrado");
+        }
 
         match.setReferee(referee.getFullName());
         referee.getAssignedMatchIds().add(matchId);
 
         matchRepository.save(match);
         refereeRepository.save(referee);
+        log.info("Árbitro '{}' asignado exitosamente al partido ID: {}", referee.getFullName(), matchId);
     }
 }

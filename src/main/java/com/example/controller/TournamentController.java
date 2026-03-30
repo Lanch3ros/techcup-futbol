@@ -38,35 +38,43 @@ public class TournamentController {
         this.statsService = statsService;
     }
 
+
     @Operation(summary = "Crear un nuevo torneo")
     @PostMapping
     public ResponseEntity<GenericResponse> createTournament(@RequestBody @Valid TournamentCreationRequest request) {
-        log.info("POST /api/v1/tournaments");
+        log.info("POST /api/v1/tournaments - inicio: {}, fin: {}, equipos: {}", request.getStartDate(), request.getEndDate(), request.getNumberOfTeams());
         try {
             Tournament tournamentEntity = tournamentMapper.toEntity(request);
             tournamentService.createTournament(tournamentEntity);
+            log.info("Torneo creado exitosamente en estado Borrador");
             return new ResponseEntity<>(new GenericResponse("Éxito", "Torneo creado correctamente en estado Borrador"), HttpStatus.CREATED);
         } catch (Exception e) {
+            log.error("Error al crear torneo: {}", e.getMessage());
             return new ResponseEntity<>(new GenericResponse("Error", e.getMessage()), HttpStatus.BAD_REQUEST);
         }
     }
 
-    @Operation(summary = "Listar todos los torneos",
-            description = "Retorna todos los torneos registrados en el sistema.")
+
+    @Operation(summary = "Listar todos los torneos")
     @GetMapping
     public ResponseEntity<List<Tournament>> getAllTournaments() {
         log.info("GET /api/v1/tournaments");
-        return ResponseEntity.ok(tournamentService.getAllTournaments());
+        List<Tournament> tournaments = tournamentService.getAllTournaments();
+        log.info("Total de torneos retornados: {}", tournaments.size());
+        return ResponseEntity.ok(tournaments);
     }
 
-    @Operation(summary = "Consultar un torneo por ID",
-            description = "Retorna la información completa de un torneo específico.")
+
+    @Operation(summary = "Consultar un torneo por ID")
     @GetMapping("/{id}")
     public ResponseEntity<Tournament> getTournamentById(@PathVariable Long id) {
         log.info("GET /api/v1/tournaments/{}", id);
         try {
-            return ResponseEntity.ok(tournamentService.getTournamentById(id));
+            Tournament tournament = tournamentService.getTournamentById(id);
+            log.info("Torneo encontrado - ID: {}, estado: {}", id, tournament.getStatus());
+            return ResponseEntity.ok(tournament);
         } catch (Exception e) {
+            log.warn("Torneo no encontrado - ID: {}", id);
             return ResponseEntity.notFound().build();
         }
     }
@@ -78,79 +86,89 @@ public class TournamentController {
         log.info("GET /api/v1/tournaments/{}/rules", id);
         try {
             Tournament tournament = tournamentService.getTournamentById(id);
+            log.info("Reglamento consultado para torneo ID: {}", id);
             return ResponseEntity.ok(new GenericResponse("Reglamento", tournament.getRegulations()));
         } catch (Exception e) {
+            log.warn("No se encontró reglamento para torneo ID: {} - {}", id, e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new GenericResponse("Error", e.getMessage()));
         }
     }
 
 
-    @Operation(summary = "Ver equipos inscritos en el torneo",
-            description = "Retorna la lista de todos los equipos registrados en un torneo.")
+    @Operation(summary = "Ver equipos inscritos en el torneo")
     @GetMapping("/{id}/teams")
     public ResponseEntity<List<Team>> getTournamentTeams(@PathVariable Long id) {
         log.info("GET /api/v1/tournaments/{}/teams", id);
         try {
-            return ResponseEntity.ok(tournamentService.getTournamentTeams(id));
+            List<Team> teams = tournamentService.getTournamentTeams(id);
+            log.info("Equipos inscritos en torneo ID {}: {}", id, teams.size());
+            return ResponseEntity.ok(teams);
         } catch (Exception e) {
+            log.error("Error al obtener equipos del torneo ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
 
 
-    @Operation(summary = "Tabla de posiciones del torneo",
-            description = "Calcula y retorna la tabla de posiciones actualizada del torneo.")
+    @Operation(summary = "Tabla de posiciones del torneo")
     @GetMapping("/{id}/standings")
     public ResponseEntity<List<StandingDTO>> getTournamentStandings(@PathVariable Long id) {
         log.info("GET /api/v1/tournaments/{}/standings", id);
         try {
-            return ResponseEntity.ok(statsService.getTournamentStandings(id));
+            List<StandingDTO> standings = statsService.getTournamentStandings(id);
+            log.info("Tabla de posiciones calculada para torneo ID: {} - {} equipos", id, standings.size());
+            return ResponseEntity.ok(standings);
         } catch (Exception e) {
+            log.error("Error al calcular tabla de posiciones del torneo ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
 
 
-    @Operation(summary = "Llaves eliminatorias del torneo",
-            description = "Retorna los partidos organizados en formato de llave eliminatoria.")
+    @Operation(summary = "Llaves eliminatorias del torneo")
     @GetMapping("/{id}/bracket")
     public ResponseEntity<GenericResponse> getTournamentBracket(@PathVariable Long id) {
         log.info("GET /api/v1/tournaments/{}/bracket", id);
         try {
             List<Match> matches = tournamentService.getTournamentById(id).getMatches();
             if (matches == null || matches.isEmpty()) {
+                log.warn("No se han generado partidos para el torneo ID: {}", id);
                 return ResponseEntity.ok(new GenericResponse("Info", "No se han generado partidos para este torneo todavía"));
             }
+            log.info("Llaves retornadas para torneo ID: {} - {} partidos", id, matches.size());
             return ResponseEntity.ok(new GenericResponse("Llaves", matches));
         } catch (Exception e) {
+            log.error("Error al obtener llaves del torneo ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
 
 
-    @Operation(summary = "Inscribir equipo al torneo",
-            description = "Registra un equipo en el torneo. El torneo debe estar en estado 'Activo'.")
+    @Operation(summary = "Inscribir equipo al torneo")
     @PostMapping("/{id}/teams/{teamId}")
     public ResponseEntity<GenericResponse> registerTeam(@PathVariable Long id, @PathVariable Long teamId) {
         log.info("POST /api/v1/tournaments/{}/teams/{}", id, teamId);
         try {
             tournamentService.registerTeamToTournament(id, teamId);
+            log.info("Equipo ID: {} inscrito exitosamente en torneo ID: {}", teamId, id);
             return ResponseEntity.ok(new GenericResponse("Éxito", "Equipo inscrito correctamente al torneo"));
         } catch (Exception e) {
+            log.error("Error al inscribir equipo ID: {} en torneo ID: {} - {}", teamId, id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
 
 
-    @Operation(summary = "Generar partidos del torneo automáticamente",
-            description = "Genera los partidos iniciales del torneo de forma aleatoria con los equipos inscritos.")
+    @Operation(summary = "Generar partidos del torneo automáticamente")
     @PostMapping("/{id}/generate-matches")
     public ResponseEntity<GenericResponse> generateMatches(@PathVariable Long id) {
         log.info("POST /api/v1/tournaments/{}/generate-matches", id);
         try {
             List<Match> matches = tournamentService.generateMatches(id);
+            log.info("{} partidos generados exitosamente para el torneo ID: {}", matches.size(), id);
             return ResponseEntity.ok(new GenericResponse("Éxito", matches.size() + " partidos generados correctamente"));
         } catch (Exception e) {
+            log.error("Error al generar partidos para el torneo ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
@@ -163,11 +181,14 @@ public class TournamentController {
         try {
             String newStatus = payload.get("status");
             if (newStatus == null || newStatus.trim().isEmpty()) {
+                log.warn("Campo 'status' vacío en la petición para torneo ID: {}", id);
                 return ResponseEntity.badRequest().body(new GenericResponse("Error", "El campo 'status' es obligatorio"));
             }
             tournamentService.updateTournamentStatus(id, newStatus);
+            log.info("Estado del torneo ID: {} actualizado a: {}", id, newStatus);
             return ResponseEntity.ok(new GenericResponse("Éxito", "Estado del torneo actualizado a: " + newStatus));
         } catch (Exception e) {
+            log.error("Error al actualizar estado del torneo ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }

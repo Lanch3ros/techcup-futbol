@@ -28,50 +28,56 @@ public class RefereeController {
     }
 
 
-    @Operation(summary = "Registrar un nuevo árbitro",
-            description = "Crea un árbitro con su información personal, licencia y nivel de certificación.")
+    @Operation(summary = "Registrar un nuevo árbitro")
     @PostMapping
     public ResponseEntity<GenericResponse> createReferee(@RequestBody @Valid RefereeRequest request) {
-        log.info("POST /api/v1/referees");
+        log.info("POST /api/v1/referees - nombre: {}, licencia: {}", request.getFullName(), request.getLicenseNumber());
         try {
             Referee referee = refereeService.createReferee(request);
+            log.info("Árbitro registrado exitosamente - nombre: {}", request.getFullName());
             return new ResponseEntity<>(new GenericResponse("Éxito", referee), HttpStatus.CREATED);
         } catch (Exception e) {
+            log.error("Error al registrar árbitro '{}': {}", request.getFullName(), e.getMessage());
             return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
         }
     }
 
 
-    @Operation(summary = "Listar todos los árbitros",
-            description = "Retorna todos los árbitros registrados en el sistema.")
+    @Operation(summary = "Listar todos los árbitros")
     @GetMapping
     public ResponseEntity<List<Referee>> getAllReferees() {
         log.info("GET /api/v1/referees");
-        return ResponseEntity.ok(refereeService.getAllReferees());
+        List<Referee> referees = refereeService.getAllReferees();
+        log.info("Total de árbitros retornados: {}", referees.size());
+        return ResponseEntity.ok(referees);
     }
 
 
-    @Operation(summary = "Ver perfil de un árbitro",
-            description = "Retorna la información detallada de un árbitro específico.")
+    @Operation(summary = "Ver perfil de un árbitro")
     @GetMapping("/{id}")
     public ResponseEntity<Referee> getRefereeById(@PathVariable Long id) {
         log.info("GET /api/v1/referees/{}", id);
         try {
-            return ResponseEntity.ok(refereeService.getRefereeById(id));
+            Referee referee = refereeService.getRefereeById(id);
+            log.info("Árbitro encontrado - ID: {}, nombre: {}", id, referee.getFullName());
+            return ResponseEntity.ok(referee);
         } catch (Exception e) {
+            log.warn("Árbitro no encontrado - ID: {}", id);
             return ResponseEntity.notFound().build();
         }
     }
 
 
-    @Operation(summary = "Ver partidos asignados al árbitro",
-            description = "El árbitro puede consultar todos los partidos que tiene programados para arbitrar.")
+    @Operation(summary = "Ver partidos asignados al árbitro")
     @GetMapping("/{id}/matches")
     public ResponseEntity<List<Match>> getRefereeMatches(@PathVariable Long id) {
         log.info("GET /api/v1/referees/{}/matches", id);
         try {
-            return ResponseEntity.ok(refereeService.getRefereeMatches(id));
+            List<Match> matches = refereeService.getRefereeMatches(id);
+            log.info("Partidos asignados al árbitro ID {}: {}", id, matches.size());
+            return ResponseEntity.ok(matches);
         } catch (Exception e) {
+            log.error("Error al obtener partidos del árbitro ID: {} - {}", id, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }

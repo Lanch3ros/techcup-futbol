@@ -25,35 +25,44 @@ public class TeamService {
     }
 
     public Team createTeam(Team team) {
-        log.info("Iniciando creación de equipo con nombre: {}", team.getName());
+        log.info("Iniciando creación de equipo con nombre: '{}'", team.getName());
         Team savedTeam = teamRepository.save(team);
-        log.info("Equipo creado exitosamente con ID: {}", savedTeam.getId());
+        log.info("Equipo creado exitosamente - ID: {}, nombre: '{}'", savedTeam.getId(), savedTeam.getName());
         return savedTeam;
     }
 
     public List<Team> getAllTeams() {
         log.info("Consultando la lista de todos los equipos");
-        return teamRepository.findAll();
+        List<Team> teams = teamRepository.findAll();
+        log.info("Total de equipos obtenidos: {}", teams.size());
+        return teams;
     }
 
     public Team getTeamById(Long id) {
         log.info("Buscando equipo con ID: {}", id);
         Team team = teamRepository.findById(id);
-        if (team == null) throw new ResourceNotFoundException("Equipo con ID " + id + " no encontrado");
+        if (team == null) {
+            log.warn("Equipo no encontrado - ID: {}", id);
+            throw new ResourceNotFoundException("Equipo con ID " + id + " no encontrado");
+        }
+        log.info("Equipo encontrado - ID: {}, nombre: '{}'", id, team.getName());
         return team;
     }
 
     public List<Player> getTeamPlayers(Long teamId) {
-        log.info("Consultando jugadores del equipo {}", teamId);
+        log.info("Consultando jugadores del equipo ID: {}", teamId);
         Team team = getTeamById(teamId);
-        return team.getPlayers();
+        List<Player> players = team.getPlayers();
+        log.info("Total de jugadores en equipo ID {}: {}", teamId, players != null ? players.size() : 0);
+        return players;
     }
 
     public void removePlayer(Long teamId, Long playerId) {
-        log.info("Removiendo jugador {} del equipo {}", playerId, teamId);
+        log.info("Removiendo jugador ID: {} del equipo ID: {}", playerId, teamId);
         Team team = getTeamById(teamId);
 
         if (team.getPlayers() == null || team.getPlayers().stream().noneMatch(p -> p.getId().equals(playerId))) {
+            log.warn("Jugador ID: {} no pertenece al equipo ID: {}", playerId, teamId);
             throw new ResourceNotFoundException("El jugador con ID " + playerId + " no pertenece a este equipo");
         }
 
@@ -67,40 +76,55 @@ public class TeamService {
         }
 
         teamRepository.save(team);
-        log.info("Jugador {} removido del equipo {} exitosamente", playerId, teamId);
+        log.info("Jugador ID: {} removido exitosamente del equipo ID: {}", playerId, teamId);
     }
 
     public void sendInvitation(Long teamId, Long playerId) {
-        log.info("Validando envío de invitación del equipo {} al jugador {}", teamId, playerId);
+        log.info("Validando envío de invitación del equipo ID: {} al jugador ID: {}", teamId, playerId);
 
         Team team = teamRepository.findById(teamId);
-        if (team == null) throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        if (team == null) {
+            log.warn("Equipo no encontrado al enviar invitación - ID: {}", teamId);
+            throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        }
 
         Player player = playerRepository.findById(playerId);
-        if (player == null) throw new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
+        if (player == null) {
+            log.warn("Jugador no encontrado al enviar invitación - ID: {}", playerId);
+            throw new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
+        }
 
-        if (!player.isAvailable()) throw new BusinessRuleException("El jugador ya tiene un equipo o no está disponible.");
+        if (!player.isAvailable()) {
+            log.warn("Jugador ID: {} no disponible para recibir invitación", playerId);
+            throw new BusinessRuleException("El jugador ya tiene un equipo o no está disponible.");
+        }
 
         if (team.getPlayers() != null && team.getPlayers().size() >= 12) {
+            log.warn("Equipo ID: {} alcanzó el límite máximo de 12 jugadores", teamId);
             throw new BusinessRuleException("El equipo ya alcanzó el límite máximo de 12 jugadores permitidos.");
         }
 
-        log.info("Invitación generada y enviada con éxito al jugador {}.", playerId);
+        log.info("Invitación enviada exitosamente al jugador ID: {} desde equipo ID: {}", playerId, teamId);
     }
 
     public LineupRequest getTeamLineup(Long teamId) {
-        log.info("Consultando alineación del equipo {}", teamId);
+        log.info("Consultando alineación del equipo ID: {}", teamId);
         getTeamById(teamId);
+        log.warn("No hay alineación configurada para el equipo ID: {}", teamId);
         return null;
     }
 
     public void configureLineup(Long teamId, LineupRequest request) {
-        log.info("Configurando alineación titular para el equipo {}", teamId);
+        log.info("Configurando alineación para equipo ID: {}, formación: {}, jugadores: {}", teamId, request.getFormation(), request.getStartingPlayersIds().size());
 
         Team team = teamRepository.findById(teamId);
-        if (team == null) throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        if (team == null) {
+            log.warn("Equipo no encontrado al configurar alineación - ID: {}", teamId);
+            throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        }
 
         if (team.getPlayers() == null || team.getPlayers().size() < 7) {
+            log.warn("Equipo ID: {} no cumple el mínimo de 7 jugadores - total actual: {}", teamId, team.getPlayers() != null ? team.getPlayers().size() : 0);
             throw new BusinessRuleException("El equipo no cumple con el mínimo de 7 jugadores requeridos.");
         }
 
@@ -108,10 +132,11 @@ public class TeamService {
         for (Long playerId : startingIds) {
             boolean belongsToTeam = team.getPlayers().stream().anyMatch(p -> p.getId().equals(playerId));
             if (!belongsToTeam) {
+                log.warn("Jugador ID: {} no pertenece a la plantilla del equipo ID: {}", playerId, teamId);
                 throw new BusinessRuleException("El jugador con ID " + playerId + " no pertenece a la plantilla de este equipo.");
             }
         }
 
-        log.info("Alineación de {} jugadores configurada con formación {}.", startingIds.size(), request.getFormation());
+        log.info("Alineación configurada exitosamente para equipo ID: {} - {} jugadores, formación: '{}'", teamId, startingIds.size(), request.getFormation());
     }
 }

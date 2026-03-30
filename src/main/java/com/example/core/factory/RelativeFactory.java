@@ -14,6 +14,10 @@ public class RelativeFactory extends PlayerFactory {
         RelativePlayer relative = new RelativePlayer();
         relative.setFullName(data.getName());
         relative.setEmail(data.getEmail());
+        relative.setPassword(data.getPassword());
+        relative.setPosition(data.getPosition());
+        relative.setJerseyNumber(data.getJerseyNumber());
+        relative.setAvailable(true);
         return relative;
     }
 

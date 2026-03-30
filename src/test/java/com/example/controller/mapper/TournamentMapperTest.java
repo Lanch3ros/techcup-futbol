@@ -18,6 +18,7 @@ class TournamentMapperTest {
         request.setStartDate(LocalDate.of(2026, 4, 1));
         request.setEndDate(LocalDate.of(2026, 6, 1));
         request.setTeamCost(500000.0);
+        request.setNumberOfTeams(8);
         request.setRules("Reglas estándar");
 
         Tournament result = tournamentMapper.toEntity(request);
@@ -25,8 +26,9 @@ class TournamentMapperTest {
         assertNotNull(result);
         assertEquals(LocalDate.of(2026, 4, 1), result.getStartDate());
         assertEquals(500000.0, result.getTeamCost());
+        assertEquals(8, result.getMaxTeams());
         assertEquals("Reglas estándar", result.getRegulations());
-        assertEquals("CREATED", result.getStatus());
+        assertEquals("Borrador", result.getStatus());
     }
 
     @Test

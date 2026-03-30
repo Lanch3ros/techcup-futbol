@@ -8,15 +8,26 @@ class RefereeTest {
 
     @Test
     void testLombokMethods() {
-        Referee referee = new Referee("LIC-123", "FIFA", new ArrayList<>());
+        // Constructor AllArgsConstructor de Referee:
+        // Referee(Long id, String fullName, String email, String licenseNumber,
+        //         String certificationLevel, List<Long> assignedMatchIds)
+        Referee referee = new Referee(1L, "Carlos Perez", "carlos@email.com",
+                "LIC-123", "FIFA", new ArrayList<>());
 
+        assertEquals(1L, referee.getId());
+        assertEquals("Carlos Perez", referee.getFullName());
+        assertEquals("carlos@email.com", referee.getEmail());
         assertEquals("LIC-123", referee.getLicenseNumber());
         assertEquals("FIFA", referee.getCertificationLevel());
+        assertNotNull(referee.getAssignedMatchIds());
 
         Referee referee2 = new Referee();
+        referee2.setId(1L);
+        referee2.setFullName("Carlos Perez");
+        referee2.setEmail("carlos@email.com");
         referee2.setLicenseNumber("LIC-123");
         referee2.setCertificationLevel("FIFA");
-        referee2.setAssignedMatches(new ArrayList<>());
+        referee2.setAssignedMatchIds(new ArrayList<>());
 
         assertEquals(referee, referee2);
         assertEquals(referee.hashCode(), referee2.hashCode());
@@ -24,13 +35,19 @@ class RefereeTest {
     }
 
     @Test
-    void testCustomMethods() {
+    void testGetAssignedMatchIds_DefaultNotNull() {
         Referee referee = new Referee();
+        assertDoesNotThrow(() -> referee.getAssignedMatchIds());
+    }
 
-        assertNull(referee.getAssignedMatches());
+    @Test
+    void testCustomMethods_DoNotThrow() {
+        Referee referee = new Referee();
+        referee.setAssignedMatchIds(new ArrayList<>());
 
-        referee.registerResult(new Match());
-        referee.registerEvent(new Object());
-        referee.issueCard(new StudentPlayer(), "Red");
+        // Estos métodos tienen cuerpo vacío, solo verificamos que no lanzan excepción
+        assertDoesNotThrow(() -> referee.registerResult(new Match()));
+        assertDoesNotThrow(() -> referee.registerEvent(new Object()));
+        assertDoesNotThrow(() -> referee.issueCard(new StudentPlayer(), "Roja"));
     }
 }

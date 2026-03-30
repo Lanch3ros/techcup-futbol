@@ -14,6 +14,10 @@ public class AdminFactory extends PlayerFactory {
         AdminPlayer admin = new AdminPlayer();
         admin.setFullName(data.getName());
         admin.setEmail(data.getEmail());
+        admin.setPassword(data.getPassword());
+        admin.setPosition(data.getPosition());
+        admin.setJerseyNumber(data.getJerseyNumber());
+        admin.setAvailable(true);
         return admin;
     }
 

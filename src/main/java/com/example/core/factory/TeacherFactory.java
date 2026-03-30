@@ -14,6 +14,10 @@ public class TeacherFactory extends PlayerFactory {
         TeacherPlayer teacher = new TeacherPlayer();
         teacher.setFullName(data.getName());
         teacher.setEmail(data.getEmail());
+        teacher.setPassword(data.getPassword());
+        teacher.setPosition(data.getPosition());
+        teacher.setJerseyNumber(data.getJerseyNumber());
+        teacher.setAvailable(true);
         return teacher;
     }
 

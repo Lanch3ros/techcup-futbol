@@ -64,6 +64,9 @@ public class SecurityConfig {
                         "/v3/api-docs/**"
                 ).permitAll()
 
+                // Login — público
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
+
                 // Registro de jugadores — público (cualquiera puede registrarse)
                 .requestMatchers(HttpMethod.POST, "/api/v1/players").permitAll()
 

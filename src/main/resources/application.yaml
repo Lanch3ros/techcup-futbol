@@ -5,9 +5,9 @@ logging:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/techcup
-    username: techcup
-    password: techcup
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/techcup}
+    username: ${DB_USERNAME:techcup}
+    password: ${DB_PASSWORD:techcup}
     driver-class-name: org.postgresql.Driver
 
   jpa:

@@ -8,23 +8,29 @@ import com.example.repository.PlayerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
 
 class PlayerServiceTest {
 
     private PlayerRepository playerRepository;
+    private PasswordEncoder passwordEncoder;
     private PlayerService playerService;
 
     @BeforeEach
     void setUp() {
         playerRepository = Mockito.mock(PlayerRepository.class);
-        playerService = new PlayerService(playerRepository);
+        passwordEncoder  = Mockito.mock(PasswordEncoder.class);
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$hashed");
+        playerService = new PlayerService(playerRepository, passwordEncoder);
     }
 
     private PlayerRegistrationRequest buildRequest(String name, String email, String role) {
@@ -79,6 +85,26 @@ class PlayerServiceTest {
         PlayerRegistrationRequest data = buildRequest("Admin", "admin@escuelaing.edu.co", "ADMIN");
         when(playerRepository.save(any(User.class))).thenReturn(new StudentPlayer());
         assertDoesNotThrow(() -> playerService.registerPlayer(data));
+    }
+
+    @Test
+    void registerPlayer_PasswordIsEncoded() {
+        PlayerRegistrationRequest data = buildRequest("Jose", "jose@mail.escuelaing.edu.co", "STUDENT");
+
+        StudentPlayer mockPlayer = new StudentPlayer();
+        mockPlayer.setId(1L);
+
+        when(playerRepository.save(any(User.class))).thenAnswer(inv -> {
+            User saved = inv.getArgument(0);
+            // La contraseña guardada NO debe ser el texto plano original
+            assertNotEquals("12345678", saved.getPassword(), "La contraseña debe estar encriptada antes de persistir");
+            assertEquals("$2a$10$hashed", saved.getPassword());
+            return mockPlayer;
+        });
+
+        playerService.registerPlayer(data);
+
+        verify(passwordEncoder).encode("12345678");
     }
 
     @Test

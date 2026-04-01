@@ -7,6 +7,7 @@ import com.example.core.model.User;
 import com.example.repository.PlayerRepository;
 import com.example.core.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,15 +18,18 @@ import java.util.stream.Collectors;
 public class PlayerService {
 
     private final PlayerRepository playerRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public PlayerService(PlayerRepository playerRepository) {
+    public PlayerService(PlayerRepository playerRepository, PasswordEncoder passwordEncoder) {
         this.playerRepository = playerRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Player registerPlayer(PlayerRegistrationRequest data) {
         log.info("Iniciando registro de jugador con rol: {}, email: {}", data.getUserType(), data.getEmail());
         PlayerFactory factory = getFactoryByRole(data.getUserType());
         Player newPlayer = factory.registerPlayerData(data);
+        ((User) newPlayer).setPassword(passwordEncoder.encode(((User) newPlayer).getPassword()));
         User savedPlayer = playerRepository.save((User) newPlayer);
         log.info("Jugador registrado exitosamente - ID: {}, email: {}", savedPlayer.getId(), data.getEmail());
         return savedPlayer;

@@ -27,3 +27,7 @@ spring:
 app:
   uploads:
     dir: uploads
+  jwt:
+    # Clave secreta en Base64 (≥256 bits). Sobreescribir con variable JWT_SECRET en producción.
+    secret: ${JWT_SECRET:dGVjaGN1cC1mdXRib2wtc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQ=}
+    expiration-ms: 86400000   # 24 horas

@@ -13,6 +13,7 @@ public class TeacherFactory extends PlayerFactory {
     protected Player createPlayer(PlayerRegistrationRequest data) {
         TeacherPlayer teacher = new TeacherPlayer();
         teacher.setFullName(data.getName());
+        teacher.setIdentification(data.getIdentification());
         teacher.setEmail(data.getEmail());
         teacher.setPassword(data.getPassword());
         teacher.setPosition(data.getPosition());

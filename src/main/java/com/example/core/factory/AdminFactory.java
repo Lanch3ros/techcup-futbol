@@ -13,6 +13,7 @@ public class AdminFactory extends PlayerFactory {
     protected Player createPlayer(PlayerRegistrationRequest data) {
         AdminPlayer admin = new AdminPlayer();
         admin.setFullName(data.getName());
+        admin.setIdentification(data.getIdentification());
         admin.setEmail(data.getEmail());
         admin.setPassword(data.getPassword());
         admin.setPosition(data.getPosition());

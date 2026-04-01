@@ -11,7 +11,7 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class GraduatePlayer extends User implements Player {
     private Long id;
-    private String program;
+    private Program program;
     private Integer jerseyNumber;
     private String position;
     private Long teamId;

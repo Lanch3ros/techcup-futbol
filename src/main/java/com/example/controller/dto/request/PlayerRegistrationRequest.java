@@ -1,5 +1,6 @@
 package com.example.controller.dto.request;
 
+import com.example.core.model.Program;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -7,6 +8,11 @@ import lombok.Data;
 public class PlayerRegistrationRequest {
     @NotBlank(message = "Ingresar un nombre")
     private String name;
+
+    @NotBlank(message = "Se necesita número de identificación")
+    private String identification;
+
+    private Program program;
 
     @Email(message = "Formato invalido de correo")
     @NotBlank(message = "Se necesita correo")

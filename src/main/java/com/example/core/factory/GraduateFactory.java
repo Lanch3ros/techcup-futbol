@@ -13,8 +13,10 @@ public class GraduateFactory extends PlayerFactory {
     protected Player createPlayer(PlayerRegistrationRequest data) {
         GraduatePlayer graduate = new GraduatePlayer();
         graduate.setFullName(data.getName());
+        graduate.setIdentification(data.getIdentification());
         graduate.setEmail(data.getEmail());
         graduate.setPassword(data.getPassword());
+        graduate.setProgram(data.getProgram());
         graduate.setPosition(data.getPosition());
         graduate.setJerseyNumber(data.getJerseyNumber());
         graduate.setAvailable(true);

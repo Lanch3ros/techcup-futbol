@@ -4,6 +4,7 @@ import com.example.controller.dto.request.LineupRequest;
 import com.example.core.exception.BusinessRuleException;
 import com.example.core.exception.ResourceNotFoundException;
 import com.example.core.model.Player;
+import com.example.core.model.Program;
 import com.example.core.model.Team;
 import com.example.repository.PlayerRepository;
 import com.example.repository.TeamRepository;
@@ -137,6 +138,33 @@ public class TeamService {
             }
         }
 
+        validateEngineeringProgramComposition(team.getPlayers(), teamId);
+
         log.info("Alineación configurada exitosamente para equipo ID: {} - {} jugadores, formación: '{}'", teamId, startingIds.size(), request.getFormation());
+    }
+
+    // RN-03-4: más del 50% de los jugadores deben pertenecer a programas de ingeniería
+    private void validateEngineeringProgramComposition(List<Player> players, Long teamId) {
+        if (players == null || players.isEmpty()) {
+            return;
+        }
+        long engineeringCount = players.stream()
+                .filter(p -> p.getProgram() != null && isEngineeringProgram(p.getProgram()))
+                .count();
+        double ratio = (double) engineeringCount / players.size();
+        if (ratio <= 0.5) {
+            log.warn("Equipo ID: {} no cumple RN-03-4: {}/{} jugadores de programas de ingeniería ({} %)",
+                    teamId, engineeringCount, players.size(), (int) (ratio * 100));
+            throw new BusinessRuleException(
+                    "Más del 50% de los jugadores debe pertenecer a un programa de ingeniería (Sistemas, IA, Ciberseguridad, Estadística).");
+        }
+        log.info("Equipo ID: {} cumple RN-03-4: {}/{} jugadores de ingeniería", teamId, engineeringCount, players.size());
+    }
+
+    private boolean isEngineeringProgram(Program program) {
+        return program == Program.SISTEMAS
+                || program == Program.IA
+                || program == Program.CIBERSEGURIDAD
+                || program == Program.ESTADISTICA;
     }
 }

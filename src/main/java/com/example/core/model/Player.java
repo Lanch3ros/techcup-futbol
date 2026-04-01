@@ -1,6 +1,7 @@
 package com.example.core.model;
 
 public interface Player {
+    default Program getProgram() { return null; }
     Long getId();
     void setId(Long id);
 

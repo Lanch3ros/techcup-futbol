@@ -13,6 +13,7 @@ public class RelativeFactory extends PlayerFactory {
     protected Player createPlayer(PlayerRegistrationRequest data) {
         RelativePlayer relative = new RelativePlayer();
         relative.setFullName(data.getName());
+        relative.setIdentification(data.getIdentification());
         relative.setEmail(data.getEmail());
         relative.setPassword(data.getPassword());
         relative.setPosition(data.getPosition());

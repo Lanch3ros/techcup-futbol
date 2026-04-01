@@ -13,8 +13,10 @@ public class StudentFactory extends PlayerFactory {
     protected Player createPlayer(PlayerRegistrationRequest data) {
         StudentPlayer student = new StudentPlayer();
         student.setFullName(data.getName());
+        student.setIdentification(data.getIdentification());
         student.setEmail(data.getEmail());
         student.setPassword(data.getPassword());
+        student.setProgram(data.getProgram());
         student.setPosition(data.getPosition());
         student.setJerseyNumber(data.getJerseyNumber());
         student.setAvailable(true);

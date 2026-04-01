@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public abstract class User {
     protected Long id;
+    protected String identification;
     protected String email;
     protected String password;
     protected String fullName;

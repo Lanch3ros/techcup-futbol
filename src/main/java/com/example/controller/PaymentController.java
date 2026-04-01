@@ -9,8 +9,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,25 @@ public class PaymentController {
 
     public PaymentController(PaymentService paymentService) {
         this.paymentService = paymentService;
+    }
+
+
+    @Operation(summary = "Subir comprobante de pago como archivo (JPG, PNG o PDF, máx. 5 MB)")
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<GenericResponse> uploadReceipt(
+            @RequestParam("teamId") Long teamId,
+            @RequestParam("file") MultipartFile file) {
+
+        log.info("POST /api/v1/payments/upload - equipo ID: {}, archivo: '{}', tamaño: {} bytes",
+                teamId, file.getOriginalFilename(), file.getSize());
+        try {
+            Payment payment = paymentService.uploadReceipt(teamId, file);
+            log.info("Comprobante subido exitosamente - pago ID: {}, equipo ID: {}", payment.getId(), teamId);
+            return new ResponseEntity<>(new GenericResponse("Éxito", payment), HttpStatus.CREATED);
+        } catch (Exception e) {
+            log.error("Error al subir comprobante para equipo ID: {} - {}", teamId, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
     }
 
 

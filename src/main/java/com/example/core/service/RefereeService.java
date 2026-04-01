@@ -45,11 +45,10 @@ public class RefereeService {
 
     public Referee getRefereeById(Long id) {
         log.info("Buscando árbitro con ID: {}", id);
-        Referee referee = refereeRepository.findById(id);
-        if (referee == null) {
+        Referee referee = refereeRepository.findById(id).orElseThrow(() -> {
             log.warn("Árbitro no encontrado - ID: {}", id);
-            throw new ResourceNotFoundException("Árbitro con ID " + id + " no encontrado");
-        }
+            return new ResourceNotFoundException("Árbitro con ID " + id + " no encontrado");
+        });
         log.info("Árbitro encontrado - ID: {}, nombre: '{}'", id, referee.getFullName());
         return referee;
     }
@@ -58,7 +57,7 @@ public class RefereeService {
         log.info("Consultando partidos asignados al árbitro ID: {}", id);
         Referee referee = getRefereeById(id);
         List<Match> matches = referee.getAssignedMatchIds().stream()
-                .map(matchId -> matchRepository.findById(matchId))
+                .map(matchId -> matchRepository.findById(matchId).orElse(null))
                 .filter(m -> m != null)
                 .collect(Collectors.toList());
         log.info("Total de partidos asignados al árbitro ID {}: {}", id, matches.size());

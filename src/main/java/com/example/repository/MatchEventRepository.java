@@ -1,32 +1,13 @@
 package com.example.repository;
 
 import com.example.core.model.MatchEvent;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
 
 @Repository
-public class MatchEventRepository {
+public interface MatchEventRepository extends JpaRepository<MatchEvent, Long> {
 
-    private final Map<Long, MatchEvent> eventDB = new HashMap<>();
-    private long currentId = 1;
-
-    public MatchEvent save(MatchEvent event) {
-        if (event.getId() == null) {
-            event.setId(currentId++);
-        }
-        eventDB.put(event.getId(), event);
-        return event;
-    }
-
-    public List<MatchEvent> findByMatchId(Long matchId) {
-        return eventDB.values().stream()
-                .filter(e -> e.getMatchId().equals(matchId))
-                .collect(Collectors.toList());
-    }
-
-    public List<MatchEvent> findAll() {
-        return new ArrayList<>(eventDB.values());
-    }
+    List<MatchEvent> findByMatchId(Long matchId);
 }

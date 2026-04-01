@@ -48,11 +48,10 @@ public class StatsService {
 
     public PlayerStats getPlayerStats(Long playerId) {
         log.info("Consultando estadísticas del jugador ID: {}", playerId);
-        Player player = playerRepository.findById(playerId);
-        if (player == null) {
+        Player player = playerRepository.findById(playerId).orElseThrow(() -> {
             log.warn("Jugador no encontrado al consultar estadísticas - ID: {}", playerId);
-            throw new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
-        }
+            return new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
+        });
 
         List<MatchEvent> playerEvents = matchEventRepository.findAll().stream()
                 .filter(e -> e.getPlayerId().equals(playerId))
@@ -71,11 +70,10 @@ public class StatsService {
 
     public StandingDTO getTeamStats(Long teamId) {
         log.info("Consultando estadísticas del equipo ID: {}", teamId);
-        Team team = teamRepository.findById(teamId);
-        if (team == null) {
+        Team team = teamRepository.findById(teamId).orElseThrow(() -> {
             log.warn("Equipo no encontrado al consultar estadísticas - ID: {}", teamId);
-            throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
-        }
+            return new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        });
 
         int fairPlayPoints = calculateFairPlayPoints(teamId);
         StandingDTO dto = new StandingDTO();
@@ -136,7 +134,7 @@ public class StatsService {
         return matchEventRepository.findByMatchId(match.getId()).stream()
                 .filter(e -> "AMARILLA".equals(e.getType()) || "ROJA".equals(e.getType()))
                 .noneMatch(e -> {
-                    Player player = playerRepository.findById(e.getPlayerId());
+                    Player player = playerRepository.findById(e.getPlayerId()).orElse(null);
                     return player != null && teamId.equals(player.getTeamId());
                 });
     }

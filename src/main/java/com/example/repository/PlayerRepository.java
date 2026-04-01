@@ -1,32 +1,19 @@
 package com.example.repository;
 
-import com.example.core.model.Player;
+import com.example.core.model.User;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Repository
-public class PlayerRepository {
+public interface PlayerRepository extends JpaRepository<User, Long> {
 
-    private final Map<Long, Player> playersDB = new HashMap<>();
-    private long currentId = 1;
+    List<User> findByTeamId(Long teamId);
 
-    public Player save(Player player) {
-        if (player.getId() == null) {
-            player.setId(currentId++);
-        }
-        playersDB.put(player.getId(), player);
-        return player;
-    }
+    long countByTeamId(Long teamId);
 
-    public List<Player> findAll() {
-        return new ArrayList<>(playersDB.values());
-    }
+    List<User> findByPositionAndAvailableTrue(String position);
 
-    public Player findById(Long id) {
-        return playersDB.get(id);
-    }
+    List<User> findByFullNameContainingIgnoreCase(String name);
 }

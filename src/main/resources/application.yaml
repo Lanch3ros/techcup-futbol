@@ -4,6 +4,21 @@ logging:
     com.example: INFO
 
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/techcup
+    username: techcup
+    password: techcup
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
   servlet:
     multipart:
       max-file-size: 5MB

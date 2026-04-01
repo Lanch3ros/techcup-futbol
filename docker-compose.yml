@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: techcup-postgres
+    environment:
+      POSTGRES_DB: techcup
+      POSTGRES_USER: techcup
+      POSTGRES_PASSWORD: techcup
+    ports:
+      - "5433:5432"
+    volumes:
+      - techcup_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  techcup_data:

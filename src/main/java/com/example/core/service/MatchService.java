@@ -35,17 +35,14 @@ public class MatchService {
     public Match createMatch(MatchCreationRequest request) {
         log.info("Creando partido entre equipo local ID: {} y equipo visitante ID: {}", request.getHomeTeamId(), request.getAwayTeamId());
 
-        Team homeTeam = teamRepository.findById(request.getHomeTeamId());
-        Team awayTeam = teamRepository.findById(request.getAwayTeamId());
-
-        if (homeTeam == null) {
+        Team homeTeam = teamRepository.findById(request.getHomeTeamId()).orElseThrow(() -> {
             log.warn("Equipo local no encontrado - ID: {}", request.getHomeTeamId());
-            throw new ResourceNotFoundException("Equipo local con ID " + request.getHomeTeamId() + " no encontrado");
-        }
-        if (awayTeam == null) {
+            return new ResourceNotFoundException("Equipo local con ID " + request.getHomeTeamId() + " no encontrado");
+        });
+        Team awayTeam = teamRepository.findById(request.getAwayTeamId()).orElseThrow(() -> {
             log.warn("Equipo visitante no encontrado - ID: {}", request.getAwayTeamId());
-            throw new ResourceNotFoundException("Equipo visitante con ID " + request.getAwayTeamId() + " no encontrado");
-        }
+            return new ResourceNotFoundException("Equipo visitante con ID " + request.getAwayTeamId() + " no encontrado");
+        });
         if (request.getHomeTeamId().equals(request.getAwayTeamId())) {
             log.warn("Intento de crear partido con el mismo equipo como local y visitante - ID: {}", request.getHomeTeamId());
             throw new BusinessRuleException("Un equipo no puede jugar contra sí mismo");
@@ -74,11 +71,10 @@ public class MatchService {
 
     public Match getMatchById(Long id) {
         log.info("Buscando partido con ID: {}", id);
-        Match match = matchRepository.findById(id);
-        if (match == null) {
+        Match match = matchRepository.findById(id).orElseThrow(() -> {
             log.warn("Partido no encontrado - ID: {}", id);
-            throw new ResourceNotFoundException("Partido con ID " + id + " no encontrado");
-        }
+            return new ResourceNotFoundException("Partido con ID " + id + " no encontrado");
+        });
         log.info("Partido encontrado - ID: {}, estado: {}", id, match.getStatus());
         return match;
     }
@@ -141,11 +137,10 @@ public class MatchService {
         log.info("Asignando árbitro ID: {} al partido ID: {}", refereeId, matchId);
         Match match = getMatchById(matchId);
 
-        Referee referee = refereeRepository.findById(refereeId);
-        if (referee == null) {
+        Referee referee = refereeRepository.findById(refereeId).orElseThrow(() -> {
             log.warn("Árbitro no encontrado - ID: {}", refereeId);
-            throw new ResourceNotFoundException("Árbitro con ID " + refereeId + " no encontrado");
-        }
+            return new ResourceNotFoundException("Árbitro con ID " + refereeId + " no encontrado");
+        });
 
         match.setReferee(referee.getFullName());
         referee.getAssignedMatchIds().add(matchId);

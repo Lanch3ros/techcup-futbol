@@ -6,12 +6,14 @@ import com.example.core.exception.ResourceNotFoundException;
 import com.example.core.model.Player;
 import com.example.core.model.Program;
 import com.example.core.model.Team;
+import com.example.core.model.User;
 import com.example.repository.PlayerRepository;
 import com.example.repository.TeamRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -41,66 +43,64 @@ public class TeamService {
 
     public Team getTeamById(Long id) {
         log.info("Buscando equipo con ID: {}", id);
-        Team team = teamRepository.findById(id);
-        if (team == null) {
+        Team team = teamRepository.findById(id).orElseThrow(() -> {
             log.warn("Equipo no encontrado - ID: {}", id);
-            throw new ResourceNotFoundException("Equipo con ID " + id + " no encontrado");
-        }
+            return new ResourceNotFoundException("Equipo con ID " + id + " no encontrado");
+        });
         log.info("Equipo encontrado - ID: {}, nombre: '{}'", id, team.getName());
         return team;
     }
 
     public List<Player> getTeamPlayers(Long teamId) {
         log.info("Consultando jugadores del equipo ID: {}", teamId);
-        Team team = getTeamById(teamId);
-        List<Player> players = team.getPlayers();
-        log.info("Total de jugadores en equipo ID {}: {}", teamId, players != null ? players.size() : 0);
+        getTeamById(teamId);
+        List<Player> players = playerRepository.findByTeamId(teamId).stream()
+                .map(u -> (Player) u)
+                .collect(Collectors.toList());
+        log.info("Total de jugadores en equipo ID {}: {}", teamId, players.size());
         return players;
     }
 
     public void removePlayer(Long teamId, Long playerId) {
         log.info("Removiendo jugador ID: {} del equipo ID: {}", playerId, teamId);
-        Team team = getTeamById(teamId);
+        getTeamById(teamId);
 
-        if (team.getPlayers() == null || team.getPlayers().stream().noneMatch(p -> p.getId().equals(playerId))) {
+        User player = playerRepository.findById(playerId).orElseThrow(() -> {
+            log.warn("Jugador ID: {} no encontrado", playerId);
+            return new ResourceNotFoundException("El jugador con ID " + playerId + " no pertenece a este equipo");
+        });
+
+        if (!teamId.equals(player.getTeamId())) {
             log.warn("Jugador ID: {} no pertenece al equipo ID: {}", playerId, teamId);
             throw new ResourceNotFoundException("El jugador con ID " + playerId + " no pertenece a este equipo");
         }
 
-        team.getPlayers().removeIf(p -> p.getId().equals(playerId));
+        player.setAvailable(true);
+        player.setTeamId(null);
+        playerRepository.save(player);
 
-        Player player = playerRepository.findById(playerId);
-        if (player != null) {
-            player.setAvailable(true);
-            player.setTeamId(null);
-            playerRepository.save(player);
-        }
-
-        teamRepository.save(team);
         log.info("Jugador ID: {} removido exitosamente del equipo ID: {}", playerId, teamId);
     }
 
     public void sendInvitation(Long teamId, Long playerId) {
         log.info("Validando envío de invitación del equipo ID: {} al jugador ID: {}", teamId, playerId);
 
-        Team team = teamRepository.findById(teamId);
-        if (team == null) {
+        Team team = teamRepository.findById(teamId).orElseThrow(() -> {
             log.warn("Equipo no encontrado al enviar invitación - ID: {}", teamId);
-            throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
-        }
+            return new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        });
 
-        Player player = playerRepository.findById(playerId);
-        if (player == null) {
+        User player = playerRepository.findById(playerId).orElseThrow(() -> {
             log.warn("Jugador no encontrado al enviar invitación - ID: {}", playerId);
-            throw new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
-        }
+            return new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
+        });
 
         if (!player.isAvailable()) {
             log.warn("Jugador ID: {} no disponible para recibir invitación", playerId);
             throw new BusinessRuleException("El jugador ya tiene un equipo o no está disponible.");
         }
 
-        if (team.getPlayers() != null && team.getPlayers().size() >= 12) {
+        if (playerRepository.countByTeamId(teamId) >= 12) {
             log.warn("Equipo ID: {} alcanzó el límite máximo de 12 jugadores", teamId);
             throw new BusinessRuleException("El equipo ya alcanzó el límite máximo de 12 jugadores permitidos.");
         }
@@ -118,27 +118,30 @@ public class TeamService {
     public void configureLineup(Long teamId, LineupRequest request) {
         log.info("Configurando alineación para equipo ID: {}, formación: {}, jugadores: {}", teamId, request.getFormation(), request.getStartingPlayersIds().size());
 
-        Team team = teamRepository.findById(teamId);
-        if (team == null) {
+        teamRepository.findById(teamId).orElseThrow(() -> {
             log.warn("Equipo no encontrado al configurar alineación - ID: {}", teamId);
-            throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
-        }
+            return new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        });
 
-        if (team.getPlayers() == null || team.getPlayers().size() < 7) {
-            log.warn("Equipo ID: {} no cumple el mínimo de 7 jugadores - total actual: {}", teamId, team.getPlayers() != null ? team.getPlayers().size() : 0);
+        List<Player> teamPlayers = playerRepository.findByTeamId(teamId).stream()
+                .map(u -> (Player) u)
+                .collect(Collectors.toList());
+
+        if (teamPlayers.size() < 7) {
+            log.warn("Equipo ID: {} no cumple el mínimo de 7 jugadores - total actual: {}", teamId, teamPlayers.size());
             throw new BusinessRuleException("El equipo no cumple con el mínimo de 7 jugadores requeridos.");
         }
 
         List<Long> startingIds = request.getStartingPlayersIds();
         for (Long playerId : startingIds) {
-            boolean belongsToTeam = team.getPlayers().stream().anyMatch(p -> p.getId().equals(playerId));
+            boolean belongsToTeam = teamPlayers.stream().anyMatch(p -> p.getId().equals(playerId));
             if (!belongsToTeam) {
                 log.warn("Jugador ID: {} no pertenece a la plantilla del equipo ID: {}", playerId, teamId);
                 throw new BusinessRuleException("El jugador con ID " + playerId + " no pertenece a la plantilla de este equipo.");
             }
         }
 
-        validateEngineeringProgramComposition(team.getPlayers(), teamId);
+        validateEngineeringProgramComposition(teamPlayers, teamId);
 
         log.info("Alineación configurada exitosamente para equipo ID: {} - {} jugadores, formación: '{}'", teamId, startingIds.size(), request.getFormation());
     }

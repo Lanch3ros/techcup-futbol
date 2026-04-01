@@ -1,47 +1,22 @@
 package com.example.core.model;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import org.jspecify.annotations.Nullable;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Entity
+@DiscriminatorValue("RELATIVE")
 @NoArgsConstructor
-@AllArgsConstructor
 public class RelativePlayer extends User implements Player {
-    private Long id;
-    private String relationship;
-    private Integer jerseyNumber;
-    private String position;
-    private Long teamId;
-    private boolean available = true;
 
-    @Override
-    public boolean validateEmail() { return false; }
-
-    @Override
-    public void acceptInvitation(Long teamId) {}
-
-    @Override
-    public void rejectInvitation(Long teamId) {}
-
-    @Override
-    public void setAvailable(boolean available) { this.available = available; }
-
-    @Override
-    public String getUserType() { return "RELATIVE"; }
-
-    @Override
-    public boolean login() {
-        return false;
-    }
-
-    @Override
-    public void logout() {
-
-    }
+    @Override public boolean validateEmail() { return false; }
+    @Override public void acceptInvitation(Long teamId) {}
+    @Override public void rejectInvitation(Long teamId) {}
+    @Override public void setAvailable(boolean available) { this.available = available; }
+    @Override public String getUserType() { return "RELATIVE"; }
+    @Override public boolean login() { return false; }
+    @Override public void logout() {}
+    @Override public String getProfilePhoto() { return profilePhoto; }
 
     public Object getProfile() { return null; }
 }

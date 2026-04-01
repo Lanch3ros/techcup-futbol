@@ -1,23 +1,27 @@
 # 🗺️ Roadmap de Desarrollo: TechCup Fútbol
 
-## 1. Feedback de Auditoría (Ajuste de Contexto)
-Claude, toma nota de los siguientes puntos sobre el reporte anterior:
-- **Aciertos:** Excelente detección de la falta del campo `program` (RN-03-4), la ausencia del punto FairPlay (RN-09-2) y la falta de lógica para brackets eliminatorios (6.11).
-- **Corrección (Hallucinación):** El "Carné Universitario" **NO** es un requerimiento oficial. La sección 6.1 del PDF trata sobre "Registro de Torneo". Ignora cualquier validación de carné físico/digital; nos basaremos únicamente en el **correo institucional** y el campo **identificación**.
+## Feedback de Auditoría (Ajuste de Contexto)
+- **Aciertos:** Detección de `program` (RN-03-4), FairPlay (RN-09-2) y brackets (6.11).
+- **Corrección:** El "Carné Universitario" NO es un requerimiento. Usamos correo institucional e identificación.
 
-## 2. Fase 1: Base de Datos y Modelos (Prioridad Alta)
-Objetivo: Ajustar los modelos para que soporten las reglas de negocio del PDF.
-- [ ] Agregar campo `program` (Enum: Sistemas, IA, Ciberseguridad, Estadística) a `Player`.
-- [ ] Agregar campo `identification` y `password` a los modelos de usuario.
-- [ ] Implementar validación en `TeamService` para que >50% de jugadores cumplan con el programa académico (RN-03-4).
+## Fase 1: Base de Datos y Modelos (COMPLETADO ✅)
+- [x] Agregar campo `program` (Enum) y Maestrías.
+- [x] Agregar campo `identification` y `password` a User.
+- [x] Validación de >50% de programas de ingeniería (RN-03-4).
 
-## 3. Fase 2: Lógica de Torneo y Estadísticas
-Objetivo: Corregir el cálculo de puntos y la progresión del torneo.
-- [ ] Actualizar `StatsService` para incluir el +1 punto por FairPlay (sin tarjetas) [RN-09-2].
-- [ ] Implementar el algoritmo de generación de llaves (Cuartos, Semis, Final) en `TournamentService` [6.11].
-- [ ] Validar que el marcador solo se registre si el partido está en estado `FINISHED` [RN-08-1].
+## Fase 2: Lógica de Torneo y Estadísticas (COMPLETADO ✅)
+- [x] Punto FairPlay (+1) en StatsService [RN-09-2].
+- [x] Algoritmo de Brackets (1v8, 2v7, 3v6, 4v5) [6.11].
+- [x] Validación de estado FINISHED para resultados [RN-08-1].
 
-## 4. Fase 3: Seguridad y Archivos
-Objetivo: Proteger el sistema y permitir carga de evidencias.
-- [ ] Crear `SecurityConfig` para restringir endpoints por rol (ADMIN, ORGANIZADOR, CAPITAN).
-- [ ] Implementar el endpoint real para subida de comprobantes de pago (MultipartFile) [RF-06].
+## Fase 3: Seguridad y Archivos (COMPLETADO ✅)
+- [x] SecurityConfig base con RBAC (Roles).
+- [x] Endpoint MultipartFile para comprobantes de pago (JPG, PNG, PDF) [RF-06].
+
+## Fase 4: Infraestructura y Persistencia Real (PRÓXIMO 🚀)
+**Nota técnica:** El entorno usa Colima (x86_64) en Mac Intel.
+- [x] Crear `docker-compose.yml` para PostgreSQL 16.
+- [x] Migrar modelos de Java a Entidades `@Entity` (JPA).
+- [x] Implementar `JpaRepository` para reemplazar los HashMaps actuales.
+- [ ] Persistencia de Usuarios: Mover usuarios de memoria a la base de datos con `UserDetailsService`.
+- [ ] Implementar Gestión de Invitaciones (Aceptar/Rechazar) con persistencia [RF-11].

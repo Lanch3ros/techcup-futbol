@@ -44,7 +44,7 @@ public class PaymentService {
     public Payment uploadReceipt(Long teamId, MultipartFile file) {
         log.info("Subiendo comprobante de pago para equipo ID: {}, archivo: '{}'", teamId, file.getOriginalFilename());
 
-        if (teamRepository.findById(teamId) == null) {
+        if (!teamRepository.existsById(teamId)) {
             throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
         }
 
@@ -94,7 +94,7 @@ public class PaymentService {
     public Payment createPayment(PaymentRequest request) {
         log.info("Registrando comprobante de pago para equipo ID: {}", request.getTeamId());
 
-        if (teamRepository.findById(request.getTeamId()) == null) {
+        if (!teamRepository.existsById(request.getTeamId())) {
             log.warn("Equipo no encontrado al registrar pago - ID: {}", request.getTeamId());
             throw new ResourceNotFoundException("Equipo con ID " + request.getTeamId() + " no encontrado");
         }
@@ -119,11 +119,10 @@ public class PaymentService {
 
     public Payment getPaymentById(Long id) {
         log.info("Buscando pago con ID: {}", id);
-        Payment payment = paymentRepository.findById(id);
-        if (payment == null) {
+        Payment payment = paymentRepository.findById(id).orElseThrow(() -> {
             log.warn("Pago no encontrado - ID: {}", id);
-            throw new ResourceNotFoundException("Pago con ID " + id + " no encontrado");
-        }
+            return new ResourceNotFoundException("Pago con ID " + id + " no encontrado");
+        });
         log.info("Pago encontrado - ID: {}, estado: {}", id, payment.getStatus());
         return payment;
     }
@@ -152,12 +151,9 @@ public class PaymentService {
 
     public Payment getPaymentByTeam(Long teamId) {
         log.info("Buscando pago del equipo ID: {}", teamId);
-        return paymentRepository.findAll().stream()
-                .filter(p -> p.getTeamId().equals(teamId))
-                .findFirst()
-                .orElseThrow(() -> {
-                    log.warn("No se encontró pago para el equipo ID: {}", teamId);
-                    return new ResourceNotFoundException("No se encontró pago para el equipo con ID " + teamId);
-                });
+        return paymentRepository.findFirstByTeamId(teamId).orElseThrow(() -> {
+            log.warn("No se encontró pago para el equipo ID: {}", teamId);
+            return new ResourceNotFoundException("No se encontró pago para el equipo con ID " + teamId);
+        });
     }
 }

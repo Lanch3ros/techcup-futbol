@@ -52,11 +52,10 @@ public class TournamentService {
 
     public Tournament getTournamentById(Long id) {
         log.info("Buscando torneo con ID: {}", id);
-        Tournament tournament = tournamentRepository.findById(id);
-        if (tournament == null) {
+        Tournament tournament = tournamentRepository.findById(id).orElseThrow(() -> {
             log.warn("Torneo no encontrado - ID: {}", id);
-            throw new ResourceNotFoundException("El torneo con ID " + id + " no existe.");
-        }
+            return new ResourceNotFoundException("El torneo con ID " + id + " no existe.");
+        });
         log.info("Torneo encontrado - ID: {}, estado: {}", id, tournament.getStatus());
         return tournament;
     }
@@ -89,11 +88,10 @@ public class TournamentService {
 
         Tournament tournament = getTournamentById(tournamentId);
 
-        Team team = teamRepository.findById(teamId);
-        if (team == null) {
+        Team team = teamRepository.findById(teamId).orElseThrow(() -> {
             log.warn("Equipo no encontrado al inscribir al torneo - ID: {}", teamId);
-            throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
-        }
+            return new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
+        });
 
         if (!"Activo".equals(tournament.getStatus())) {
             log.warn("Intento de inscripción en torneo ID: {} con estado '{}' no permitido", tournamentId, tournament.getStatus());

@@ -1,4 +1,4 @@
-package com.example.controller.dto;
+package com.example.controller.dto.response;
 
 public record ProfileDTO(
         String fullName,

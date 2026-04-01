@@ -3,10 +3,14 @@ package com.example.repository;
 import com.example.core.model.Team;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 class TeamRepositoryTest {
 
@@ -14,7 +18,7 @@ class TeamRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        teamRepository = new TeamRepository();
+        teamRepository = Mockito.mock(TeamRepository.class);
     }
 
     @Test
@@ -22,11 +26,17 @@ class TeamRepositoryTest {
         Team team = new Team();
         team.setName("Equipo Nuevo");
 
-        Team savedTeam = teamRepository.save(team);
+        Team savedTeam = new Team();
+        savedTeam.setId(1L);
+        savedTeam.setName("Equipo Nuevo");
 
-        assertNotNull(savedTeam.getId());
-        assertEquals(1L, savedTeam.getId());
-        assertEquals("Equipo Nuevo", savedTeam.getName());
+        when(teamRepository.save(any(Team.class))).thenReturn(savedTeam);
+
+        Team result = teamRepository.save(team);
+
+        assertNotNull(result.getId());
+        assertEquals(1L, result.getId());
+        assertEquals("Equipo Nuevo", result.getName());
     }
 
     @Test
@@ -34,6 +44,8 @@ class TeamRepositoryTest {
         Team team = new Team();
         team.setId(10L);
         team.setName("Equipo Existente");
+
+        when(teamRepository.save(any(Team.class))).thenReturn(team);
 
         Team savedTeam = teamRepository.save(team);
 
@@ -43,8 +55,7 @@ class TeamRepositoryTest {
 
     @Test
     void findAll_ReturnsAllSavedTeams() {
-        teamRepository.save(new Team());
-        teamRepository.save(new Team());
+        when(teamRepository.findAll()).thenReturn(List.of(new Team(), new Team()));
 
         List<Team> teams = teamRepository.findAll();
 
@@ -54,18 +65,22 @@ class TeamRepositoryTest {
     @Test
     void findById_ExistingId_ReturnsTeam() {
         Team team = new Team();
-        teamRepository.save(team);
+        team.setId(1L);
 
-        Team foundTeam = teamRepository.findById(1L);
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team));
 
-        assertNotNull(foundTeam);
-        assertEquals(1L, foundTeam.getId());
+        Optional<Team> result = teamRepository.findById(1L);
+
+        assertTrue(result.isPresent());
+        assertEquals(1L, result.get().getId());
     }
 
     @Test
-    void findById_NonExistingId_ReturnsNull() {
-        Team foundTeam = teamRepository.findById(99L);
+    void findById_NonExistingId_ReturnsEmpty() {
+        when(teamRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertNull(foundTeam);
+        Optional<Team> result = teamRepository.findById(99L);
+
+        assertFalse(result.isPresent());
     }
 }

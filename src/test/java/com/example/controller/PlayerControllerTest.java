@@ -1,7 +1,7 @@
 package com.example.controller;
 
-import com.example.controller.dto.ProfileDTO;
-import com.example.controller.dto.RegistrationDTO;
+import com.example.controller.dto.request.PlayerRegistrationRequest;
+import com.example.controller.dto.response.ProfileDTO;
 import com.example.controller.dto.response.GenericResponse;
 import com.example.controller.mapper.PlayerMapper;
 import com.example.core.model.Player;
@@ -36,12 +36,21 @@ class PlayerControllerTest {
 
     @Test
     void registerPlayer_Success_Returns201() {
-        RegistrationDTO dto = new RegistrationDTO("Jose", "jose@mail.com", "123", "STUDENT", null, null, null, null, null);
-        MockMultipartFile file = new MockMultipartFile("profilePhoto", "foto.png", "image/png", "imagen".getBytes());
+        PlayerRegistrationRequest request = new PlayerRegistrationRequest();
+        request.setName("Jose");
+        request.setEmail("jose@mail.escuelaing.edu.co");
+        request.setPassword("12345678");
+        request.setUserType("STUDENT");
+        request.setJerseyNumber(10);
+        request.setPosition("Delantero");
 
-        when(playerService.registerPlayer(any(RegistrationDTO.class))).thenReturn(new StudentPlayer());
+        MockMultipartFile file = new MockMultipartFile(
+                "profilePhoto", "foto.png", "image/png", "imagen".getBytes());
 
-        ResponseEntity<GenericResponse> response = playerController.registerPlayer(dto, file);
+        when(playerService.registerPlayer(any(PlayerRegistrationRequest.class)))
+                .thenReturn(new StudentPlayer());
+
+        ResponseEntity<GenericResponse> response = playerController.registerPlayer(request, file);
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -49,27 +58,42 @@ class PlayerControllerTest {
 
     @Test
     void registerPlayer_InvalidImageFormat_Returns400() {
-        RegistrationDTO dto = new RegistrationDTO("Jose", "jose@mail.com", "123", "STUDENT", null, null, null, null, null);
-        MockMultipartFile file = new MockMultipartFile("profilePhoto", "doc.txt", "text/plain", "texto".getBytes());
+        PlayerRegistrationRequest request = new PlayerRegistrationRequest();
+        request.setName("Jose");
+        request.setEmail("jose@mail.escuelaing.edu.co");
+        request.setPassword("12345678");
+        request.setUserType("STUDENT");
+        request.setJerseyNumber(10);
+        request.setPosition("Delantero");
 
-        ResponseEntity<GenericResponse> response = playerController.registerPlayer(dto, file);
+        MockMultipartFile file = new MockMultipartFile(
+                "profilePhoto", "doc.txt", "text/plain", "texto".getBytes());
+
+        ResponseEntity<GenericResponse> response = playerController.registerPlayer(request, file);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals("Solo se permiten imágenes", ((GenericResponse) response.getBody()).getData());
+        assertEquals("Solo se permiten imágenes", response.getBody().getData());
     }
 
     @Test
     void registerPlayer_Exception_Returns400() {
-        RegistrationDTO dto = new RegistrationDTO("Jose", "jose@mail.com", "123", "STUDENT", null, null, null, null, null);
+        PlayerRegistrationRequest request = new PlayerRegistrationRequest();
+        request.setName("Jose");
+        request.setEmail("jose@mail.escuelaing.edu.co");
+        request.setPassword("12345678");
+        request.setUserType("STUDENT");
+        request.setJerseyNumber(10);
+        request.setPosition("Delantero");
 
-        when(playerService.registerPlayer(any())).thenThrow(new RuntimeException("Error interno"));
+        when(playerService.registerPlayer(any(PlayerRegistrationRequest.class)))
+                .thenThrow(new RuntimeException("Error interno"));
 
-        ResponseEntity<GenericResponse> response = playerController.registerPlayer(dto, null);
+        ResponseEntity<GenericResponse> response = playerController.registerPlayer(request, null);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals("Error interno", ((GenericResponse) response.getBody()).getData());
+        assertEquals("Error interno", response.getBody().getData());
     }
 
     @Test

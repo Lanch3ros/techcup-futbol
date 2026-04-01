@@ -7,8 +7,14 @@ class StudentPlayerTest {
 
     @Test
     void testLombokMethodsAndInheritance() {
-        StudentPlayer player = new StudentPlayer(1L, "Sistemas", "Ingeniería", 10, "Delantero", 100L, true);
+        StudentPlayer player = new StudentPlayer();
         player.setId(1L);
+        player.setDepartment("Sistemas");
+        player.setProgram(Program.SISTEMAS);
+        player.setJerseyNumber(10);
+        player.setPosition("Delantero");
+        player.setTeamId(100L);
+        player.setAvailable(true);
         player.setEmail("estudiante@mail.escuelaing.edu.co");
         player.setPassword("1234");
         player.setFullName("Jose Lancheros");
@@ -17,7 +23,7 @@ class StudentPlayerTest {
 
         assertEquals(1L, player.getId());
         assertEquals("Sistemas", player.getDepartment());
-        assertEquals("Ingeniería", player.getProgram());
+        assertEquals(Program.SISTEMAS, player.getProgram());
         assertEquals(10, player.getJerseyNumber());
         assertEquals("Delantero", player.getPosition());
         assertEquals(100L, player.getTeamId());

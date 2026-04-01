@@ -1,12 +1,15 @@
 package com.example.core.service;
 
+import com.example.core.exception.ResourceNotFoundException;
 import com.example.core.model.Team;
+import com.example.repository.PlayerRepository;
 import com.example.repository.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,12 +18,14 @@ import static org.mockito.Mockito.when;
 class TeamServiceTest {
 
     private TeamRepository teamRepository;
+    private PlayerRepository playerRepository;
     private TeamService teamService;
 
     @BeforeEach
     void setUp() {
         teamRepository = Mockito.mock(TeamRepository.class);
-        teamService = new TeamService(teamRepository);
+        playerRepository = Mockito.mock(PlayerRepository.class);
+        teamService = new TeamService(teamRepository, playerRepository);
     }
 
     @Test
@@ -58,7 +63,7 @@ class TeamServiceTest {
         mockTeam.setId(1L);
         mockTeam.setName("Sistemas FC");
 
-        when(teamRepository.findById(1L)).thenReturn(mockTeam);
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(mockTeam));
 
         Team result = teamService.getTeamById(1L);
 
@@ -68,11 +73,10 @@ class TeamServiceTest {
     }
 
     @Test
-    void getTeamById_NotFound_ReturnsNull() {
-        when(teamRepository.findById(99L)).thenReturn(null);
+    void getTeamById_NotFound_ThrowsResourceNotFoundException() {
+        when(teamRepository.findById(99L)).thenReturn(Optional.empty());
 
-        Team result = teamService.getTeamById(99L);
-
-        assertNull(result);
+        // TeamService lanza ResourceNotFoundException cuando no encuentra el equipo
+        assertThrows(ResourceNotFoundException.class, () -> teamService.getTeamById(99L));
     }
 }

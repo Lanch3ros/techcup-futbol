@@ -1,0 +1,91 @@
+package com.example.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    // -----------------------------------------------------------------------
+    // Usuarios en memoria (reemplazar por JWT + BD en Fase 4)
+    // -----------------------------------------------------------------------
+    @Bean
+    public UserDetailsService userDetailsService(PasswordEncoder encoder) {
+        return new InMemoryUserDetailsManager(
+                User.withUsername("admin").password(encoder.encode("admin")).roles("ADMIN").build(),
+                User.withUsername("organizador").password(encoder.encode("organizador")).roles("ORGANIZADOR").build(),
+                User.withUsername("capitan").password(encoder.encode("capitan")).roles("CAPITAN").build(),
+                User.withUsername("arbitro").password(encoder.encode("arbitro")).roles("ARBITRO").build(),
+                User.withUsername("jugador").password(encoder.encode("jugador")).roles("JUGADOR").build()
+        );
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    // -----------------------------------------------------------------------
+    // Reglas de acceso por endpoint
+    // -----------------------------------------------------------------------
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .httpBasic(httpBasic -> {})
+            .authorizeHttpRequests(auth -> auth
+
+                // Swagger UI — acceso público
+                .requestMatchers(
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**"
+                ).permitAll()
+
+                // Registro de jugadores — público (cualquiera puede registrarse)
+                .requestMatchers(HttpMethod.POST, "/api/v1/players").permitAll()
+
+                // ── ORGANIZADOR ──────────────────────────────────────────────
+                // Gestión de torneos
+                .requestMatchers(HttpMethod.POST,  "/api/v1/tournaments").hasAnyRole("ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/tournaments/*/status").hasAnyRole("ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.POST,  "/api/v1/tournaments/*/generate-matches").hasAnyRole("ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.POST,  "/api/v1/tournaments/*/generate-quarter-finals").hasAnyRole("ORGANIZADOR", "ADMIN")
+                // Revisión de pagos
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/payments/*/approve").hasAnyRole("ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/payments/*/reject").hasAnyRole("ORGANIZADOR", "ADMIN")
+                // Creación de partidos y árbitros
+                .requestMatchers(HttpMethod.POST,  "/api/v1/matches").hasAnyRole("ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.POST,  "/api/v1/referees").hasAnyRole("ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/matches/*/referee").hasAnyRole("ORGANIZADOR", "ADMIN")
+
+                // ── ÁRBITRO ──────────────────────────────────────────────────
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/matches/*/status").hasAnyRole("ARBITRO", "ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/matches/*/result").hasAnyRole("ARBITRO", "ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.POST,  "/api/v1/matches/*/events").hasAnyRole("ARBITRO", "ORGANIZADOR", "ADMIN")
+
+                // ── CAPITÁN ──────────────────────────────────────────────────
+                .requestMatchers(HttpMethod.POST, "/api/v1/payments/upload").hasAnyRole("CAPITAN", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/v1/teams").hasAnyRole("CAPITAN", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/v1/teams/*/lineup").hasAnyRole("CAPITAN", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/v1/teams/*/invitations").hasAnyRole("CAPITAN", "ADMIN")
+
+                // ── Cualquier usuario autenticado ─────────────────────────────
+                .anyRequest().authenticated()
+            );
+
+        return http.build();
+    }
+}

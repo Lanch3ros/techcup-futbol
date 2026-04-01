@@ -1,6 +1,6 @@
 package com.example.controller.mapper;
 
-import com.example.controller.dto.ProfileDTO;
+import com.example.controller.dto.response.ProfileDTO;
 import com.example.core.model.Player;
 import org.springframework.stereotype.Component;
 
@@ -17,8 +17,8 @@ public class PlayerMapper {
                 player.getEmail(),
                 player.getUserType(),
                 player.getProfilePhoto(),
-                null,
-                null
+                player.getJerseyNumber(),
+                player.getPosition()
         );
     }
 }

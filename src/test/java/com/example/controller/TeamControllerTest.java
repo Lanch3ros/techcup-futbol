@@ -2,7 +2,9 @@ package com.example.controller;
 
 import com.example.controller.dto.request.TeamCreationRequest;
 import com.example.controller.dto.response.GenericResponse;
+import com.example.controller.mapper.PlayerMapper;
 import com.example.controller.mapper.TeamMapper;
+import com.example.core.exception.ResourceNotFoundException;
 import com.example.core.model.Team;
 import com.example.core.service.TeamService;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,13 +25,15 @@ class TeamControllerTest {
 
     private TeamService teamService;
     private TeamMapper teamMapper;
+    private PlayerMapper playerMapper;
     private TeamController teamController;
 
     @BeforeEach
     void setUp() {
         teamService = Mockito.mock(TeamService.class);
         teamMapper = Mockito.mock(TeamMapper.class);
-        teamController = new TeamController(teamService, teamMapper);
+        playerMapper = Mockito.mock(PlayerMapper.class);
+        teamController = new TeamController(teamService, teamMapper, playerMapper);
     }
 
     @Test
@@ -53,9 +57,11 @@ class TeamControllerTest {
     void createTeam_Exception_Returns400() {
         TeamCreationRequest request = new TeamCreationRequest();
         request.setName("Ingeniería FC");
+        request.setColors("Rojo");
 
         when(teamMapper.toEntity(any())).thenReturn(new Team());
-        doThrow(new RuntimeException("Error en base de datos")).when(teamService).createTeam(any(Team.class));
+        doThrow(new RuntimeException("Error en base de datos"))
+                .when(teamService).createTeam(any(Team.class));
 
         ResponseEntity<GenericResponse> response = teamController.createTeam(request);
 
@@ -90,7 +96,8 @@ class TeamControllerTest {
 
     @Test
     void getTeamById_NotFound_Returns404() {
-        when(teamService.getTeamById(99L)).thenReturn(null);
+        when(teamService.getTeamById(99L))
+                .thenThrow(new ResourceNotFoundException("Equipo no encontrado"));
 
         ResponseEntity<Team> response = teamController.getTeamById(99L);
 

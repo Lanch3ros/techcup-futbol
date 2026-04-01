@@ -22,3 +22,11 @@ target/
 *.zip
 *.tar.gz
 *.rar
+
+# Claude Code
+.claude/
+.claudelogs/
+claude.json
+
+# Herramientas MCP que generen configs locales
+mcp-config.json

@@ -12,6 +12,4 @@ public class LineupRequest {
 
     @NotBlank(message = "Formation schema is required")
     private String formation;
-
-
 }

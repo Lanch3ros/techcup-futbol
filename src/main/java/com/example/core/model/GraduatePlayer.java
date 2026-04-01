@@ -1,45 +1,22 @@
 package com.example.core.model;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
+@Entity
+@DiscriminatorValue("GRADUATE")
 @NoArgsConstructor
-@AllArgsConstructor
 public class GraduatePlayer extends User implements Player {
-    private Long id;
-    private String program;
-    private int jerseyNumber;
-    private String position;
-    private Long teamId;
-    private boolean available;
 
-    @Override
-    public boolean validateEmail() { return false; }
-
-    @Override
-    public void acceptInvitation(Long teamId) {}
-
-    @Override
-    public void rejectInvitation(Long teamId) {}
-
-    @Override
-    public void setAvailable(boolean available) { this.available = available; }
-
-    @Override
-    public String getUserType() { return "GRADUATE"; }
-
-    @Override
-    public boolean login() {
-        return false;
-    }
-
-    @Override
-    public void logout() {
-    }
+    @Override public boolean validateEmail() { return false; }
+    @Override public void acceptInvitation(Long teamId) {}
+    @Override public void rejectInvitation(Long teamId) {}
+    @Override public void setAvailable(boolean available) { this.available = available; }
+    @Override public String getUserType() { return "GRADUATE"; }
+    @Override public boolean login() { return false; }
+    @Override public void logout() {}
+    @Override public String getProfilePhoto() { return profilePhoto; }
 
     public Object getProfile() { return null; }
 }

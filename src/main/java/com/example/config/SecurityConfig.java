@@ -53,8 +53,8 @@ public class SecurityConfig {
         http
             .authenticationProvider(authenticationProvider())
             .csrf(csrf -> csrf.disable())
+            .httpBasic(basic -> basic.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .httpBasic(httpBasic -> {})
             .authorizeHttpRequests(auth -> auth
 
                 // Swagger UI — acceso público

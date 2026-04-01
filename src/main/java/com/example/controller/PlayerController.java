@@ -171,6 +171,36 @@ public class PlayerController {
     }
 
 
+    @Operation(summary = "Aceptar o rechazar una invitación (RF-11 / RN-11-3)",
+               description = "Acepta o rechaza la invitación indicada por su ID. " +
+                             "Al aceptar, el jugador queda vinculado al equipo y todas sus demás " +
+                             "invitaciones pendientes se rechazan automáticamente (RN-11-3).")
+    @PatchMapping("/invitations/{invitationId}")
+    public ResponseEntity<GenericResponse> processInvitationResponse(
+            @PathVariable Long invitationId,
+            @RequestBody Map<String, String> payload) {
+
+        log.info("PATCH /api/v1/players/invitations/{}", invitationId);
+        try {
+            String action = payload.get("action");
+            if (action == null || (!action.equalsIgnoreCase("ACCEPT") && !action.equalsIgnoreCase("REJECT"))) {
+                log.warn("Acción inválida '{}' para invitación ID: {}", action, invitationId);
+                return ResponseEntity.badRequest()
+                        .body(new GenericResponse("Error", "La acción debe ser ACCEPT o REJECT"));
+            }
+            playerService.processInvitationResponse(invitationId, action.toUpperCase());
+            String msg = "ACCEPT".equalsIgnoreCase(action)
+                    ? "Invitación aceptada. Jugador vinculado al equipo."
+                    : "Invitación rechazada.";
+            log.info("Invitación ID: {} procesada con acción: {}", invitationId, action);
+            return ResponseEntity.ok(new GenericResponse("Éxito", msg));
+        } catch (Exception e) {
+            log.error("Error al procesar invitación ID: {} - {}", invitationId, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
+    }
+
+
     @Operation(summary = "Responder a una invitación de equipo")
     @PatchMapping("/{id}/invitations/{teamId}")
     public ResponseEntity<GenericResponse> respondToInvitation(

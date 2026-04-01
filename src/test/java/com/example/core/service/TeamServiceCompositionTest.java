@@ -6,6 +6,7 @@ import com.example.core.model.Program;
 import com.example.core.model.StudentPlayer;
 import com.example.core.model.Team;
 import com.example.core.model.User;
+import com.example.repository.InvitationRepository;
 import com.example.repository.PlayerRepository;
 import com.example.repository.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,15 +25,17 @@ class TeamServiceCompositionTest {
 
     private TeamRepository teamRepository;
     private PlayerRepository playerRepository;
+    private InvitationRepository invitationRepository;
     private TeamService teamService;
 
     private Team team;
 
     @BeforeEach
     void setUp() {
-        teamRepository   = mock(TeamRepository.class);
-        playerRepository = mock(PlayerRepository.class);
-        teamService = new TeamService(teamRepository, playerRepository);
+        teamRepository       = mock(TeamRepository.class);
+        playerRepository     = mock(PlayerRepository.class);
+        invitationRepository = mock(InvitationRepository.class);
+        teamService = new TeamService(teamRepository, playerRepository, invitationRepository);
 
         team = new Team();
         team.setId(1L);

@@ -13,15 +13,19 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService,
+                          JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -49,8 +53,8 @@ public class SecurityConfig {
         http
             .authenticationProvider(authenticationProvider())
             .csrf(csrf -> csrf.disable())
+            .httpBasic(basic -> basic.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .httpBasic(httpBasic -> {})
             .authorizeHttpRequests(auth -> auth
 
                 // Swagger UI — acceso público
@@ -59,6 +63,9 @@ public class SecurityConfig {
                         "/swagger-ui.html",
                         "/v3/api-docs/**"
                 ).permitAll()
+
+                // Login — público
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
 
                 // Registro de jugadores — público (cualquiera puede registrarse)
                 .requestMatchers(HttpMethod.POST, "/api/v1/players").permitAll()
@@ -90,7 +97,8 @@ public class SecurityConfig {
 
                 // ── Cualquier usuario autenticado ─────────────────────────────
                 .anyRequest().authenticated()
-            );
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

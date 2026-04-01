@@ -30,3 +30,6 @@ claude.json
 
 # Herramientas MCP que generen configs locales
 mcp-config.json
+
+# Para que las imagenes de pago no se suban al repo
+uploads/

@@ -72,6 +72,28 @@ public class MatchController {
     }
 
 
+    @Operation(summary = "Actualizar estado de un partido (Programado → En Curso → Finalizado)")
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<GenericResponse> updateMatchStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> payload) {
+
+        log.info("PATCH /api/v1/matches/{}/status", id);
+        try {
+            String newStatus = payload.get("status");
+            if (newStatus == null || newStatus.isBlank()) {
+                return ResponseEntity.badRequest().body(new GenericResponse("Error", "El campo 'status' es obligatorio"));
+            }
+            matchService.updateMatchStatus(id, newStatus);
+            log.info("Estado del partido ID: {} actualizado a '{}'", id, newStatus);
+            return ResponseEntity.ok(new GenericResponse("Éxito", "Estado actualizado a '" + newStatus + "'"));
+        } catch (Exception e) {
+            log.error("Error al actualizar estado del partido ID: {} - {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
+    }
+
+
     @Operation(summary = "Registrar resultado (marcador) de un partido")
     @PatchMapping("/{id}/result")
     public ResponseEntity<GenericResponse> registerResult(

@@ -20,4 +20,5 @@ public interface Player {
     void setJerseyNumber(Integer jerseyNumber);
     Integer getJerseyNumber();
     void setTeamId(Long teamId);
+    Long getTeamId();
 }

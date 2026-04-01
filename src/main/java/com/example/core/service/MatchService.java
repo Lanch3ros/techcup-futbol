@@ -83,12 +83,32 @@ public class MatchService {
         return match;
     }
 
+    public void updateMatchStatus(Long matchId, String newStatus) {
+        log.info("Actualizando estado del partido ID: {} a '{}'", matchId, newStatus);
+        Match match = getMatchById(matchId);
+
+        List<String> validStatuses = List.of("Programado", "En Curso", "Finalizado");
+        if (!validStatuses.contains(newStatus)) {
+            log.warn("Estado inválido '{}' para partido ID: {}", newStatus, matchId);
+            throw new BusinessRuleException("Estado inválido. Los estados permitidos son: " + validStatuses);
+        }
+
+        match.setStatus(newStatus);
+        matchRepository.save(match);
+        log.info("Estado del partido ID: {} actualizado a '{}'", matchId, newStatus);
+    }
+
     public void registerResult(Long matchId, MatchResultRequest request) {
         log.info("Registrando resultado del partido ID: {} - marcador: {} - {}", matchId, request.getHomeGoals(), request.getAwayGoals());
         Match match = getMatchById(matchId);
+
+        if (!"Finalizado".equals(match.getStatus())) {
+            log.warn("Intento de registrar resultado en partido no finalizado - ID: {}, estado actual: '{}'", matchId, match.getStatus());
+            throw new BusinessRuleException("El resultado solo puede registrarse una vez que el partido está en estado 'Finalizado'.");
+        }
+
         match.setHomeGoals(request.getHomeGoals());
         match.setAwayGoals(request.getAwayGoals());
-        match.setStatus("Finalizado");
         matchRepository.save(match);
         log.info("Resultado registrado exitosamente para partido ID: {} -> {} - {}", matchId, request.getHomeGoals(), request.getAwayGoals());
     }

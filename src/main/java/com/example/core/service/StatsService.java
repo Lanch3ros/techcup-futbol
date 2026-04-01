@@ -77,6 +77,7 @@ public class StatsService {
             throw new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
         }
 
+        int fairPlayPoints = calculateFairPlayPoints(teamId);
         StandingDTO dto = new StandingDTO();
         dto.setTeamId(teamId);
         dto.setTeamName(team.getName());
@@ -87,9 +88,9 @@ public class StatsService {
         dto.setGoalsFor(team.getGoalsFor());
         dto.setGoalsAgainst(team.getGoalsAgainst());
         dto.setGoalDifference(team.getGoalDifference());
-        dto.setPoints(team.getPoints());
+        dto.setPoints(team.getPoints() + fairPlayPoints);
 
-        log.info("Estadísticas del equipo ID {}: {} pts, {} PJ, {} PG, {} PE, {} PP", teamId, dto.getPoints(), dto.getMatchesPlayed(), dto.getMatchesWon(), dto.getMatchesDrawn(), dto.getMatchesLost());
+        log.info("Estadísticas del equipo ID {}: {} pts (incl. {} FairPlay), {} PJ", teamId, dto.getPoints(), fairPlayPoints, dto.getMatchesPlayed());
         return dto;
     }
 
@@ -97,6 +98,7 @@ public class StatsService {
         log.info("Calculando tabla de posiciones del torneo ID: {}", tournamentId);
         List<StandingDTO> standings = teamRepository.findAll().stream()
                 .map(team -> {
+                    int fairPlayPoints = calculateFairPlayPoints(team.getId());
                     StandingDTO dto = new StandingDTO();
                     dto.setTeamId(team.getId());
                     dto.setTeamName(team.getName());
@@ -107,13 +109,36 @@ public class StatsService {
                     dto.setGoalsFor(team.getGoalsFor());
                     dto.setGoalsAgainst(team.getGoalsAgainst());
                     dto.setGoalDifference(team.getGoalDifference());
-                    dto.setPoints(team.getPoints());
+                    dto.setPoints(team.getPoints() + fairPlayPoints);
                     return dto;
                 })
                 .sorted(Comparator.comparingInt(StandingDTO::getPoints).reversed())
                 .collect(Collectors.toList());
         log.info("Tabla de posiciones calculada para torneo ID {}: {} equipos", tournamentId, standings.size());
         return standings;
+    }
+
+    // RN-09-2: +1 punto por cada partido finalizado en que el equipo no recibió tarjetas
+    private int calculateFairPlayPoints(Long teamId) {
+        return (int) matchRepository.findAll().stream()
+                .filter(m -> "Finalizado".equals(m.getStatus()))
+                .filter(m -> teamParticipatedInMatch(m, teamId))
+                .filter(m -> teamHadNoCardsInMatch(m, teamId))
+                .count();
+    }
+
+    private boolean teamParticipatedInMatch(Match match, Long teamId) {
+        return (match.getHomeTeam() != null && teamId.equals(match.getHomeTeam().getId()))
+                || (match.getAwayTeam() != null && teamId.equals(match.getAwayTeam().getId()));
+    }
+
+    private boolean teamHadNoCardsInMatch(Match match, Long teamId) {
+        return matchEventRepository.findByMatchId(match.getId()).stream()
+                .filter(e -> "AMARILLA".equals(e.getType()) || "ROJA".equals(e.getType()))
+                .noneMatch(e -> {
+                    Player player = playerRepository.findById(e.getPlayerId());
+                    return player != null && teamId.equals(player.getTeamId());
+                });
     }
 
     private List<PlayerStats> buildPlayerStatsFromEvents(List<MatchEvent> events) {

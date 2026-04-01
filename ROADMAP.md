@@ -18,10 +18,21 @@
 - [x] SecurityConfig base con RBAC (Roles).
 - [x] Endpoint MultipartFile para comprobantes de pago (JPG, PNG, PDF) [RF-06].
 
-## Fase 4: Infraestructura y Persistencia Real (PRÓXIMO 🚀)
+## Fase 4: Infraestructura y Persistencia Real (EN PROGRESO 🚀)
 **Nota técnica:** El entorno usa Colima (x86_64) en Mac Intel.
-- [x] Crear `docker-compose.yml` para PostgreSQL 16.
+- [x] Crear `docker-compose.yml` para PostgreSQL 16 (Puerto 5433).
 - [x] Migrar modelos de Java a Entidades `@Entity` (JPA).
 - [x] Implementar `JpaRepository` para reemplazar los HashMaps actuales.
 - [ ] Persistencia de Usuarios: Mover usuarios de memoria a la base de datos con `UserDetailsService`.
 - [ ] Implementar Gestión de Invitaciones (Aceptar/Rechazar) con persistencia [RF-11].
+
+## Fase 4.1: Estabilización y Refactorización de Tests (COMPLETADO ✅)
+- [x] Actualizar constructores de modelos en `src/test/java`.
+- [x] Refactorizar mocks de Repositorios (ahora interfaces JPA).
+- [x] Asegurar `mvn test` en verde (119 tests pasando).
+
+## Fase 4.2: Recuperación de Cobertura (COMPLETADO ✅)
+- [x] Lograr >30% de cobertura en `com.example.core.service`.
+- [x] Crear tests para la lógica de FairPlay (RN-09-2).
+- [x] Crear tests para la generación de Brackets (6.11).
+- [x] Asegurar que `TeamService` valide correctamente la regla del 50% (RN-03-4).

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -62,7 +63,7 @@ class TeamServiceTest {
         mockTeam.setId(1L);
         mockTeam.setName("Sistemas FC");
 
-        when(teamRepository.findById(1L)).thenReturn(mockTeam);
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(mockTeam));
 
         Team result = teamService.getTeamById(1L);
 
@@ -73,7 +74,7 @@ class TeamServiceTest {
 
     @Test
     void getTeamById_NotFound_ThrowsResourceNotFoundException() {
-        when(teamRepository.findById(99L)).thenReturn(null);
+        when(teamRepository.findById(99L)).thenReturn(Optional.empty());
 
         // TeamService lanza ResourceNotFoundException cuando no encuentra el equipo
         assertThrows(ResourceNotFoundException.class, () -> teamService.getTeamById(99L));

@@ -1,83 +1,135 @@
 # CLAUDE.md
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-**TechCup Fútbol** is a Spring Boot backend for managing a semi-annual engineering football tournament at Escuela Colombiana de Ingeniería Julio Garavito. It handles team registrations, player management, payment verification, match tracking, and standings calculation.
+**TechCup Fútbol** is a Spring Boot backend for managing a semi-annual engineering football tournament at Escuela Colombiana de Ingeniería Julio Garavito. It handles team registrations, player management, payment verification, match tracking, standings, and JWT-based authentication.
 
 ## Build & Run Commands
 ```bash
-mvn clean install        # Compile and resolve dependencies
-mvn spring-boot:run      # Start server at localhost:8080
-mvn test                 # Run all tests with JaCoCo coverage
-mvn test -Dtest=PlayerServiceTest  # Run a single test class
+mvn clean install                        # Compile and resolve dependencies
+mvn spring-boot:run -Dmaven.test.skip=true  # Start server at localhost:8080 (skips test compilation)
+mvn clean test                           # Run all tests (147 tests, all green)
+mvn test -Dtest=PlayerServiceTest        # Run a single test class
+mvn clean test jacoco:report             # Tests + JaCoCo HTML report in target/site/jacoco/
 ```
 
-Swagger UI is available at `http://localhost:8080/swagger-ui.html` once running.
+Swagger UI: `http://localhost:8080/swagger-ui.html`
 
-Prerequisites: Java 21, Maven 3.8+, PostgreSQL 16 running in Docker (Host port **5433** → Container 5432).
+**Prerequisites:** Java 21, Maven 3.8+, Docker (Colima on macOS) running PostgreSQL 16.
 
-## Architecture & Infrastructure
-Layered architecture: **Controller → Service → Repository → Model**, with cross-cutting concerns in `core/`.
+```bash
+docker compose up -d   # Start PostgreSQL 16 on host port 5433
+```
 
-- **Database:** PostgreSQL 16 running in Docker.
-- **Port Mapping:** Host **5433** -> Container 5432 (to avoid conflicts with local DBs).
-- **ORM:** Spring Data JPA with Hibernate. `ddl-auto: update`.
+Environment variables (all have development defaults in `application.yaml`):
+- `DB_URL` → `jdbc:postgresql://localhost:5433/techcup`
+- `DB_USERNAME` / `DB_PASSWORD` → `techcup`
+- `JWT_SECRET` → Base64-encoded 256-bit key (development default provided)
+
+## Architecture
+
+Layered: **Controller → Service → Repository → Model**, cross-cutting concerns in `core/`.
+
 ```
 src/main/java/com/example/
-├── controller/          # REST controllers, all prefixed /api/v1
+├── config/          # SecurityConfig, JwtAuthenticationFilter, SwaggerConfig
+├── controller/      # REST controllers (all prefixed /api/v1) + DTOs + Mappers
 ├── core/
-│   ├── service/         # Business logic
-│   ├── model/           # Domain entities
-│   ├── factory/         # PlayerFactory per player type (Factory Method pattern)
-│   ├── validator/       # Email validators per player type (Strategy pattern)
-│   └── exception/       # ResourceNotFoundException, BusinessRuleException
-├── repository/          # Spring Data JPA repositories
-└── config/              # SwaggerConfig, SecurityConfig
+│   ├── service/     # Business logic + JwtService + CustomUserDetailsService
+│   ├── model/       # JPA entities
+│   ├── factory/     # PlayerFactory per user type (Factory Method)
+│   ├── validator/   # Email validators per user type (Strategy)
+│   └── exception/   # ResourceNotFoundException, BusinessRuleException
+└── repository/      # Spring Data JPA repositories
 ```
 
 ## Domain Model & Persistence
 
-- **User Hierarchy:** Uses `SINGLE_TABLE` inheritance strategy in the `users` table.
-    - Discriminator column: `user_type` (STUDENT, TEACHER, GRADUATE, etc.).
-    - Abstract `User` class implements `Player` interface.
-- **Key Entities:** `Team`, `Player`, `Match`, `Tournament`, `Payment`, `Referee`, `MatchEvent`.
-- **Relationships:**
-    - `Team` ↔ `Player` (@OneToMany/ManyToOne)
-    - `Tournament` ↔ `Team` (@ManyToMany via join table)
-    - `Match` ↔ `Team` (home/away associations)
+**User hierarchy** — `SINGLE_TABLE` inheritance in the `users` table:
+- Discriminator column: `user_type` = `STUDENT | TEACHER | GRADUATE | RELATIVE | ADMIN`
+- Abstract `User implements Player`; concrete subtypes: `StudentPlayer`, `TeacherPlayer`, `GraduatePlayer`, `RelativePlayer`, `AdminPlayer`
+- `PlayerRepository extends JpaRepository<User, Long>` — returns `User`, cast to `Player` in services when needed
 
-### Design Patterns in Use
-- **Factory Method** (`core/factory/`): `PlayerFactory` dispatches to type-specific factories (e.g., `StudentFactory`, `TeacherFactory`) based on the registration request.
-- **Strategy** (`core/validator/`): `EmailValidator` interface with implementations like `StudentEmailValidator` (@mail.escuelaing.edu.co) and `GmailValidator` (@gmail.com).
-- **Command** (`MatchCommand`): Match events (goals, cards) are encapsulated as commands, enabling an audit trail.
-- **Mapper**: `PlayerMapper`, `TeamMapper`, `TournamentMapper`, `LineupMapper` translate between domain models and DTOs.
+**`Team.players`** is `@Transient` — never JPA-mapped. Always load players via `playerRepository.findByTeamId(teamId)`.
 
-## Security & RBAC
-Implemented via `SecurityConfig` with RBAC (Role-Based Access Control).
+**`Invitation`** entity (`invitations` table) — persists each team→player invite with status `PENDING | ACCEPTED | REJECTED`. Created in `TeamService.sendInvitation()`, processed in `PlayerService.processInvitationResponse()`.
 
-- **Roles:** ADMIN, ORGANIZADOR, ARBITRO, CAPITAN, JUGADOR.
-- **Current State:** HTTP Basic enabled. User persistence in DB is the next implementation step (replacing in-memory users).
+**Key relationships:**
+- `Tournament.registeredTeams` → `@ManyToMany @JoinTable(name="tournament_teams")`
+- `Match.homeTeam / awayTeam` → `@ManyToOne`
+- `Match.events / lineups` → `@Transient` (loaded separately)
+- `Referee.assignedMatchIds` → `@ElementCollection @CollectionTable(name="referee_matches")`
 
-### Error Handling
-Global `@ControllerAdvice` maps:
+**`ddl-auto: update`** — Hibernate auto-creates/updates all tables on startup.
+
+## Security (JWT)
+
+HTTP Basic is **disabled**. All protected endpoints require a Bearer JWT.
+
+**Authentication flow:**
+1. `POST /api/v1/auth/login` → `AuthController` → `AuthenticationManager` (BCrypt verify) → `JwtService.generateToken()` → returns `{ token, type: "Bearer", email }`
+2. Every subsequent request: `JwtAuthenticationFilter` (runs before `UsernamePasswordAuthenticationFilter`) extracts the token, validates via `JwtService.isTokenValid()`, loads user via `CustomUserDetailsService.loadUserByUsername(email)`, sets `SecurityContextHolder`
+
+**`CustomUserDetailsService`** looks up the user by `email` in `PlayerRepository`. Role resolution: uses `user.getRole()` if set; otherwise `ADMIN` type → `ROLE_ADMIN`, anything else → `ROLE_JUGADOR`.
+
+**`JwtService`** — HS256, 24h expiry. `@Value` fields `app.jwt.secret` and `app.jwt.expiration-ms`. Token includes a `"roles"` claim (list of Spring Security authority strings). `isTokenValid()` catches `JwtException` internally and returns `false` instead of propagating.
+
+**Public endpoints:** Swagger UI, `POST /api/v1/auth/login`, `POST /api/v1/players/register`
+
+**RBAC matrix:**
+
+| Role | Key permissions |
+|---|---|
+| `ADMIN` | Everything |
+| `ORGANIZADOR` | Tournament CRUD, match creation, referee assignment, payment approve/reject |
+| `ARBITRO` | Match status, result, events |
+| `CAPITAN` | Team creation, lineup, invitations, payment upload |
+| `JUGADOR` | Read-only authenticated access |
+
+## Key Business Rules
+
+- **RN-03-4**: `>50%` of team players must belong to an engineering `Program` (SISTEMAS, IA, CIBERSEGURIDAD, ESTADISTICA). Maestría programs do **not** count. Enforced in `TeamService.validateEngineeringProgramComposition()`, triggered on `configureLineup()`.
+- **RN-09-2**: Each finished match in which a team had zero cards awards +1 FairPlay point. Computed in `StatsService.calculateFairPlayPoints()` and added to base points in `getTeamStats()` / `getTournamentStandings()`.
+- **RN-11-3**: Accepting an invitation auto-rejects all other `PENDING` invitations for the same player via `invitationRepository.saveAll()` in `PlayerService.processInvitationResponse()`.
+- **RN-08-1**: `MatchService.registerResult()` throws `BusinessRuleException` if match status ≠ `"Finalizado"`.
+- **Brackets (6.11)**: `TournamentService.generateQuarterFinals()` ranks top-8 teams by points → goal difference → goals scored, then pairs: 1v8, 2v7, 3v6, 4v5. Guards: tournament must be `"En progreso"`, no existing QF matches, ≥8 registered teams.
+
+## Password & Registration
+
+`PlayerService.registerPlayer()` calls `passwordEncoder.encode()` on the password **after** the factory builds the entity and **before** `playerRepository.save()`. Factories set the plaintext password; encoding always happens in the service layer.
+
+## Testing Conventions
+
+**147 tests, all plain Mockito — no Spring context loaded.** This keeps tests fast and avoids needing a running DB.
+
+Pattern for service tests:
+```java
+repo = mock(SomeRepository.class);
+service = new SomeService(repo, ...);   // manual constructor injection
+when(repo.findById(1L)).thenReturn(Optional.of(entity));
+```
+
+`@Value` fields in `JwtService` are injected in tests via `ReflectionTestUtils.setField()`.
+
+When adding a dependency to a service constructor, update **all** test files that instantiate that service directly — they will fail to compile otherwise. Current multi-dependency services:
+- `PlayerService(PlayerRepository, PasswordEncoder, InvitationRepository)`
+- `TeamService(TeamRepository, PlayerRepository, InvitationRepository)`
+
+## CI/CD
+
+GitHub Actions workflow at `.github/workflows/maven.yml`:
+- Triggers on push to `main` / `feat/**` and PRs to `main`
+- Spins up `postgres:16` as a service container (port 5433), waits for health-check
+- Runs `mvn clean test` with secrets `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` injected as env vars
+- Required GitHub secret value for `DB_URL`: `jdbc:postgresql://localhost:5433/techcup`
+
+## Error Handling
+
+Global `@ControllerAdvice` (`GlobalExceptionHandler`) maps:
 - `ResourceNotFoundException` → 404
 - `BusinessRuleException` → 409
 - `MethodArgumentNotValidException` → 400
-- Unhandled exceptions → 500
+- Unhandled `Exception` → 500
 
-All errors return a standard `ErrorResponse { httpStatus, statusCode, message, path }`.
-
-## Testing & Quality
-- **Total Tests:** 119 tests (All Green ✅).
-- **Coverage:** 28.8% Total / **30.5%** in `core.service`.
-- **Stabilization:** All tests use Mocks for `JpaRepository` and support the JPA entity model.
-
-## API Endpoints Summary
-
-| Controller | Base Path | Key Features |
-|---|---|---|
-| PlayerController | `/api/v1/players` | Registration, Profile, Program validation |
-| TeamController | `/api/v1/teams` | Team creation, >50% Engineering rule |
-| TournamentController | `/api/v1/tournaments` | Seeding (1v8, 2v7…), Brackets generation |
-| MatchController | `/api/v1/matches` | Status updates, Result registration (FINISHED guard) |
-| PaymentController | `/api/v1/payments` | Multipart upload (JPG, PNG, PDF), FairPlay bonus |
+All error responses: `ErrorResponse { status, message, path }`.

@@ -1,9 +1,12 @@
 package com.example.core.service;
 
 import com.example.controller.dto.request.PlayerRegistrationRequest;
+import com.example.core.exception.BusinessRuleException;
 import com.example.core.factory.*;
+import com.example.core.model.Invitation;
 import com.example.core.model.Player;
 import com.example.core.model.User;
+import com.example.repository.InvitationRepository;
 import com.example.repository.PlayerRepository;
 import com.example.core.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -19,10 +22,13 @@ public class PlayerService {
 
     private final PlayerRepository playerRepository;
     private final PasswordEncoder passwordEncoder;
+    private final InvitationRepository invitationRepository;
 
-    public PlayerService(PlayerRepository playerRepository, PasswordEncoder passwordEncoder) {
+    public PlayerService(PlayerRepository playerRepository, PasswordEncoder passwordEncoder,
+                         InvitationRepository invitationRepository) {
         this.playerRepository = playerRepository;
         this.passwordEncoder = passwordEncoder;
+        this.invitationRepository = invitationRepository;
     }
 
     public Player registerPlayer(PlayerRegistrationRequest data) {
@@ -128,6 +134,51 @@ public class PlayerService {
 
         playerRepository.save(player);
         log.info("Respuesta a invitación procesada exitosamente - jugador ID: {}, acción: {}", id, action);
+    }
+
+    /**
+     * RF-11 / RN-11-3: Procesa la respuesta del jugador a una invitación.
+     * Si acepta, vincula al equipo, marca no-disponible y rechaza automáticamente
+     * todas las demás invitaciones pendientes del mismo jugador.
+     */
+    public void processInvitationResponse(Long invitationId, String action) {
+        log.info("Procesando respuesta a invitación ID: {}, acción: {}", invitationId, action);
+
+        Invitation invitation = invitationRepository.findById(invitationId).orElseThrow(() -> {
+            log.warn("Invitación no encontrada - ID: {}", invitationId);
+            return new ResourceNotFoundException("Invitación con ID " + invitationId + " no encontrada");
+        });
+
+        if (!Invitation.PENDING.equals(invitation.getStatus())) {
+            log.warn("Invitación ID: {} ya fue procesada - estado actual: {}", invitationId, invitation.getStatus());
+            throw new BusinessRuleException("Esta invitación ya fue procesada (estado: " + invitation.getStatus() + ").");
+        }
+
+        if ("ACCEPT".equalsIgnoreCase(action)) {
+            User player = playerRepository.findById(invitation.getPlayerId()).orElseThrow(() ->
+                    new ResourceNotFoundException("Jugador con ID " + invitation.getPlayerId() + " no encontrado"));
+
+            player.setTeamId(invitation.getTeamId());
+            player.setAvailable(false);
+            playerRepository.save(player);
+
+            invitation.setStatus(Invitation.ACCEPTED);
+            invitationRepository.save(invitation);
+
+            // RN-11-3: rechazar automáticamente todas las demás invitaciones pendientes
+            List<Invitation> otherPending = invitationRepository
+                    .findByPlayerIdAndStatus(invitation.getPlayerId(), Invitation.PENDING);
+            otherPending.forEach(inv -> inv.setStatus(Invitation.REJECTED));
+            invitationRepository.saveAll(otherPending);
+
+            log.info("Jugador ID: {} vinculado al equipo ID: {}. {} invitaciones pendientes rechazadas (RN-11-3)",
+                    player.getId(), invitation.getTeamId(), otherPending.size());
+
+        } else if ("REJECT".equalsIgnoreCase(action)) {
+            invitation.setStatus(Invitation.REJECTED);
+            invitationRepository.save(invitation);
+            log.info("Invitación ID: {} rechazada por el jugador", invitationId);
+        }
     }
 
     private PlayerFactory getFactoryByRole(String role) {

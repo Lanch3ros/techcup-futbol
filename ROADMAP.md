@@ -16,9 +16,9 @@
 
 ## Fase 5: Profesionalización y Seguridad (EN PROGRESO 🚀)
 *Objetivo: Cumplir requerimientos de seguridad y externalización de credenciales.*
-- [ ] **Paso 5.1: Encriptación y Variables:** Implementar BCrypt en PlayerService y mover credenciales a variables de entorno en `.yaml` y `docker-compose`.
-- [ ] **Paso 5.2: Auth Persistente:** Implementar `UserDetailsService` para cargar usuarios desde la DB (reemplazar memoria).
-- [ ] **Paso 5.3: CI/CD:** Configurar GitHub Actions con los Secrets definidos en el repo.
+- [x] **Paso 5.1: Encriptación y Variables:** Implementar BCrypt en PlayerService y mover credenciales a variables de entorno en `.yaml` y `docker-compose`.
+- [x] **Paso 5.2: Auth Persistente:** Implementar `UserDetailsService` para cargar usuarios desde la DB (reemplazar memoria).
+- [x] **Paso 5.3: CI/CD:** Configurar GitHub Actions con los Secrets definidos en el repo.
 
 ## Fase 6: Funcionalidad Final e Invitaciones
 - [ ] **RF-11: Gestión de Invitaciones:** Endpoint para Aceptar/Rechazar con persistencia real.

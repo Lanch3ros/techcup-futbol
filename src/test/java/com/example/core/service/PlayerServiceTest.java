@@ -4,6 +4,7 @@ import com.example.controller.dto.request.PlayerRegistrationRequest;
 import com.example.core.model.Player;
 import com.example.core.model.StudentPlayer;
 import com.example.core.model.User;
+import com.example.repository.InvitationRepository;
 import com.example.repository.PlayerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,14 +24,16 @@ class PlayerServiceTest {
 
     private PlayerRepository playerRepository;
     private PasswordEncoder passwordEncoder;
+    private InvitationRepository invitationRepository;
     private PlayerService playerService;
 
     @BeforeEach
     void setUp() {
-        playerRepository = Mockito.mock(PlayerRepository.class);
-        passwordEncoder  = Mockito.mock(PasswordEncoder.class);
+        playerRepository    = Mockito.mock(PlayerRepository.class);
+        passwordEncoder     = Mockito.mock(PasswordEncoder.class);
+        invitationRepository = Mockito.mock(InvitationRepository.class);
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$hashed");
-        playerService = new PlayerService(playerRepository, passwordEncoder);
+        playerService = new PlayerService(playerRepository, passwordEncoder, invitationRepository);
     }
 
     private PlayerRegistrationRequest buildRequest(String name, String email, String role) {

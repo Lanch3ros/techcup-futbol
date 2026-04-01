@@ -3,10 +3,12 @@ package com.example.core.service;
 import com.example.controller.dto.request.LineupRequest;
 import com.example.core.exception.BusinessRuleException;
 import com.example.core.exception.ResourceNotFoundException;
+import com.example.core.model.Invitation;
 import com.example.core.model.Player;
 import com.example.core.model.Program;
 import com.example.core.model.Team;
 import com.example.core.model.User;
+import com.example.repository.InvitationRepository;
 import com.example.repository.PlayerRepository;
 import com.example.repository.TeamRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -21,10 +23,13 @@ public class TeamService {
 
     private final TeamRepository teamRepository;
     private final PlayerRepository playerRepository;
+    private final InvitationRepository invitationRepository;
 
-    public TeamService(TeamRepository teamRepository, PlayerRepository playerRepository) {
+    public TeamService(TeamRepository teamRepository, PlayerRepository playerRepository,
+                       InvitationRepository invitationRepository) {
         this.teamRepository = teamRepository;
         this.playerRepository = playerRepository;
+        this.invitationRepository = invitationRepository;
     }
 
     public Team createTeam(Team team) {
@@ -105,7 +110,17 @@ public class TeamService {
             throw new BusinessRuleException("El equipo ya alcanzó el límite máximo de 12 jugadores permitidos.");
         }
 
-        log.info("Invitación enviada exitosamente al jugador ID: {} desde equipo ID: {}", playerId, teamId);
+        if (invitationRepository.existsByPlayerIdAndTeamIdAndStatus(playerId, teamId, Invitation.PENDING)) {
+            log.warn("Ya existe una invitación pendiente del equipo ID: {} al jugador ID: {}", teamId, playerId);
+            throw new BusinessRuleException("Ya existe una invitación pendiente para este jugador de este equipo.");
+        }
+
+        Invitation invitation = new Invitation();
+        invitation.setPlayerId(playerId);
+        invitation.setTeamId(teamId);
+        invitationRepository.save(invitation);
+
+        log.info("Invitación persistida exitosamente - jugador ID: {}, equipo ID: {}", playerId, teamId);
     }
 
     public LineupRequest getTeamLineup(Long teamId) {

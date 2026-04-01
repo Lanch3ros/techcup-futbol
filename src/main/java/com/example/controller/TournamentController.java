@@ -174,6 +174,21 @@ public class TournamentController {
     }
 
 
+    @Operation(summary = "Generar cuartos de final a partir de los 8 mejores clasificados")
+    @PostMapping("/{id}/generate-quarter-finals")
+    public ResponseEntity<GenericResponse> generateQuarterFinals(@PathVariable Long id) {
+        log.info("POST /api/v1/tournaments/{}/generate-quarter-finals", id);
+        try {
+            List<Match> matches = tournamentService.generateQuarterFinals(id);
+            log.info("4 cuartos de final generados para torneo ID: {}", id);
+            return ResponseEntity.ok(new GenericResponse("Éxito", matches));
+        } catch (Exception e) {
+            log.error("Error al generar cuartos de final para torneo ID: {} - {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
+    }
+
+
     @Operation(summary = "Actualizar el estado del torneo")
     @PatchMapping("/{id}/status")
     public ResponseEntity<GenericResponse> updateTournamentStatus(@PathVariable Long id, @RequestBody Map<String, String> payload) {

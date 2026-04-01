@@ -13,6 +13,7 @@ public class Match {
     private Long id;
     private LocalDateTime matchDate;
     private String field;
+    private String phase;
     private Team homeTeam;
     private Team awayTeam;
     private int homeGoals;

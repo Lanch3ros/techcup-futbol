@@ -154,4 +154,69 @@ public class TournamentService {
         log.info("{} partidos generados exitosamente para torneo ID: {}", matches.size(), tournamentId);
         return matches;
     }
+
+    public List<Match> generateQuarterFinals(Long tournamentId) {
+        log.info("Generando cuartos de final para torneo ID: {}", tournamentId);
+
+        Tournament tournament = getTournamentById(tournamentId);
+
+        if (!"En progreso".equals(tournament.getStatus())) {
+            log.warn("Torneo ID: {} no está en estado 'En progreso' - estado actual: '{}'", tournamentId, tournament.getStatus());
+            throw new BusinessRuleException("Los cuartos de final solo pueden generarse cuando el torneo está en estado 'En progreso'.");
+        }
+
+        boolean alreadyGenerated = tournament.getMatches() != null && tournament.getMatches().stream()
+                .anyMatch(m -> "Cuartos de Final".equals(m.getPhase()));
+        if (alreadyGenerated) {
+            log.warn("Los cuartos de final ya fueron generados para el torneo ID: {}", tournamentId);
+            throw new BusinessRuleException("Los cuartos de final ya han sido generados para este torneo.");
+        }
+
+        List<Team> registered = tournament.getRegisteredTeams();
+        if (registered == null || registered.size() < 8) {
+            log.warn("Torneo ID: {} no tiene suficientes equipos para cuartos de final - total: {}",
+                    tournamentId, registered != null ? registered.size() : 0);
+            throw new BusinessRuleException("Se necesitan al menos 8 equipos clasificados para generar los cuartos de final.");
+        }
+
+        // Clasificar por puntos DESC, diferencia de goles DESC, goles a favor DESC
+        List<Team> seeded = registered.stream()
+                .sorted(Comparator.comparingInt(Team::getPoints).reversed()
+                        .thenComparingInt(Team::getGoalDifference).reversed()
+                        .thenComparingInt(Team::getGoalsFor).reversed())
+                .limit(8)
+                .toList();
+
+        log.info("Top 8 clasificados para torneo ID: {}: {}",
+                tournamentId, seeded.stream().map(Team::getName).toList());
+
+        // Seeding clásico: 1v8, 2v7, 3v6, 4v5
+        int[][] pairings = {{0, 7}, {1, 6}, {2, 5}, {3, 4}};
+        List<Match> quarterFinals = new ArrayList<>();
+        LocalDateTime kickoff = LocalDateTime.now().plusDays(7);
+
+        for (int[] pair : pairings) {
+            Team home = seeded.get(pair[0]);
+            Team away = seeded.get(pair[1]);
+
+            Match match = new Match();
+            match.setHomeTeam(home);
+            match.setAwayTeam(away);
+            match.setPhase("Cuartos de Final");
+            match.setStatus("Programado");
+            match.setMatchDate(kickoff);
+            match.setEvents(new ArrayList<>());
+            match.setLineups(new ArrayList<>());
+            quarterFinals.add(matchRepository.save(match));
+
+            log.info("Cuarto de final generado: {} vs {}", home.getName(), away.getName());
+        }
+
+        if (tournament.getMatches() == null) tournament.setMatches(new ArrayList<>());
+        tournament.getMatches().addAll(quarterFinals);
+        tournamentRepository.save(tournament);
+
+        log.info("4 cuartos de final generados exitosamente para torneo ID: {}", tournamentId);
+        return quarterFinals;
+    }
 }

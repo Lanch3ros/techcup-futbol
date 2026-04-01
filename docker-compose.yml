@@ -3,9 +3,9 @@ services:
     image: postgres:16
     container_name: techcup-postgres
     environment:
-      POSTGRES_DB: techcup
-      POSTGRES_USER: techcup
-      POSTGRES_PASSWORD: techcup
+      POSTGRES_DB: ${DB_NAME:-techcup}
+      POSTGRES_USER: ${DB_USERNAME:-techcup}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-techcup}
     ports:
       - "5433:5432"
     volumes:

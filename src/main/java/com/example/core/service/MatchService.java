@@ -98,7 +98,7 @@ public class MatchService {
         log.info("Registrando resultado del partido ID: {} - marcador: {} - {}", matchId, request.getHomeGoals(), request.getAwayGoals());
         Match match = getMatchById(matchId);
 
-        if (!"Finalizado".equals(match.getStatus())) {
+        if (!"Finalizado".equalsIgnoreCase(match.getStatus())) {
             log.warn("Intento de registrar resultado en partido no finalizado - ID: {}, estado actual: '{}'", matchId, match.getStatus());
             throw new BusinessRuleException("El resultado solo puede registrarse una vez que el partido está en estado 'Finalizado'.");
         }

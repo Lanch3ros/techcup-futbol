@@ -131,7 +131,7 @@ public class PaymentService {
         log.info("Aprobando pago ID: {}, aprobado por: {}", id, approvedBy);
         Payment payment = getPaymentById(id);
 
-        if ("Aprobado".equals(payment.getStatus())) {
+        if ("Aprobado".equalsIgnoreCase(payment.getStatus())) {
             log.warn("Pago ID: {} ya fue aprobado anteriormente", id);
             throw new BusinessRuleException("El pago ya fue aprobado anteriormente");
         }

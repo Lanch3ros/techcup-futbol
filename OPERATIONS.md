@@ -1,22 +1,37 @@
-# Guía de Operaciones Técnicas - TechCup Fútbol
+# Guía de Operaciones Técnicas (Terminal) - Equipo TechCup Fútbol
 
-## Inicio de Jornada (Levantar Entorno)
-1. **Levantar Virtualización (Colima):** Ejecuta en la terminal: `colima start --cpu 2 --memory 4`
-2. **Iniciar Base de Datos:** Ejecuta en la terminal: `docker compose up -d`
-3. **Verificar Conexión:** Abre el panel **Database** en IntelliJ y refresca `techcup@localhost`.
-4. **Ejecutar Backend:** En IntelliJ, abre la clase principal (`TechcupFutbolApplication.java`) y haz clic en el **botón verde de Play (Run)** ubicado en el margen izquierdo junto a la definición de la clase, o usa el botón de Play en la barra de herramientas superior.
+## 1. Inicio de Jornada (Levantar Entorno)
+Abramos la terminal en la raíz del proyecto y ejecutemos estos comandos en orden para preparar el entorno:
 
-## Desarrollo y Control de Calidad
-* **Limpieza y Compilación:** Ejecuta en la terminal: `mvn clean install`
-* **Ejecutar Pruebas:** Haz clic en el botón verde de Play junto a la clase de prueba o ejecuta en la terminal: `mvn clean test`
-* **Reporte de Cobertura (JaCoCo):** Ejecuta en la terminal: `mvn clean test jacoco:report`
-* **Acceso API (Swagger UI):** Navega a `http://localhost:8080/swagger-ui.html` (requiere que el backend esté en ejecución).
+1. **Levantar máquina virtual (Colima):**
+   `colima start --cpu 2 --memory 4
 
-## Fin de Jornada (Liberar Recursos)
-1. **Detener Aplicación:** En IntelliJ, haz clic en el **botón rojo de Stop (cuadrado)** situado en la ventana de la consola (Run tool window).
-2. **Apagar Contenedores (Preservando Datos):** Ejecuta en la terminal: `docker compose stop`
-3. **Apagar Virtualización:** Ejecuta en la terminal: `colima stop`
+2. **Iniciar base de datos (manteniendo datos previos):**
+   `docker compose up -d`
 
-## Mantenimiento y Limpieza Profunda
-* **Borrar Base de Datos y Volúmenes (Pérdida de datos):** Ejecuta en la terminal: `docker compose down -v`
-* **Resetear Tablas vía Hibernate:** Cambia el valor a `spring.jpa.hibernate.ddl-auto: create` en el archivo `application.yaml` y vuelve a arrancar el backend desde IntelliJ. Devuelve el valor a `update` al terminar.
+3. **Iniciar el backend:**
+   `mvn spring-boot:run -Dmaven.test.skip=true`
+
+(La API quedará expuesta en http://localhost:8080 y la documentación en http://localhost:8080/swagger-ui.html)
+
+## 2. Desarrollo y Control de Calidad
+Para no detener el servidor, abramos una **segunda pestaña** en la terminal y utilicemos estos comandos según las necesidades de integración:
+
+* **Compilar e instalar dependencias:** `mvn clean install`
+* **Ejecutar suite de pruebas (437 tests):** `mvn clean test`
+* **Generar reporte de cobertura (JaCoCo):** `mvn clean test jacoco:report`
+
+## 3. Fin de Jornada (Liberar Recursos)
+Sigamos este orden estricto al terminar de trabajar para no dejar procesos "zombies" consumiendo batería o RAM en nuestros equipos locales:
+
+1. **Detener el backend:** Vamos a la terminal donde corre Spring Boot y presionamos `Ctrl + C`.
+2. **Apagar contenedores (SIN borrar datos):** `docker compose stop`
+3. **Apagar motor de virtualización:** `colima stop`
+
+## 4. Mantenimiento (Borrón y Cuenta Nueva)
+Usemos esta secuencia únicamente cuando necesitemos purgar toda la base de datos y empezar con un entorno en blanco para evitar colisiones de datos.
+
+1. Detenemos el backend con `Ctrl + C`.
+2. Destruimos la base de datos y su volumen de persistencia: `docker compose down -v`
+3. Levantamos una base de datos nueva y limpia: `docker compose up -d`
+4. Iniciamos el backend para que Hibernate vuelva a crear las tablas vacías automáticamente: `mvn spring-boot:run -Dmaven.test.skip=true`

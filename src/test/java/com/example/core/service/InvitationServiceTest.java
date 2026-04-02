@@ -172,4 +172,25 @@ class InvitationServiceTest {
         assertThrows(BusinessRuleException.class,
                 () -> playerService.processInvitationResponse(1L, "REJECT"));
     }
+
+    @Test
+    @DisplayName("Aceptar → jugador del invitation no encontrado → ResourceNotFoundException")
+    void accept_PlayerNotFound_ThrowsResourceNotFound() {
+        when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
+        when(playerRepository.findById(10L)).thenReturn(Optional.empty()); // jugador no existe
+
+        assertThrows(com.example.core.exception.ResourceNotFoundException.class,
+                () -> playerService.processInvitationResponse(1L, "ACCEPT"));
+    }
+
+    @Test
+    @DisplayName("Acción desconocida (ni ACCEPT ni REJECT) → invitación no se modifica (else branch)")
+    void unknownAction_NoOp() {
+        when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
+
+        assertDoesNotThrow(() -> playerService.processInvitationResponse(1L, "IGNORAR"));
+        // La invitación sigue PENDING, no se guardó ni se rechazó
+        assertEquals(Invitation.PENDING, pendingInvitation.getStatus());
+        verifyNoInteractions(playerRepository);
+    }
 }

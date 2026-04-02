@@ -208,4 +208,28 @@ class TournamentServiceBracketTest {
 
         assertDoesNotThrow(() -> tournamentService.generateQuarterFinals(1L));
     }
+
+    @Test
+    @DisplayName("matches null → alreadyGenerated=false, y matches se inicializa al guardar")
+    void generateQuarterFinals_NullMatches_InitializedAndGenerated() {
+        tournament.setMatches(null); // rama: tournament.getMatches() == null → alreadyGenerated=false
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+        when(matchRepository.save(any(Match.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(tournamentRepository.save(any(Tournament.class))).thenReturn(tournament);
+
+        List<Match> result = tournamentService.generateQuarterFinals(1L);
+        assertEquals(4, result.size());
+        assertNotNull(tournament.getMatches()); // rama: setMatches(new ArrayList<>()) fue ejecutado
+    }
+
+    @Test
+    @DisplayName("registeredTeams null → BusinessRuleException con size=0 en log (ternario)")
+    void generateQuarterFinals_NullRegisteredTeams_ThrowsWithZeroInLog() {
+        tournament.setRegisteredTeams(null); // fuerza rama: registered == null → ternario usa 0
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class,
+                () -> tournamentService.generateQuarterFinals(1L));
+        assertTrue(ex.getMessage().contains("8"));
+    }
 }

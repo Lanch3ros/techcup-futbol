@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 mvn clean install                        # Compile and resolve dependencies
 mvn spring-boot:run -Dmaven.test.skip=true  # Start server at localhost:8080 (skips test compilation)
-mvn clean test                           # Run all tests (147 tests, all green)
+mvn clean test                           # Run all tests (437 tests, all green)
 mvn test -Dtest=PlayerServiceTest        # Run a single test class
 mvn clean test jacoco:report             # Tests + JaCoCo HTML report in target/site/jacoco/
 ```
@@ -101,20 +101,33 @@ HTTP Basic is **disabled**. All protected endpoints require a Bearer JWT.
 
 ## Testing Conventions
 
-**147 tests, all plain Mockito — no Spring context loaded.** This keeps tests fast and avoids needing a running DB.
+**437 tests, all green. JaCoCo coverage: 100% instructions, 100% lines, 100% methods, 100% classes, 99.6% branches.**
 
-Pattern for service tests:
-```java
-repo = mock(SomeRepository.class);
-service = new SomeService(repo, ...);   // manual constructor injection
-when(repo.findById(1L)).thenReturn(Optional.of(entity));
-```
+The single missed branch is a structural false negative in `JwtService#isTokenValid`: the `isTokenExpired() = true` path is unreachable because JJWT throws `ExpiredJwtException` before that boolean can return `true`. This is accepted as unavoidable.
+
+**Test layers and strategies:**
+
+- **Service layer** — pure Mockito, no Spring context. Manual constructor injection:
+  ```java
+  repo = mock(SomeRepository.class);
+  service = new SomeService(repo, ...);
+  when(repo.findById(1L)).thenReturn(Optional.of(entity));
+  ```
+- **Controller layer** — pure Mockito, direct `new` instantiation + injected service mocks. No `@WebMvcTest`. Call controller methods directly and assert `ResponseEntity` status/body.
+- **Config layer** — mixed:
+  - `JwtAuthenticationFilter`: pure Mockito + `MockHttpServletRequest` / `MockHttpServletResponse`
+  - `SwaggerConfig`: direct instantiation, call `customOpenAPI()` and assert OpenAPI structure
+  - `SecurityConfig`: `@SpringBootTest(webEnvironment = NONE) @ActiveProfiles("test")` — beans are autowired from a real (but DB-free) Spring context
+- **Model layer** — direct instantiation. Private `@PrePersist` methods invoked via Java reflection (`getDeclaredMethod` + `setAccessible(true)`). Default interface methods covered via anonymous implementations that do not extend `User`.
+- **Application smoke test** — `TechcupFutbolApplicationTests`: `@SpringBootTest(webEnvironment = NONE) @ActiveProfiles("test")` for `contextLoads()`; `mockStatic(SpringApplication.class)` to cover `main()` without starting a second context.
 
 `@Value` fields in `JwtService` are injected in tests via `ReflectionTestUtils.setField()`.
 
 When adding a dependency to a service constructor, update **all** test files that instantiate that service directly — they will fail to compile otherwise. Current multi-dependency services:
 - `PlayerService(PlayerRepository, PasswordEncoder, InvitationRepository)`
 - `TeamService(TeamRepository, PlayerRepository, InvitationRepository)`
+
+**Jackson configuration note:** Spring Boot 4.x uses Jackson 3.x (`tools.jackson`). `ACCEPT_CASE_INSENSITIVE_ENUMS` is a `MapperFeature` (not `DeserializationFeature`) in Jackson 3.x. The correct `application.yaml` key is `spring.jackson.mapper.accept-case-insensitive-enums: true`.
 
 ## CI/CD
 

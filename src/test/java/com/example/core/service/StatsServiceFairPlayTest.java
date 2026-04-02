@@ -45,7 +45,7 @@ class StatsServiceFairPlayTest {
 
         finishedMatch = new Match();
         finishedMatch.setId(10L);
-        finishedMatch.setStatus("Finalizado");
+        finishedMatch.setStatus("FINALIZADO");
         finishedMatch.setHomeTeam(team1);
         finishedMatch.setAwayTeam(team2);
     }
@@ -85,7 +85,7 @@ class StatsServiceFairPlayTest {
 
         MatchEvent yellowCard = new MatchEvent();
         yellowCard.setPlayerId(99L);
-        yellowCard.setType("AMARILLA");
+        yellowCard.setType("amarilla");
 
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
         when(matchRepository.findAll()).thenReturn(List.of(finishedMatch));
@@ -106,7 +106,7 @@ class StatsServiceFairPlayTest {
 
         MatchEvent redCard = new MatchEvent();
         redCard.setPlayerId(88L);
-        redCard.setType("ROJA");
+        redCard.setType("roja");
 
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
         when(matchRepository.findAll()).thenReturn(List.of(finishedMatch));
@@ -160,7 +160,7 @@ class StatsServiceFairPlayTest {
     void twoMatchesNoCards_TwoFairPlayPoints() {
         Match match2 = new Match();
         match2.setId(11L);
-        match2.setStatus("Finalizado");
+        match2.setStatus("finalizado");
         match2.setHomeTeam(team1);
         match2.setAwayTeam(team2);
 
@@ -187,7 +187,7 @@ class StatsServiceFairPlayTest {
 
         Match cleanMatch = new Match();
         cleanMatch.setId(11L);
-        cleanMatch.setStatus("Finalizado");
+        cleanMatch.setStatus("Finalizado"); // case canónico intencional (coexiste con FINALIZADO del setUp)
         cleanMatch.setHomeTeam(team1);
         cleanMatch.setAwayTeam(team2);
 

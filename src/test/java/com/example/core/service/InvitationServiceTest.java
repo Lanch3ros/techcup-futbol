@@ -58,7 +58,7 @@ class InvitationServiceTest {
     void accept_LinksPlayerToTeamAndSetsUnavailable() {
         when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
         when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
-        when(invitationRepository.findByPlayerIdAndStatus(10L, Invitation.PENDING)).thenReturn(List.of());
+        when(invitationRepository.findByPlayerIdAndStatusIgnoreCase(10L, Invitation.PENDING)).thenReturn(List.of());
 
         playerService.processInvitationResponse(1L, "ACCEPT");
 
@@ -74,7 +74,7 @@ class InvitationServiceTest {
     void accept_InvitationStatusBecomesAccepted() {
         when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
         when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
-        when(invitationRepository.findByPlayerIdAndStatus(10L, Invitation.PENDING)).thenReturn(List.of());
+        when(invitationRepository.findByPlayerIdAndStatusIgnoreCase(10L, Invitation.PENDING)).thenReturn(List.of());
 
         playerService.processInvitationResponse(1L, "ACCEPT");
 
@@ -90,7 +90,7 @@ class InvitationServiceTest {
 
         when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
         when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
-        when(invitationRepository.findByPlayerIdAndStatus(10L, Invitation.PENDING))
+        when(invitationRepository.findByPlayerIdAndStatusIgnoreCase(10L, Invitation.PENDING))
                 .thenReturn(List.of(other1, other2));
 
         playerService.processInvitationResponse(1L, "ACCEPT");
@@ -109,7 +109,7 @@ class InvitationServiceTest {
     void accept_NoOtherPending_SaveAllEmpty() {
         when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
         when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
-        when(invitationRepository.findByPlayerIdAndStatus(10L, Invitation.PENDING)).thenReturn(List.of());
+        when(invitationRepository.findByPlayerIdAndStatusIgnoreCase(10L, Invitation.PENDING)).thenReturn(List.of());
 
         playerService.processInvitationResponse(1L, "ACCEPT");
 

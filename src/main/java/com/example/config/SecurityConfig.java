@@ -68,7 +68,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
 
                 // Registro de jugadores — público (cualquiera puede registrarse)
-                .requestMatchers(HttpMethod.POST, "/api/v1/players").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/players/register").permitAll()
 
                 // ── ORGANIZADOR ──────────────────────────────────────────────
                 // Gestión de torneos

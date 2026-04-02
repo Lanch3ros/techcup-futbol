@@ -175,6 +175,113 @@ class StatsServiceFairPlayTest {
     }
 
     @Test
+    @DisplayName("Partido con homeTeam null → teamParticipated via awayTeam (rama homeTeam == null)")
+    void matchWithNullHomeTeam_AwayTeamMatch_FairPlayPoint() {
+        Match matchNoHome = new Match();
+        matchNoHome.setId(20L);
+        matchNoHome.setStatus("FINALIZADO");
+        matchNoHome.setHomeTeam(null);   // homeTeam null → rama false de homeTeam != null
+        matchNoHome.setAwayTeam(team1);  // team1 participa como visitante
+
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
+        when(matchRepository.findAll()).thenReturn(List.of(matchNoHome));
+        when(matchEventRepository.findByMatchId(20L)).thenReturn(List.of());
+
+        StandingDTO result = statsService.getTeamStats(1L);
+        assertEquals(4, result.getPoints(), "3 pts base + 1 FairPlay vía awayTeam");
+    }
+
+    @Test
+    @DisplayName("Partido con awayTeam null y homeTeam coincide → teamParticipated via homeTeam")
+    void matchWithNullAwayTeam_HomeTeamMatch_FairPlayPoint() {
+        Match matchNoAway = new Match();
+        matchNoAway.setId(21L);
+        matchNoAway.setStatus("FINALIZADO");
+        matchNoAway.setHomeTeam(team1);
+        matchNoAway.setAwayTeam(null);  // awayTeam null → rama false de awayTeam != null
+
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
+        when(matchRepository.findAll()).thenReturn(List.of(matchNoAway));
+        when(matchEventRepository.findByMatchId(21L)).thenReturn(List.of());
+
+        StandingDTO result = statsService.getTeamStats(1L);
+        assertEquals(4, result.getPoints(), "3 pts base + 1 FairPlay vía homeTeam");
+    }
+
+    @Test
+    @DisplayName("Evento con playerId inexistente → player null → no se cuenta tarjeta del equipo")
+    void eventWithUnknownPlayer_NullPlayer_IgnoredInCardCheck() {
+        MatchEvent card = new MatchEvent();
+        card.setPlayerId(999L); // ID que no existe en el repo
+        card.setType("AMARILLA");
+
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
+        when(matchRepository.findAll()).thenReturn(List.of(finishedMatch));
+        when(matchEventRepository.findByMatchId(10L)).thenReturn(List.of(card));
+        when(playerRepository.findById(999L)).thenReturn(Optional.empty()); // → orElse(null) → null
+
+        StandingDTO result = statsService.getTeamStats(1L);
+        // player es null → no puede contar como tarjeta de team1 → FairPlay otorgado
+        assertEquals(4, result.getPoints(), "player null no bloquea FairPlay");
+    }
+
+    @Test
+    @DisplayName("Partido con awayTeam null Y homeTeam no coincide → no participa (rama awayTeam null tras homeTeam false)")
+    void matchWithNullAwayTeam_HomeTeamNoMatch_NotParticipating() {
+        Match noMatch = new Match();
+        noMatch.setId(30L);
+        noMatch.setStatus("FINALIZADO");
+        noMatch.setHomeTeam(team2);  // homeTeam es team2, no team1 → homeTeam.getId()!=1L → false
+        noMatch.setAwayTeam(null);  // awayTeam == null → rama false de awayTeam != null
+
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
+        when(matchRepository.findAll()).thenReturn(List.of(noMatch));
+
+        StandingDTO result = statsService.getTeamStats(1L);
+        assertEquals(3, result.getPoints(), "team1 no participó en el partido → sin FairPlay");
+        verifyNoInteractions(matchEventRepository);
+    }
+
+    @Test
+    @DisplayName("Partido con homeTeam≠equipo y awayTeam≠equipo (ambos no-null) → no participa")
+    void matchBothTeamsNotNull_NeitherMatchesTeam_NotParticipating() {
+        // homeTeam=team2, awayTeam=team2 → A=true, B=false, C=true, D=false → false
+        Match noMatch = new Match();
+        noMatch.setId(40L);
+        noMatch.setStatus("FINALIZADO");
+        noMatch.setHomeTeam(team2);
+        noMatch.setAwayTeam(team2);  // awayTeam existe pero tampoco es team1
+
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
+        when(matchRepository.findAll()).thenReturn(List.of(noMatch));
+
+        StandingDTO result = statsService.getTeamStats(1L);
+        assertEquals(3, result.getPoints(), "team1 no participó en ningún rol → sin FairPlay");
+        verifyNoInteractions(matchEventRepository);
+    }
+
+    @Test
+    @DisplayName("Evento GOL en match (AMARILLA=false, ROJA=false) → filtrado fuera, sin impacto FairPlay")
+    void golEvent_FilteredOutByCardCheck_FairPlayAwarded() {
+        StudentPlayer goalScorer = new StudentPlayer();
+        goalScorer.setId(55L);
+        goalScorer.setTeamId(1L);
+
+        MatchEvent golEvent = new MatchEvent();
+        golEvent.setPlayerId(55L);
+        golEvent.setType("GOL"); // AMARILLA=false, ROJA=false → filter false → evento excluido
+
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
+        when(matchRepository.findAll()).thenReturn(List.of(finishedMatch));
+        when(matchEventRepository.findByMatchId(10L)).thenReturn(List.of(golEvent));
+        // playerRepo NO es llamado porque el GOL no pasa el filtro de tarjetas
+
+        StandingDTO result = statsService.getTeamStats(1L);
+        assertEquals(4, result.getPoints(), "3 pts + 1 FairPlay: GOL no es tarjeta");
+        verifyNoInteractions(playerRepository);
+    }
+
+    @Test
     @DisplayName("Un partido con tarjeta y otro sin → solo +1 punto FairPlay")
     void oneMatchWithCard_OneWithout_OneFairPlayPoint() {
         StudentPlayer playerWithCard = new StudentPlayer();

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -224,5 +225,52 @@ class TeamServiceCompositionTest {
         // El ID 99 no existe en la plantilla
         assertThrows(BusinessRuleException.class,
                 () -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L, 4L, 5L, 6L, 99L))));
+    }
+
+    @Test
+    @DisplayName("Jugador con program null → no cuenta como ingeniería (rama p.getProgram() != null → false)")
+    void playerWithNullProgram_CountedAsNonEngineering() {
+        // 5 ingeniería + 1 null program + 1 maestría → 5/7 = 71% → válido, pero null no suma
+        List<User> players = List.of(
+                player(1, Program.SISTEMAS),
+                player(2, Program.IA),
+                player(3, Program.CIBERSEGURIDAD),
+                player(4, Program.ESTADISTICA),
+                player(5, Program.SISTEMAS),
+                player(6, Program.MAESTRIA_INFORMATICA),
+                player(7, Program.SISTEMAS)
+        );
+        // Reemplazar player 7 con uno de program null
+        StudentPlayer nullProgramPlayer = new StudentPlayer();
+        nullProgramPlayer.setId(7L);
+        nullProgramPlayer.setTeamId(1L);
+        nullProgramPlayer.setProgram(null); // rama: p.getProgram() != null → false
+
+        List<User> playersWithNull = new java.util.ArrayList<>(players.subList(0, 6));
+        playersWithNull.add(nullProgramPlayer);
+
+        when(playerRepository.findByTeamId(1L)).thenReturn(playersWithNull);
+
+        // 5/7 = 71% (null no cuenta) → válido
+        assertDoesNotThrow(() -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L))));
+    }
+
+    @Test
+    @DisplayName("validateEngineeringProgramComposition – lista nula → retorno temprano (dead-code guard)")
+    void validateEngineeringProgramComposition_NullList_EarlyReturn() throws Exception {
+        Method method = TeamService.class.getDeclaredMethod(
+                "validateEngineeringProgramComposition", java.util.List.class, Long.class);
+        method.setAccessible(true);
+        // null list → rama null → return sin lanzar excepción
+        assertDoesNotThrow(() -> method.invoke(teamService, null, 1L));
+    }
+
+    @Test
+    @DisplayName("validateEngineeringProgramComposition – lista vacía → retorno temprano")
+    void validateEngineeringProgramComposition_EmptyList_EarlyReturn() throws Exception {
+        Method method = TeamService.class.getDeclaredMethod(
+                "validateEngineeringProgramComposition", java.util.List.class, Long.class);
+        method.setAccessible(true);
+        assertDoesNotThrow(() -> method.invoke(teamService, new ArrayList<>(), 1L));
     }
 }

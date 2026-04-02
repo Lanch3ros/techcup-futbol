@@ -12,6 +12,7 @@ class OtherPlayersTest {
         assertEquals("ADMIN", player.getUserType());
         assertNull(player.getProfile());
         assertFalse(player.login());
+        assertNull(player.getProfilePhoto());   // cubre rama getProfilePhoto()
 
         player.logout();
         player.acceptInvitation(1L);
@@ -26,6 +27,7 @@ class OtherPlayersTest {
         assertEquals("TEACHER", player.getUserType());
         assertNull(player.getProfile());
         assertFalse(player.login());
+        assertNull(player.getProfilePhoto());
 
         player.logout();
         player.acceptInvitation(1L);
@@ -40,6 +42,7 @@ class OtherPlayersTest {
         assertEquals("GRADUATE", player.getUserType());
         assertNull(player.getProfile());
         assertFalse(player.login());
+        assertNull(player.getProfilePhoto());
 
         player.logout();
         player.acceptInvitation(1L);
@@ -54,6 +57,7 @@ class OtherPlayersTest {
         assertEquals("RELATIVE", player.getUserType());
         assertNull(player.getProfile());
         assertFalse(player.login());
+        assertNull(player.getProfilePhoto());
 
         player.logout();
         player.acceptInvitation(1L);

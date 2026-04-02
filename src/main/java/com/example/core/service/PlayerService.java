@@ -167,7 +167,7 @@ public class PlayerService {
 
             // RN-11-3: rechazar automáticamente todas las demás invitaciones pendientes
             List<Invitation> otherPending = invitationRepository
-                    .findByPlayerIdAndStatus(invitation.getPlayerId(), Invitation.PENDING);
+                    .findByPlayerIdAndStatusIgnoreCase(invitation.getPlayerId(), Invitation.PENDING);
             otherPending.forEach(inv -> inv.setStatus(Invitation.REJECTED));
             invitationRepository.saveAll(otherPending);
 

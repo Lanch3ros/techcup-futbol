@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface InvitationRepository extends JpaRepository<Invitation, Long> {
 
-    List<Invitation> findByPlayerIdAndStatus(Long playerId, String status);
+    List<Invitation> findByPlayerIdAndStatusIgnoreCase(Long playerId, String status);
 
-    boolean existsByPlayerIdAndTeamIdAndStatus(Long playerId, Long teamId, String status);
+    boolean existsByPlayerIdAndTeamIdAndStatusIgnoreCase(Long playerId, Long teamId, String status);
 }

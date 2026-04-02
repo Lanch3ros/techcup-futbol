@@ -43,7 +43,7 @@ class TournamentServiceBracketTest {
         tournament = new Tournament();
         tournament.setId(1L);
         tournament.setName("TechCup 2026-I");
-        tournament.setStatus("En progreso");
+        tournament.setStatus("en progreso");
         tournament.setStartDate(LocalDate.now().minusDays(10));
         tournament.setEndDate(LocalDate.now().plusDays(30));
         tournament.setMaxTeams(10);
@@ -179,7 +179,7 @@ class TournamentServiceBracketTest {
     @DisplayName("Cuartos ya generados → BusinessRuleException (idempotencia)")
     void quartersAlreadyGenerated_ThrowsException() {
         Match existing = new Match();
-        existing.setPhase("Cuartos de Final");
+        existing.setPhase("CUARTOS DE FINAL");
         tournament.setMatches(new ArrayList<>(List.of(existing)));
 
         when(tournamentRepository.findById(1L)).thenReturn(Optional.of(tournament));

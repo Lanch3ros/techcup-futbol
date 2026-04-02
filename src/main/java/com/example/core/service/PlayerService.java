@@ -149,7 +149,7 @@ public class PlayerService {
             return new ResourceNotFoundException("Invitación con ID " + invitationId + " no encontrada");
         });
 
-        if (!Invitation.PENDING.equals(invitation.getStatus())) {
+        if (!Invitation.PENDING.equalsIgnoreCase(invitation.getStatus())) {
             log.warn("Invitación ID: {} ya fue procesada - estado actual: {}", invitationId, invitation.getStatus());
             throw new BusinessRuleException("Esta invitación ya fue procesada (estado: " + invitation.getStatus() + ").");
         }
@@ -167,7 +167,7 @@ public class PlayerService {
 
             // RN-11-3: rechazar automáticamente todas las demás invitaciones pendientes
             List<Invitation> otherPending = invitationRepository
-                    .findByPlayerIdAndStatus(invitation.getPlayerId(), Invitation.PENDING);
+                    .findByPlayerIdAndStatusIgnoreCase(invitation.getPlayerId(), Invitation.PENDING);
             otherPending.forEach(inv -> inv.setStatus(Invitation.REJECTED));
             invitationRepository.saveAll(otherPending);
 

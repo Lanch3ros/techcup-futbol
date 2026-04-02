@@ -110,7 +110,7 @@ public class TeamService {
             throw new BusinessRuleException("El equipo ya alcanzó el límite máximo de 12 jugadores permitidos.");
         }
 
-        if (invitationRepository.existsByPlayerIdAndTeamIdAndStatus(playerId, teamId, Invitation.PENDING)) {
+        if (invitationRepository.existsByPlayerIdAndTeamIdAndStatusIgnoreCase(playerId, teamId, Invitation.PENDING)) {
             log.warn("Ya existe una invitación pendiente del equipo ID: {} al jugador ID: {}", teamId, playerId);
             throw new BusinessRuleException("Ya existe una invitación pendiente para este jugador de este equipo.");
         }

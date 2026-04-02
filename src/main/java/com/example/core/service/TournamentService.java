@@ -93,7 +93,7 @@ public class TournamentService {
             return new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
         });
 
-        if (!"Activo".equals(tournament.getStatus())) {
+        if (!"Activo".equalsIgnoreCase(tournament.getStatus())) {
             log.warn("Intento de inscripción en torneo ID: {} con estado '{}' no permitido", tournamentId, tournament.getStatus());
             throw new BusinessRuleException("Solo se pueden inscribir equipos en torneos con estado 'Activo'.");
         }
@@ -158,13 +158,13 @@ public class TournamentService {
 
         Tournament tournament = getTournamentById(tournamentId);
 
-        if (!"En progreso".equals(tournament.getStatus())) {
+        if (!"En progreso".equalsIgnoreCase(tournament.getStatus())) {
             log.warn("Torneo ID: {} no está en estado 'En progreso' - estado actual: '{}'", tournamentId, tournament.getStatus());
             throw new BusinessRuleException("Los cuartos de final solo pueden generarse cuando el torneo está en estado 'En progreso'.");
         }
 
         boolean alreadyGenerated = tournament.getMatches() != null && tournament.getMatches().stream()
-                .anyMatch(m -> "Cuartos de Final".equals(m.getPhase()));
+                .anyMatch(m -> "Cuartos de Final".equalsIgnoreCase(m.getPhase()));
         if (alreadyGenerated) {
             log.warn("Los cuartos de final ya fueron generados para el torneo ID: {}", tournamentId);
             throw new BusinessRuleException("Los cuartos de final ya han sido generados para este torneo.");

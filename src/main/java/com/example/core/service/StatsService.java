@@ -39,7 +39,7 @@ public class StatsService {
     public List<PlayerStats> getTopScorersByTournament(Long tournamentId) {
         log.info("Consultando goleadores del torneo ID: {}", tournamentId);
         List<MatchEvent> events = matchEventRepository.findAll().stream()
-                .filter(e -> "GOL".equals(e.getType()))
+                .filter(e -> "GOL".equalsIgnoreCase(e.getType()))
                 .collect(Collectors.toList());
         List<PlayerStats> scorers = buildPlayerStatsFromEvents(events);
         log.info("Goleadores del torneo ID {}: {} jugadores", tournamentId, scorers.size());
@@ -60,9 +60,9 @@ public class StatsService {
         PlayerStats stats = new PlayerStats();
         stats.setPlayerId(playerId);
         stats.setPlayerName(player.getFullName());
-        stats.setGoals((int) playerEvents.stream().filter(e -> "GOL".equals(e.getType())).count());
-        stats.setYellowCards((int) playerEvents.stream().filter(e -> "AMARILLA".equals(e.getType())).count());
-        stats.setRedCards((int) playerEvents.stream().filter(e -> "ROJA".equals(e.getType())).count());
+        stats.setGoals((int) playerEvents.stream().filter(e -> "GOL".equalsIgnoreCase(e.getType())).count());
+        stats.setYellowCards((int) playerEvents.stream().filter(e -> "AMARILLA".equalsIgnoreCase(e.getType())).count());
+        stats.setRedCards((int) playerEvents.stream().filter(e -> "ROJA".equalsIgnoreCase(e.getType())).count());
 
         log.info("Estadísticas del jugador ID {}: {} goles, {} amarillas, {} rojas", playerId, stats.getGoals(), stats.getYellowCards(), stats.getRedCards());
         return stats;
@@ -119,7 +119,7 @@ public class StatsService {
     // RN-09-2: +1 punto por cada partido finalizado en que el equipo no recibió tarjetas
     private int calculateFairPlayPoints(Long teamId) {
         return (int) matchRepository.findAll().stream()
-                .filter(m -> "Finalizado".equals(m.getStatus()))
+                .filter(m -> "Finalizado".equalsIgnoreCase(m.getStatus()))
                 .filter(m -> teamParticipatedInMatch(m, teamId))
                 .filter(m -> teamHadNoCardsInMatch(m, teamId))
                 .count();
@@ -132,7 +132,7 @@ public class StatsService {
 
     private boolean teamHadNoCardsInMatch(Match match, Long teamId) {
         return matchEventRepository.findByMatchId(match.getId()).stream()
-                .filter(e -> "AMARILLA".equals(e.getType()) || "ROJA".equals(e.getType()))
+                .filter(e -> "AMARILLA".equalsIgnoreCase(e.getType()) || "ROJA".equalsIgnoreCase(e.getType()))
                 .noneMatch(e -> {
                     Player player = playerRepository.findById(e.getPlayerId()).orElse(null);
                     return player != null && teamId.equals(player.getTeamId());

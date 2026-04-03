@@ -22,7 +22,7 @@ class JwtServiceTest {
 
     // Misma clave que el default de application.yaml (≥256 bits en Base64)
     private static final String SECRET = "dGVjaGN1cC1mdXRib2wtc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQ=";
-    private static final long   EXPIRY = 86_400_000L; // 24 h
+    private static final long   EXPIRY = 3_600_000L; // 1 h
 
     private JwtService jwtService;
     private UserDetails adminUser;
@@ -97,7 +97,7 @@ class JwtServiceTest {
     }
 
     @Test
-    @DisplayName("generateToken fija expiración en ~24 horas")
+    @DisplayName("generateToken fija expiración en ~1 hora")
     void generateToken_ExpirationIsApprox24Hours() {
         long before = System.currentTimeMillis();
         String token = jwtService.generateToken(adminUser);
@@ -110,8 +110,8 @@ class JwtServiceTest {
                 .getBody();
 
         long expMs = claims.getExpiration().getTime();
-        assertTrue(expMs >= before + EXPIRY - 1000, "La expiración debe ser al menos ahora + 24h");
-        assertTrue(expMs <= after  + EXPIRY + 1000, "La expiración no debe superar ahora + 24h + margen");
+        assertTrue(expMs >= before + EXPIRY - 1000, "La expiración debe ser al menos ahora + 1h");
+        assertTrue(expMs <= after  + EXPIRY + 1000, "La expiración no debe superar ahora + 1h + margen");
     }
 
     // ── extractUsername ───────────────────────────────────────────────────────

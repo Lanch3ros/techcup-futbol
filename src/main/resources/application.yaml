@@ -1,3 +1,12 @@
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: classpath:keystore.p12
+    key-store-password: ${SSL_KEY_STORE_PASSWORD:techcup}
+    key-store-type: PKCS12
+    key-alias: techcup
+
 logging:
   level:
     root: INFO
@@ -34,4 +43,4 @@ app:
   jwt:
     # Clave secreta en Base64 (≥256 bits). Sobreescribir con variable JWT_SECRET en producción.
     secret: ${JWT_SECRET:dGVjaGN1cC1mdXRib2wtc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQ=}
-    expiration-ms: 86400000   # 24 horas
+    expiration-ms: 3600000    # 1 hora

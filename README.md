@@ -123,7 +123,7 @@ Representa el modelo físico en PostgreSQL:
 - **`teams` / `tournaments`**: Relación Mucho-a-Mucho mediante la tabla intermedia `tournament_teams`.
 - La alineación de equipos y suplentes (`startingPlayerIds`, `reservePlayerIds`) se persiste eficientemente mediante `@ElementCollection`.
 
-![DiagramaER.png](docs/images/DiagramaER.png)
+![ERDiagram.png](docs/uml/REDiagram.png)
 
 
 ---

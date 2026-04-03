@@ -69,15 +69,23 @@ public class SecurityConfig {
                         "/v3/api-docs/**"
                 ).permitAll()
 
-                // Login — público
+                // Login y OAuth2 Google — público
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/google").permitAll()
 
                 // Registro de jugadores — público (cualquiera puede registrarse)
                 .requestMatchers(HttpMethod.POST, "/api/v1/players/register").permitAll()
 
+                // Consulta de torneos y partidos — público (lectura libre para espectadores)
+                .requestMatchers(HttpMethod.GET, "/api/v1/tournaments/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/matches/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/stats/**").permitAll()
+
                 // ── ORGANIZADOR ──────────────────────────────────────────────
                 // Gestión de torneos
                 .requestMatchers(HttpMethod.POST,  "/api/v1/tournaments").hasAnyRole("ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.POST,  "/api/v1/tournaments/*/start").hasAnyRole("ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.POST,  "/api/v1/tournaments/*/finish").hasAnyRole("ORGANIZADOR", "ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/tournaments/*/status").hasAnyRole("ORGANIZADOR", "ADMIN")
                 .requestMatchers(HttpMethod.POST,  "/api/v1/tournaments/*/generate-matches").hasAnyRole("ORGANIZADOR", "ADMIN")
                 .requestMatchers(HttpMethod.POST,  "/api/v1/tournaments/*/generate-quarter-finals").hasAnyRole("ORGANIZADOR", "ADMIN")
@@ -95,6 +103,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST,  "/api/v1/matches/*/events").hasAnyRole("ARBITRO", "ORGANIZADOR", "ADMIN")
 
                 // ── CAPITÁN ──────────────────────────────────────────────────
+                .requestMatchers(HttpMethod.POST, "/api/v1/tournaments/*/teams/*").hasAnyRole("CAPITAN", "ORGANIZADOR", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/v1/payments/upload").hasAnyRole("CAPITAN", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/v1/teams").hasAnyRole("CAPITAN", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/v1/teams/*/lineup").hasAnyRole("CAPITAN", "ADMIN")

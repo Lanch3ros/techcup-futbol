@@ -28,6 +28,15 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dev-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dev-client-secret}
+            scope: openid, email, profile
+
   jackson:
     mapper:
       accept-case-insensitive-enums: true

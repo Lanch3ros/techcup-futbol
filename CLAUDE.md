@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 mvn clean install                        # Compile and resolve dependencies
 mvn spring-boot:run -Dmaven.test.skip=true  # Start server at localhost:8080 (skips test compilation)
-mvn clean test                           # Run all tests (501 tests, all green)
+mvn clean test                           # Run all tests (498 tests, all green)
 mvn test -Dtest=PlayerServiceTest        # Run a single test class
 mvn clean test jacoco:report             # Tests + JaCoCo HTML report in target/site/jacoco/
 ```
@@ -124,7 +124,7 @@ HTTP Basic is **disabled**. All protected endpoints require a Bearer JWT.
 
 ## Testing Conventions
 
-**501 tests, all green. JaCoCo coverage: 100% instructions, 100% lines, 100% methods, 100% classes, 99.2% branches (356/359).**
+**498 tests, all green. JaCoCo coverage: 100% instructions, 100% lines, 100% methods, 100% classes, 99.2% branches (356/359).**
 
 The 3 missed branches are accepted structural false negatives:
 

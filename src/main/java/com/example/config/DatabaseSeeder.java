@@ -4,19 +4,27 @@ import com.example.core.model.AdminUser;
 import com.example.core.model.OrganizerUser;
 import com.example.core.model.RefereeUser;
 import com.example.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class DatabaseSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final String defaultAdminPassword;
+
+    public DatabaseSeeder(UserRepository userRepository,
+                          PasswordEncoder passwordEncoder,
+                          @Value("${app.seed.admin-password:Admin123*}") String defaultAdminPassword) {
+        this.userRepository       = userRepository;
+        this.passwordEncoder      = passwordEncoder;
+        this.defaultAdminPassword = defaultAdminPassword;
+    }
 
     @Override
     public void run(String... args) {
@@ -25,7 +33,7 @@ public class DatabaseSeeder implements CommandLineRunner {
             return;
         }
 
-        String encodedPassword = passwordEncoder.encode("Admin123*");
+        String encodedPassword = passwordEncoder.encode(defaultAdminPassword);
 
         AdminUser admin = new AdminUser();
         admin.setFullName("Administrador TechCup");

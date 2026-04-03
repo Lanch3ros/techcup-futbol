@@ -72,8 +72,8 @@ public class OAuth2Controller {
                     .body(new GenericResponse("Error", "El token de Google no contiene un email válido."));
         }
 
-        // Encuentra o crea el usuario en la BD
-        userRepository.findByEmail(email).orElseGet(() -> {
+        // Encuentra o crea el usuario en la BD; el resultado se usa para obtener el email canónico (S2201)
+        com.example.core.model.User authenticatedUser = userRepository.findByEmail(email).orElseGet(() -> {
             log.info("Usuario de Google no encontrado en BD, creando nuevo - email: {}", email);
             RelativePlayer newUser = new RelativePlayer();
             newUser.setEmail(email);
@@ -85,7 +85,7 @@ public class OAuth2Controller {
             return userRepository.save(newUser);
         });
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(authenticatedUser.getEmail());
         String token = jwtService.generateToken(userDetails);
 
         log.info("Login con Google exitoso - email: {}", email);

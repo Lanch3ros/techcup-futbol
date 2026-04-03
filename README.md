@@ -139,13 +139,21 @@ El sistema implementa seguridad *Stateless* utilizando **JSON Web Tokens (JWT)**
 ---
 
 ### 4. CALIDAD Y DEUDA TÉCNICA (TESTING)
-Para garantizar el control de la deuda técnica, el proyecto cuenta con un entorno de validación robusto:
-* **Pruebas Unitarias:** 492 tests ejecutados mediante JUnit y Mockito, sin levantar el contexto de Spring (priorizando velocidad de ejecución).
-* **Cobertura de Código (JaCoCo):** El sistema mantiene un **99% de cobertura** en Líneas, Clases y Métodos en las capas `Controller`, `Service` y `Config`.
-![JacocoCoverage.png](docs/jacoco/JacocoCoverage.png)
-* 
-* Los escenarios de prueba documentados en Jira (Happy paths, errores de negocio, excepciones de validación cruzada) se reflejan uno a uno en la suite automatizada.
 
+Para garantizar el control de la deuda técnica, el proyecto cuenta con un entorno de validación robusto y escaneos de calidad automatizados.
+
+* **Pruebas Unitarias:** 498 tests ejecutados mediante JUnit y Mockito.
+* **Cobertura de Código (JaCoCo):** El sistema mantiene un **97.7% de cobertura** en Líneas, Clases y Métodos.
+* **Análisis Estático (SonarQube):** Superamos el *Quality Gate* del Sprint 3 resolviendo todas las deudas técnicas y garantizando la máxima confiabilidad de la API. Las métricas finales del código nuevo (New Code) son:
+    * **Fiabilidad (Reliability):** A (0 Bugs)
+    * **Seguridad (Security):** A (0 Vulnerabilidades)
+    * **Mantenibilidad (Maintainability):** A (0 Code Smells)
+    * **Hotspots de Seguridad:** 0% Riesgo (100% Revisados)
+
+> **Nota Técnica:** Las excepciones de seguridad (como la desactivación intencional del CSRF) están debidamente justificadas mediante anotaciones `// NOSONAR` debido a la naturaleza Stateless (JWT) de la arquitectura.
+![JacocoCoverage.png](docs/jacoco/JacocoCoverage.png)
+
+![SonarqubeReport.png](docs/images/SonarqubeReport.png)
 
 ### 5. ANÁLISIS DE REQUERIMIENTOS Y GESTIÓN
 Ir a la ruta `docs/requirements/RequirementsAnalisis.pdf` o darle click a

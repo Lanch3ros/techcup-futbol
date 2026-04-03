@@ -5,6 +5,7 @@ import com.example.core.model.Match;
 import com.example.core.model.Team;
 import com.example.core.model.Tournament;
 import com.example.repository.MatchRepository;
+import com.example.repository.PaymentRepository;
 import com.example.repository.TeamRepository;
 import com.example.repository.TournamentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,7 @@ class TournamentServiceBracketTest {
     private TournamentRepository tournamentRepository;
     private TeamRepository teamRepository;
     private MatchRepository matchRepository;
+    private PaymentRepository paymentRepository;
     private TournamentService tournamentService;
 
     private Tournament tournament;
@@ -36,8 +38,9 @@ class TournamentServiceBracketTest {
         tournamentRepository = mock(TournamentRepository.class);
         teamRepository       = mock(TeamRepository.class);
         matchRepository      = mock(MatchRepository.class);
+        paymentRepository    = mock(PaymentRepository.class);
 
-        tournamentService = new TournamentService(tournamentRepository, teamRepository, matchRepository);
+        tournamentService = new TournamentService(tournamentRepository, teamRepository, matchRepository, paymentRepository);
 
         // Torneo en estado correcto
         tournament = new Tournament();

@@ -149,6 +149,20 @@ public class PaymentService {
         log.info("Pago ID: {} rechazado exitosamente. Motivo: {}", id, comments);
     }
 
+    // GAP-08: transición "Pendiente" → "En revisión"
+    public void sendPaymentToReview(Long id) {
+        log.info("Enviando pago ID: {} a revisión", id);
+        Payment payment = getPaymentById(id);
+        if (!"Pendiente".equalsIgnoreCase(payment.getStatus())) {
+            log.warn("Pago ID: {} no está en estado Pendiente - estado actual: {}", id, payment.getStatus());
+            throw new BusinessRuleException(
+                    "Solo se puede enviar a revisión un pago en estado 'Pendiente'. Estado actual: " + payment.getStatus());
+        }
+        payment.sendToReview();
+        paymentRepository.save(payment);
+        log.info("Pago ID: {} enviado a revisión exitosamente", id);
+    }
+
     public Payment getPaymentByTeam(Long teamId) {
         log.info("Buscando pago del equipo ID: {}", teamId);
         return paymentRepository.findFirstByTeamId(teamId).orElseThrow(() -> {

@@ -4,6 +4,7 @@ import com.example.core.model.Match;
 import com.example.core.model.Team;
 import com.example.core.model.Tournament;
 import com.example.repository.MatchRepository;
+import com.example.repository.PaymentRepository;
 import com.example.repository.TeamRepository;
 import com.example.repository.TournamentRepository;
 import com.example.core.exception.ResourceNotFoundException;
@@ -21,13 +22,16 @@ public class TournamentService {
     private final TournamentRepository tournamentRepository;
     private final TeamRepository teamRepository;
     private final MatchRepository matchRepository;
+    private final PaymentRepository paymentRepository;
 
     public TournamentService(TournamentRepository tournamentRepository,
                              TeamRepository teamRepository,
-                             MatchRepository matchRepository) {
+                             MatchRepository matchRepository,
+                             PaymentRepository paymentRepository) {
         this.tournamentRepository = tournamentRepository;
         this.teamRepository = teamRepository;
         this.matchRepository = matchRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     public Tournament createTournament(Tournament tournament) {
@@ -58,6 +62,36 @@ public class TournamentService {
         });
         log.info("Torneo encontrado - ID: {}, estado: {}", id, tournament.getStatus());
         return tournament;
+    }
+
+    // GAP-02: transición explícita "Activo" → "En progreso"
+    public Tournament startTournament(Long id) {
+        log.info("Iniciando torneo ID: {}", id);
+        Tournament tournament = getTournamentById(id);
+        if (!"Activo".equalsIgnoreCase(tournament.getStatus())) {
+            log.warn("No se puede iniciar el torneo ID: {} - estado actual: '{}'", id, tournament.getStatus());
+            throw new BusinessRuleException(
+                    "Solo se puede iniciar un torneo en estado 'Activo'. Estado actual: " + tournament.getStatus());
+        }
+        tournament.setStatus("En progreso");
+        Tournament saved = tournamentRepository.save(tournament);
+        log.info("Torneo ID: {} iniciado exitosamente - estado: 'En progreso'", id);
+        return saved;
+    }
+
+    // GAP-02: transición explícita "En progreso" → "Finalizado"
+    public Tournament finishTournament(Long id) {
+        log.info("Finalizando torneo ID: {}", id);
+        Tournament tournament = getTournamentById(id);
+        if (!"En progreso".equalsIgnoreCase(tournament.getStatus())) {
+            log.warn("No se puede finalizar el torneo ID: {} - estado actual: '{}'", id, tournament.getStatus());
+            throw new BusinessRuleException(
+                    "Solo se puede finalizar un torneo en estado 'En progreso'. Estado actual: " + tournament.getStatus());
+        }
+        tournament.setStatus("Finalizado");
+        Tournament saved = tournamentRepository.save(tournament);
+        log.info("Torneo ID: {} finalizado exitosamente - estado: 'Finalizado'", id);
+        return saved;
     }
 
     public void updateTournamentStatus(Long id, String newStatus) {
@@ -109,6 +143,16 @@ public class TournamentService {
         if (tournament.getRegisteredTeams().size() >= tournament.getMaxTeams()) {
             log.warn("Torneo ID: {} alcanzó el número máximo de equipos: {}", tournamentId, tournament.getMaxTeams());
             throw new BusinessRuleException("El torneo ya alcanzó el número máximo de equipos.");
+        }
+
+        // GAP-09: el equipo debe tener un pago aprobado para poder inscribirse
+        boolean hasApprovedPayment = paymentRepository
+                .findFirstByTeamIdAndStatusIgnoreCase(teamId, "Aprobado")
+                .isPresent();
+        if (!hasApprovedPayment) {
+            log.warn("Equipo ID: {} no tiene pago aprobado para inscribirse en torneo ID: {}", teamId, tournamentId);
+            throw new BusinessRuleException(
+                    "El equipo no puede inscribirse: no tiene un comprobante de pago en estado 'Aprobado'.");
         }
 
         tournament.getRegisteredTeams().add(team);

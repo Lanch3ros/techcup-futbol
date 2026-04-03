@@ -1,6 +1,8 @@
 package com.example.core.service;
 
 import com.example.core.model.AdminUser;
+import com.example.core.model.OrganizerUser;
+import com.example.core.model.RefereeUser;
 import com.example.core.model.StudentPlayer;
 import com.example.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -102,6 +104,36 @@ class CustomUserDetailsServiceTest {
 
         assertTrue(result.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_JUGADOR")));
+    }
+
+    @Test
+    @DisplayName("OrganizerUser sin rol explícito → ROLE_ORGANIZADOR por tipo")
+    void loadUserByUsername_OrganizerType_NoRole_ResolvesOrganizador() {
+        OrganizerUser u = new OrganizerUser();
+        u.setEmail("org@mail.com");
+        u.setRole(null);
+        u.setPassword("$hashed");
+        when(userRepository.findByEmail("org@mail.com")).thenReturn(Optional.of(u));
+
+        UserDetails result = userDetailsService.loadUserByUsername("org@mail.com");
+
+        assertTrue(result.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ORGANIZADOR")));
+    }
+
+    @Test
+    @DisplayName("RefereeUser sin rol explícito → ROLE_ARBITRO por tipo")
+    void loadUserByUsername_RefereeType_NoRole_ResolvesArbitro() {
+        RefereeUser u = new RefereeUser();
+        u.setEmail("ref2@mail.com");
+        u.setRole(null);
+        u.setPassword("$hashed");
+        when(userRepository.findByEmail("ref2@mail.com")).thenReturn(Optional.of(u));
+
+        UserDetails result = userDetailsService.loadUserByUsername("ref2@mail.com");
+
+        assertTrue(result.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ARBITRO")));
     }
 
     @Test

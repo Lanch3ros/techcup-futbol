@@ -4,6 +4,7 @@ import com.example.controller.dto.response.StandingDTO;
 import com.example.core.model.*;
 import com.example.repository.MatchEventRepository;
 import com.example.repository.MatchRepository;
+import com.example.repository.TournamentRepository;
 import com.example.repository.UserRepository;
 import com.example.repository.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,7 @@ class StatsServiceFairPlayTest {
     private MatchRepository matchRepository;
     private TeamRepository teamRepository;
     private UserRepository userRepository;
+    private TournamentRepository tournamentRepository;
     private StatsService statsService;
 
     // Fixtures reutilizables
@@ -35,10 +37,11 @@ class StatsServiceFairPlayTest {
         matchEventRepository = mock(MatchEventRepository.class);
         matchRepository      = mock(MatchRepository.class);
         teamRepository       = mock(TeamRepository.class);
-        userRepository     = mock(UserRepository.class);
+        userRepository       = mock(UserRepository.class);
+        tournamentRepository = mock(TournamentRepository.class);
 
         statsService = new StatsService(matchEventRepository, matchRepository,
-                teamRepository, userRepository);
+                teamRepository, userRepository, tournamentRepository);
 
         team1 = new Team(); team1.setId(1L); team1.setName("Team A"); team1.setPoints(3);
         team2 = new Team(); team2.setId(2L); team2.setName("Team B"); team2.setPoints(0);

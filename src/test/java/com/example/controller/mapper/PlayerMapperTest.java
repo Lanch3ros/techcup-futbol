@@ -3,6 +3,7 @@ package com.example.controller.mapper;
 import com.example.controller.dto.response.ProfileDTO;
 import com.example.core.model.Program;
 import com.example.core.model.StudentPlayer;
+import com.example.core.model.TeacherPlayer;
 import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 
@@ -55,5 +56,18 @@ class PlayerMapperTest {
         assertEquals(Program.SISTEMAS, result.program());
         assertEquals(5L, result.teamId());
         assertEquals(4, result.semester());
+    }
+
+    @Test
+    void toDto_NonStudentPlayer_SemesterIsNull() {
+        TeacherPlayer teacher = new TeacherPlayer();
+        teacher.setFullName("Prof. García");
+        teacher.setEmail("garcia@escuelaing.edu.co");
+
+        ProfileDTO result = playerMapper.toDto(teacher);
+
+        assertNotNull(result);
+        assertEquals("TEACHER", result.userType());
+        assertNull(result.semester()); // TeacherPlayer is not instanceof StudentPlayer
     }
 }

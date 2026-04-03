@@ -6,6 +6,7 @@ import com.example.core.model.*;
 import com.example.repository.MatchEventRepository;
 import com.example.repository.MatchRepository;
 import com.example.repository.TeamRepository;
+import com.example.repository.TournamentRepository;
 import com.example.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,15 +22,18 @@ public class StatsService {
     private final MatchRepository matchRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
+    private final TournamentRepository tournamentRepository;
 
     public StatsService(MatchEventRepository matchEventRepository,
                         MatchRepository matchRepository,
                         TeamRepository teamRepository,
-                        UserRepository userRepository) {
+                        UserRepository userRepository,
+                        TournamentRepository tournamentRepository) {
         this.matchEventRepository = matchEventRepository;
         this.matchRepository = matchRepository;
         this.teamRepository = teamRepository;
         this.userRepository = userRepository;
+        this.tournamentRepository = tournamentRepository;
     }
 
     public List<PlayerStats> getTopScorers() {
@@ -41,9 +45,21 @@ public class StatsService {
 
     public List<PlayerStats> getTopScorersByTournament(Long tournamentId) {
         log.info("Consultando goleadores del torneo ID: {}", tournamentId);
-        List<MatchEvent> events = matchEventRepository.findAll().stream()
-                .filter(e -> "GOL".equalsIgnoreCase(e.getType()))
-                .collect(Collectors.toList());
+
+        // GAP-15: solo eventos de partidos vinculados al torneo
+        Tournament tournament = tournamentRepository.findById(tournamentId).orElse(null);
+        List<Long> matchIds = (tournament != null && tournament.getMatches() != null)
+                ? tournament.getMatches().stream()
+                        .map(Match::getId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList())
+                : List.of();
+
+        List<MatchEvent> events = matchIds.isEmpty() ? List.of()
+                : matchEventRepository.findByMatchIdIn(matchIds).stream()
+                        .filter(e -> "GOL".equalsIgnoreCase(e.getType()))
+                        .collect(Collectors.toList());
+
         List<PlayerStats> scorers = buildPlayerStatsFromEvents(events);
         log.info("Goleadores del torneo ID {}: {} jugadores", tournamentId, scorers.size());
         return scorers;
@@ -60,14 +76,37 @@ public class StatsService {
                 .filter(e -> e.getPlayerId().equals(playerId))
                 .collect(Collectors.toList());
 
+        // GAP-16: matchesPlayed = partidos Finalizados donde el jugador tuvo al menos un evento
+        Set<Long> finishedMatchIds = matchRepository.findAll().stream()
+                .filter(m -> "Finalizado".equalsIgnoreCase(m.getStatus()))
+                .map(Match::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        int matchesPlayed = (int) playerEvents.stream()
+                .map(MatchEvent::getMatchId)
+                .filter(id -> id != null && finishedMatchIds.contains(id))
+                .distinct()
+                .count();
+
+        // GAP-16: teamName del equipo actual del jugador
+        String teamName = "";
+        if (player.getTeamId() != null) {
+            teamName = teamRepository.findById(player.getTeamId())
+                    .map(Team::getName)
+                    .orElse("");
+        }
+
         PlayerStats stats = new PlayerStats();
         stats.setPlayerId(playerId);
         stats.setPlayerName(player.getFullName());
+        stats.setTeamName(teamName);
+        stats.setMatchesPlayed(matchesPlayed);
         stats.setGoals((int) playerEvents.stream().filter(e -> "GOL".equalsIgnoreCase(e.getType())).count());
         stats.setYellowCards((int) playerEvents.stream().filter(e -> "AMARILLA".equalsIgnoreCase(e.getType())).count());
         stats.setRedCards((int) playerEvents.stream().filter(e -> "ROJA".equalsIgnoreCase(e.getType())).count());
 
-        log.info("Estadísticas del jugador ID {}: {} goles, {} amarillas, {} rojas", playerId, stats.getGoals(), stats.getYellowCards(), stats.getRedCards());
+        log.info("Estadísticas del jugador ID {}: {} PJ, {} goles, {} amarillas, {} rojas",
+                playerId, matchesPlayed, stats.getGoals(), stats.getYellowCards(), stats.getRedCards());
         return stats;
     }
 
@@ -97,7 +136,14 @@ public class StatsService {
 
     public List<StandingDTO> getTournamentStandings(Long tournamentId) {
         log.info("Calculando tabla de posiciones del torneo ID: {}", tournamentId);
-        List<StandingDTO> standings = teamRepository.findAll().stream()
+
+        // GAP-14: solo equipos inscritos en el torneo
+        Tournament tournament = tournamentRepository.findById(tournamentId).orElse(null);
+        List<Team> teams = (tournament != null && tournament.getRegisteredTeams() != null)
+                ? tournament.getRegisteredTeams()
+                : List.of();
+
+        List<StandingDTO> standings = teams.stream()
                 .map(team -> {
                     int fairPlayPoints = calculateFairPlayPoints(team.getId());
                     StandingDTO dto = new StandingDTO();

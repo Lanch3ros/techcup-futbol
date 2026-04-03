@@ -1,6 +1,7 @@
 package com.example.core.service;
 
 import com.example.controller.dto.request.PlayerRegistrationRequest;
+import com.example.core.model.AdminUser;
 import com.example.core.model.Player;
 import com.example.core.model.StudentPlayer;
 import com.example.core.model.User;
@@ -166,6 +167,18 @@ class PlayerServiceTest {
         Player result = playerService.searchPlayer(99L);
 
         assertNull(result);
+    }
+
+    @Test
+    void searchPlayer_UserNotPlayer_ReturnsNull() {
+        // AdminUser extends User but does NOT implement Player
+        AdminUser admin = new AdminUser();
+        admin.setId(5L);
+        when(userRepository.findById(5L)).thenReturn(Optional.of(admin));
+
+        Player result = playerService.searchPlayer(5L);
+
+        assertNull(result); // instanceof Player = false → null
     }
 
     @Test

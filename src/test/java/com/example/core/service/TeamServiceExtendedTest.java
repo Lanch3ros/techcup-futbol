@@ -104,6 +104,31 @@ class TeamServiceExtendedTest {
     }
 
     @Test
+    @DisplayName("getTeamLineup – lista de titulares no-null pero vacía → retorna null (rama isEmpty=true)")
+    void getTeamLineup_EmptyStartingList_ReturnsNull() {
+        Team t = team(1L);
+        t.setStartingPlayerIds(new java.util.ArrayList<>()); // no-null pero vacía
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(t));
+        assertNull(teamService.getTeamLineup(1L));
+    }
+
+    @Test
+    @DisplayName("getTeamLineup – alineación configurada con reservePlayerIds null → retorna lista vacía de suplentes")
+    void getTeamLineup_WithLineup_NullReserves_ReturnsEmptyList() {
+        Team t = team(1L);
+        t.setStartingPlayerIds(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L));
+        t.setReservePlayerIds(null); // fuerza la rama null de reservePlayerIds
+        t.setFormation("4-4-2");
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(t));
+
+        com.example.controller.dto.request.LineupRequest result = teamService.getTeamLineup(1L);
+
+        assertNotNull(result);
+        assertNotNull(result.getReservePlayerIds()); // usa new ArrayList<>() como fallback
+        assertTrue(result.getReservePlayerIds().isEmpty());
+    }
+
+    @Test
     @DisplayName("getTeamLineup – alineación configurada → retorna LineupRequest con titulares y suplentes")
     void getTeamLineup_WithLineup_ReturnsRequest() {
         Team t = team(1L);

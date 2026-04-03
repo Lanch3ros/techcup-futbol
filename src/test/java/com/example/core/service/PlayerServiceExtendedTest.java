@@ -1,6 +1,7 @@
 package com.example.core.service;
 
 import com.example.core.exception.ResourceNotFoundException;
+import com.example.core.model.AdminUser;
 import com.example.core.model.Player;
 import com.example.core.model.StudentPlayer;
 import com.example.core.model.User;
@@ -235,5 +236,30 @@ class PlayerServiceExtendedTest {
         assertDoesNotThrow(() -> playerService.respondToInvitation(1L, 5L, "IGNORE"));
         assertNull(p.getTeamId());   // no fue vinculado
         assertTrue(p.isAvailable()); // no fue modificado
+    }
+
+    @Test
+    @DisplayName("respondToInvitation – ACCEPT con AdminUser (no instanceof Player) → no llama acceptInvitation")
+    void respondToInvitation_Accept_NonPlayerUser_NoAcceptCall() {
+        AdminUser admin = new AdminUser();
+        admin.setId(10L);
+        when(userRepository.findById(10L)).thenReturn(Optional.of(admin));
+        when(userRepository.save(any())).thenReturn(admin);
+
+        // AdminUser no es instanceof Player → rama instanceof=false cubierta
+        assertDoesNotThrow(() -> playerService.respondToInvitation(10L, 5L, "ACCEPT"));
+        assertEquals(5L, admin.getTeamId());  // setTeamId sí se llama (es un campo de User)
+    }
+
+    @Test
+    @DisplayName("respondToInvitation – REJECT con AdminUser (no instanceof Player) → no llama rejectInvitation")
+    void respondToInvitation_Reject_NonPlayerUser_NoRejectCall() {
+        AdminUser admin = new AdminUser();
+        admin.setId(11L);
+        when(userRepository.findById(11L)).thenReturn(Optional.of(admin));
+        when(userRepository.save(any())).thenReturn(admin);
+
+        assertDoesNotThrow(() -> playerService.respondToInvitation(11L, 5L, "REJECT"));
+        assertNull(admin.getTeamId()); // no fue vinculado (REJECT no setea teamId)
     }
 }

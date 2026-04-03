@@ -187,20 +187,116 @@ class MatchServiceTest {
 
     // ── registerResult ────────────────────────────────────────────────────────
 
+    private Match finishedMatch(int initHomeGoals, int initAwayGoals) {
+        Match m = new Match();
+        m.setId(1L);
+        m.setStatus("Finalizado");
+        m.setHomeTeam(homeTeam);
+        m.setAwayTeam(awayTeam);
+        m.setHomeGoals(initHomeGoals);
+        m.setAwayGoals(initAwayGoals);
+        return m;
+    }
+
     @Test
-    @DisplayName("registerResult – partido finalizado → persiste resultado (RN-08-1)")
-    void registerResult_Success() {
+    @DisplayName("registerResult – victoria local (2-1) → stats correctas (GAP-13)")
+    void registerResult_HomeWin_UpdatesStats() {
+        Match m = finishedMatch(0, 0);
+        when(matchRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(matchRepository.save(any())).thenReturn(m);
+        when(teamRepository.save(any())).thenReturn(null);
+
+        MatchResultRequest req = new MatchResultRequest();
+        req.setHomeGoals(2); req.setAwayGoals(1);
+
+        matchService.registerResult(1L, req);
+
+        assertEquals(2, m.getHomeGoals());
+        assertEquals(1, m.getAwayGoals());
+        assertEquals(1, homeTeam.getMatchesPlayed());
+        assertEquals(1, homeTeam.getMatchesWon());
+        assertEquals(0, homeTeam.getMatchesDrawn());
+        assertEquals(0, homeTeam.getMatchesLost());
+        assertEquals(3, homeTeam.getPoints());
+        assertEquals(2, homeTeam.getGoalsFor());
+        assertEquals(1, homeTeam.getGoalsAgainst());
+        assertEquals(1, homeTeam.getGoalDifference());
+        assertEquals(1, awayTeam.getMatchesPlayed());
+        assertEquals(0, awayTeam.getMatchesWon());
+        assertEquals(1, awayTeam.getMatchesLost());
+        assertEquals(0, awayTeam.getPoints());
+        verify(teamRepository, times(2)).save(any(Team.class));
+    }
+
+    @Test
+    @DisplayName("registerResult – victoria visitante (0-3) → stats correctas (GAP-13)")
+    void registerResult_AwayWin_UpdatesStats() {
+        Match m = finishedMatch(0, 0);
+        when(matchRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(matchRepository.save(any())).thenReturn(m);
+        when(teamRepository.save(any())).thenReturn(null);
+
+        MatchResultRequest req = new MatchResultRequest();
+        req.setHomeGoals(0); req.setAwayGoals(3);
+
+        matchService.registerResult(1L, req);
+
+        assertEquals(1, awayTeam.getMatchesWon());
+        assertEquals(3, awayTeam.getPoints());
+        assertEquals(1, homeTeam.getMatchesLost());
+        assertEquals(0, homeTeam.getPoints());
+    }
+
+    @Test
+    @DisplayName("registerResult – empate (1-1) → ambos suman 1 punto (GAP-13)")
+    void registerResult_Draw_BothGetOnePoint() {
+        Match m = finishedMatch(0, 0);
+        when(matchRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(matchRepository.save(any())).thenReturn(m);
+        when(teamRepository.save(any())).thenReturn(null);
+
+        MatchResultRequest req = new MatchResultRequest();
+        req.setHomeGoals(1); req.setAwayGoals(1);
+
+        matchService.registerResult(1L, req);
+
+        assertEquals(1, homeTeam.getMatchesDrawn());
+        assertEquals(1, homeTeam.getPoints());
+        assertEquals(1, awayTeam.getMatchesDrawn());
+        assertEquals(1, awayTeam.getPoints());
+        assertEquals(0, homeTeam.getGoalDifference());
+        assertEquals(0, awayTeam.getGoalDifference());
+    }
+
+    @Test
+    @DisplayName("registerResult – sin equipos en el partido → no actualiza stats (null-safety)")
+    void registerResult_NullTeams_NoStatsUpdate() {
         Match m = new Match(); m.setId(1L); m.setStatus("Finalizado");
+        // homeTeam y awayTeam null → guarda partido pero no equipos
         when(matchRepository.findById(1L)).thenReturn(Optional.of(m));
         when(matchRepository.save(any())).thenReturn(m);
 
         MatchResultRequest req = new MatchResultRequest();
-        req.setHomeGoals(2);
-        req.setAwayGoals(1);
+        req.setHomeGoals(2); req.setAwayGoals(0);
 
         assertDoesNotThrow(() -> matchService.registerResult(1L, req));
-        assertEquals(2, m.getHomeGoals());
-        assertEquals(1, m.getAwayGoals());
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("registerResult – homeTeam no null pero awayTeam null → no actualiza stats (rama away==null)")
+    void registerResult_HomeNotNullAwayNull_NoStatsUpdate() {
+        Match m = new Match(); m.setId(1L); m.setStatus("Finalizado");
+        m.setHomeTeam(homeTeam);
+        m.setAwayTeam(null); // fuerza la rama: home!=null pero away==null
+        when(matchRepository.findById(1L)).thenReturn(Optional.of(m));
+        when(matchRepository.save(any())).thenReturn(m);
+
+        MatchResultRequest req = new MatchResultRequest();
+        req.setHomeGoals(2); req.setAwayGoals(0);
+
+        assertDoesNotThrow(() -> matchService.registerResult(1L, req));
+        verify(teamRepository, never()).save(any());
     }
 
     @Test

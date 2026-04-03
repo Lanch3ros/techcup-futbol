@@ -3,11 +3,11 @@ package com.example.core.factory;
 import com.example.controller.dto.request.PlayerRegistrationRequest;
 import com.example.core.model.TeacherPlayer;
 import com.example.core.model.User;
-import com.example.core.validator.AdminValidator;
+import com.example.core.validator.StaffEmailValidator;
 
 public class TeacherFactory extends PlayerFactory {
 
-    private final AdminValidator emailValidator = new AdminValidator();
+    private final StaffEmailValidator emailValidator = new StaffEmailValidator();
 
     @Override
     protected User createUser(PlayerRegistrationRequest data) {

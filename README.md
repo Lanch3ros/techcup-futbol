@@ -84,11 +84,28 @@ Una clase base abstracta `User` (para el sistema de seguridad JWT) de la cual ex
 
 ![ClassDiagram.png](docs/images/ClassDiagram.png)
 
-#### 2.3 DIAGRAMAS DE COMPONENTES
+#### 2.3 DIAGRAMA DE SECUENCIA
+
+* **Flujo 1:** Registro de Jugador
+
+![SequenceDiagramFlujo1RegistroJugador.png](docs/images/SequenceDiagramFlujo1RegistroJugador.png)
+
+Para mas detalle ir a la ruta `docs/uml/SequenceDiagramFlujo1RegistroJugador.pdf` o darle click a
+[Registro de Jugador](docs/uml/SequenceDiagramFlujo1RegistroJugador.pdf)
+
+* **Flujo 2:** Inscripción de Equipo a Torneo
+
+![SequenceDiagramFlujo2InscripcionEquipoTorneo.png](docs/images/SequenceDiagramFlujo2InscripcionEquipoTorneo.png)
+
+Para mas detalle ir a la ruta `docs/uml/SequenceDiagramFlujo2InscripcionEquipoTorneo.pdf` o darle click a
+[Inscripción de Equipo a Torneo](docs/uml/SequenceDiagramFlujo2InscripcionEquipoTorneo.pdf)
+
+#### 2.4 DIAGRAMAS DE COMPONENTES
 **Diagrama de Componentes General (Vista Macro)**
 Muestra los bloques tecnológicos principales: La SPA en React interactuando vía JSON/HTTP con el API en Spring Boot, el cual se conecta de manera segura a PostgreSQL 16.
 
 ![componentesgeneral.png](docs/images/componentesgeneral.png)
+
 
 **Diagrama de Componentes Específico (Arquitectura Interna)**
 Detalla las capas del backend:
@@ -99,13 +116,15 @@ Detalla las capas del backend:
 
 ![componentesespecifico.png](docs/images/componentesespecifico.png)
 
-#### 2.4 DIAGRAMA ER (ENTIDAD-RELACIÓN)
+
+#### 2.5 DIAGRAMA ER (ENTIDAD-RELACIÓN)
 Representa el modelo físico en PostgreSQL:
 - **`users`**: Centraliza todas las credenciales mediante la columna discriminadora `user_type`.
 - **`teams` / `tournaments`**: Relación Mucho-a-Mucho mediante la tabla intermedia `tournament_teams`.
 - La alineación de equipos y suplentes (`startingPlayerIds`, `reservePlayerIds`) se persiste eficientemente mediante `@ElementCollection`.
 
 ![DiagramaER.png](docs/images/DiagramaER.png)
+
 
 ---
 

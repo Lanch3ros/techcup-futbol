@@ -18,6 +18,8 @@ public class TeacherFactory extends PlayerFactory {
         teacher.setPassword(data.getPassword());
         teacher.setPosition(data.getPosition());
         teacher.setJerseyNumber(data.getJerseyNumber());
+        teacher.setBirthDate(data.getBirthDate());
+        teacher.setGender(data.getGender());
         teacher.setAvailable(true);
         return teacher;
     }

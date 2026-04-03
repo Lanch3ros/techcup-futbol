@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -48,6 +49,12 @@ public abstract class User {
     protected String department;     // STUDENT, TEACHER
 
     protected String relationship;   // RELATIVE
+
+    // ── Campos demográficos (Fase 1: GAP-03) ─────────────────────────────────
+    @Column(name = "birth_date")
+    protected LocalDate birthDate;
+
+    protected String gender;
 
     // ── Campos específicos de árbitro (nullable para tipos no-árbitro) ────────
     @Column(name = "license_number", unique = true)

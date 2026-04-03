@@ -41,7 +41,7 @@ class TeamControllerExtendedTest {
     }
 
     private ProfileDTO profile(String name) {
-        return new ProfileDTO(name, name.toLowerCase() + "@eci.edu.co", "STUDENT", null, null, null);
+        return new ProfileDTO(name, name.toLowerCase() + "@eci.edu.co", "STUDENT", null, null, null, null, null, null, null, null, null);
     }
 
     // ── getTeamPlayers ────────────────────────────────────────────────────────
@@ -262,5 +262,57 @@ class TeamControllerExtendedTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Menos del 50% de ingeniería", response.getBody().getData());
+    }
+
+    // ── updateShieldUrl ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateShieldUrl – URL válida → 200 OK")
+    void updateShieldUrl_Valid_Returns200() {
+        Team team = new Team();
+        team.setId(1L);
+        when(teamService.updateShieldUrl(1L, "https://cdn.example.com/shield.png")).thenReturn(team);
+
+        Map<String, String> payload = Map.of("shieldUrl", "https://cdn.example.com/shield.png");
+
+        ResponseEntity<GenericResponse> response = teamController.updateShieldUrl(1L, payload);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Éxito", response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("updateShieldUrl – shieldUrl null → 400 BAD REQUEST")
+    void updateShieldUrl_NullUrl_Returns400() {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("shieldUrl", null);
+
+        ResponseEntity<GenericResponse> response = teamController.updateShieldUrl(1L, payload);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("El campo 'shieldUrl' es obligatorio", response.getBody().getData());
+    }
+
+    @Test
+    @DisplayName("updateShieldUrl – shieldUrl en blanco → 400 BAD REQUEST")
+    void updateShieldUrl_BlankUrl_Returns400() {
+        Map<String, String> payload = Map.of("shieldUrl", "   ");
+
+        ResponseEntity<GenericResponse> response = teamController.updateShieldUrl(1L, payload);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("updateShieldUrl – equipo no encontrado → 400 BAD REQUEST")
+    void updateShieldUrl_TeamNotFound_Returns400() {
+        doThrow(new RuntimeException("Equipo no encontrado"))
+                .when(teamService).updateShieldUrl(99L, "https://cdn.example.com/shield.png");
+
+        Map<String, String> payload = Map.of("shieldUrl", "https://cdn.example.com/shield.png");
+
+        ResponseEntity<GenericResponse> response = teamController.updateShieldUrl(99L, payload);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 }

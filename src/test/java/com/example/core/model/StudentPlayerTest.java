@@ -1,6 +1,7 @@
 package com.example.core.model;
 
 import org.junit.jupiter.api.Test;
+import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StudentPlayerTest {
@@ -39,6 +40,21 @@ class StudentPlayerTest {
         assertNotEquals(player, player2);
         assertNotNull(player.toString());
         assertNotEquals(0, player.hashCode());
+    }
+
+    @Test
+    void testNewDemographicFields() {
+        StudentPlayer player = new StudentPlayer();
+        LocalDate dob = LocalDate.of(2000, 5, 15);
+        player.setBirthDate(dob);
+        player.setGender("M");
+        player.setSemester(6);
+        player.setIdentification("1234567890");
+
+        assertEquals(dob, player.getBirthDate());
+        assertEquals("M", player.getGender());
+        assertEquals(6, player.getSemester());
+        assertEquals("1234567890", player.getIdentification());
     }
 
     @Test

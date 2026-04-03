@@ -19,6 +19,8 @@ public class GraduateFactory extends PlayerFactory {
         graduate.setProgram(data.getProgram());
         graduate.setPosition(data.getPosition());
         graduate.setJerseyNumber(data.getJerseyNumber());
+        graduate.setBirthDate(data.getBirthDate());
+        graduate.setGender(data.getGender());
         graduate.setAvailable(true);
         return graduate;
     }

@@ -198,6 +198,7 @@ public class PlayerService {
             case "GRADUATE" -> new GraduateFactory();
             case "TEACHER"  -> new TeacherFactory();
             case "RELATIVE" -> new RelativeFactory();
+            case "STAFF"    -> new StaffFactory();
             case "ADMIN"    -> new AdminFactory();
             default -> {
                 log.error("Rol no válido recibido: {}", role);

@@ -36,7 +36,7 @@ class PlayerControllerExtendedTest {
     }
 
     private ProfileDTO profile(String name) {
-        return new ProfileDTO(name, name.toLowerCase() + "@eci.edu.co", "STUDENT", null, null, null);
+        return new ProfileDTO(name, name.toLowerCase() + "@eci.edu.co", "STUDENT", null, null, null, null, null, null, null, null, null);
     }
 
     // ── getAvailablePlayers ───────────────────────────────────────────────────

@@ -18,6 +18,8 @@ public class RelativeFactory extends PlayerFactory {
         relative.setPassword(data.getPassword());
         relative.setPosition(data.getPosition());
         relative.setJerseyNumber(data.getJerseyNumber());
+        relative.setBirthDate(data.getBirthDate());
+        relative.setGender(data.getGender());
         relative.setAvailable(true);
         return relative;
     }

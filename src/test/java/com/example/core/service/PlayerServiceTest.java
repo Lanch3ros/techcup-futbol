@@ -111,6 +111,25 @@ class PlayerServiceTest {
     }
 
     @Test
+    void registerPlayer_Staff_Success() {
+        PlayerRegistrationRequest data = buildRequest("Staff", "staff@escuelaing.edu.co", "STAFF");
+        when(userRepository.save(any(User.class))).thenReturn(new StudentPlayer());
+        assertDoesNotThrow(() -> playerService.registerPlayer(data));
+    }
+
+    @Test
+    void registerPlayer_Staff_InvalidEmail_ThrowsException() {
+        PlayerRegistrationRequest data = buildRequest("Staff", "staff@gmail.com", "STAFF");
+        assertThrows(IllegalArgumentException.class, () -> playerService.registerPlayer(data));
+    }
+
+    @Test
+    void registerPlayer_InvalidEmailDomain_ThrowsException() {
+        PlayerRegistrationRequest data = buildRequest("Jose", "jose@gmail.com", "STUDENT");
+        assertThrows(IllegalArgumentException.class, () -> playerService.registerPlayer(data));
+    }
+
+    @Test
     void registerPlayer_NullRole_ThrowsException() {
         PlayerRegistrationRequest data = buildRequest("Jose", "jose@mail.com", null);
 

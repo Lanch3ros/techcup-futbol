@@ -4,6 +4,7 @@ import com.example.controller.dto.request.PlayerRegistrationRequest;
 import com.example.core.model.*;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OtherFactoriesTest {
@@ -49,5 +50,20 @@ class OtherFactoriesTest {
         PlayerRegistrationRequest dto = buildRequest("Relative", "relative@gmail.com", "RELATIVE");
         User result = factory.registerPlayerData(dto);
         assertTrue(result instanceof RelativePlayer);
+    }
+
+    @Test
+    void staffFactory_CreatesStaffPlayer() {
+        StaffFactory factory = new StaffFactory();
+        PlayerRegistrationRequest dto = buildRequest("Staff", "staff@escuelaing.edu.co", "STAFF");
+        User result = factory.registerPlayerData(dto);
+        assertTrue(result instanceof StaffPlayer);
+    }
+
+    @Test
+    void staffFactory_InvalidEmail_ThrowsException() {
+        StaffFactory factory = new StaffFactory();
+        PlayerRegistrationRequest dto = buildRequest("Staff", "staff@gmail.com", "STAFF");
+        assertThrows(IllegalArgumentException.class, () -> factory.registerPlayerData(dto));
     }
 }

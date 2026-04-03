@@ -19,6 +19,9 @@ public class StudentFactory extends PlayerFactory {
         student.setProgram(data.getProgram());
         student.setPosition(data.getPosition());
         student.setJerseyNumber(data.getJerseyNumber());
+        student.setBirthDate(data.getBirthDate());
+        student.setGender(data.getGender());
+        student.setSemester(data.getSemester());
         student.setAvailable(true);
         return student;
     }

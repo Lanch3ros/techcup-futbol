@@ -1,7 +1,8 @@
 # **| JAVABURGUERS |**
-![pantalla inicio readme.png](docs/images/pantalla%20inicio%20readme.png)
 
-### NOMBRES DE INTEGRANTES: 
+![LandingPageImage.png](docs/images/LandingPageImage.png)
+
+### NOMBRES DE INTEGRANTES:
 - Andres Camilo Vivas Baquero
 - Dana Valeria Leal Guzmán
 - Daniel Julian Peña Bonilla
@@ -9,8 +10,8 @@
 - Juan Sebastian Murcia Yanquen
 
 ## TECHCUP FUTBOL
-Plataforma web centralizada para la gestión integral del torneo semestral de fútbol de los programas de ingeniería 
-de la Escuela Colombiana de Ingeniería Julio Garavito. Este sistema reemplaza los procesos manuales mediante la 
+Plataforma web centralizada para la gestión integral del torneo semestral de fútbol de los programas de ingeniería
+de la Escuela Colombiana de Ingeniería Julio Garavito. Este sistema reemplaza los procesos manuales mediante la
 automatización de inscripciones, administración de equipos, verificación de pagos y cálculo de estadísticas en tiempo real.
 
 ---
@@ -20,162 +21,117 @@ automatización de inscripciones, administración de equipos, verificación de p
 ### Prerrequisitos
 * Java 21
 * Maven 3.8+
+* Docker (Para levantar PostgreSQL 16)
 
 ### Pasos para ejecutar localmente
 1. Clonar el repositorio:
-   `git clone https://github.com/Lanch3ros/techcup-futbol.git `
+   `git clone https://github.com/Lanch3ros/techcup-futbol.git`
 2. Navegar a la carpeta del proyecto:
    `cd techcup-futbol`
-3. Compilar el proyecto y descargar dependencias:
-   `mvn clean install`
-4. Ejecutar la aplicación Spring Boot:
-   `mvn spring-boot:run`
-5. La aplicación estará disponible en `http://localhost:8080`
-6. Para visualizar la documentación de la API interactiva (Swagger), ingresa a:
+3. Levantar la base de datos PostgreSQL:
+   `docker compose up -d`
+4. Ejecutar la suite de pruebas (verificación de integridad con +480 tests):
+   `mvn clean test jacoco:report`
+5. Ejecutar la aplicación Spring Boot:
+   `mvn spring-boot:run -Dmaven.test.skip=true`
+6. La aplicación estará disponible en `http://localhost:8080`
+7. Para visualizar la documentación interactiva (Swagger / OpenAPI 3.1), ingresa a:
    `http://localhost:8080/swagger-ui.html`
 
+---
+
 # ÍNDICE
-### 0. LINKS PRESENTACIONES
-**Sprint 1**
+### 0. PRESENTACIONES SPRINT
+* **Sprint 1:** [Enlace a Canva](https://www.canva.com/design/DAHDIhwNdzU/ynjiJ__QOQWReNaZfXhO7Q/edit?utm_content=DAHDIhwNdzU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+* **Sprint 2:** [Enlace a Canva](https://www.canva.com/design/DAHEoyICPoE/jg6A0KOsso8ERnJbRn0hRw/edit?utm_content=DAHEoyICPoE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+* **Sprint 3:** [Enlace a Canva](https://www.canva.com/design/DAHFSF0epuE/R3Pq2PrtoQJfLQqHlH7F8Q/edit?utm_content=DAHFSF0epuE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
 
-https://www.canva.com/design/DAHDIhwNdzU/ynjiJ__QOQWReNaZfXhO7Q/edit?utm_content=DAHDIhwNdzU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+---
 
-**Sprint 2**
+### 1. ARQUITECTURA Y PATRONES DE DISEÑO
 
-https://www.canva.com/design/DAHEoyICPoE/jg6A0KOsso8ERnJbRn0hRw/edit?utm_content=DAHEoyICPoE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+Para la construcción del core de la aplicación, el equipo analizó e implementó los siguientes patrones de diseño y arquitectura, garantizando escalabilidad y cumplimiento de las reglas de negocio de TechCup.
 
-**Sprint 3**
+**Arquitectura en Capas (MVC adaptado a REST API)**
+- **¿Por qué lo elegimos?** Es el estándar de la industria para aplicaciones web con Spring Boot, permitiendo separar responsabilidades (Separation of Concerns).
+- **¿Cómo ayuda a resolver el problema?** Aísla la capa de presentación (REST Controllers) de la lógica de negocio (Services) y del acceso a datos (Repositories). Esto nos permite validar tokens JWT en los controladores sin acoplar la lógica matemática del cálculo de estadísticas o la generación de llaves de los torneos.
 
-https://www.canva.com/design/DAHFSF0epuE/R3Pq2PrtoQJfLQqHlH7F8Q/edit?utm_content=DAHFSF0epuE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+**Factory Method - `PlayerFactory`**
+- **¿Por qué lo elegimos?** El sistema maneja múltiples actores (`StudentUser`, `GraduateUser`, `TeacherUser`, `RelativeUser`, `StaffUser`). Todos comparten atributos básicos (nombre, correo), pero difieren en su creación y validación.
+- **¿Cómo ayuda a resolver el problema?** Centraliza la lógica de instanciación. Cuando un usuario envía un JSON al endpoint de registro, el controlador delega a la fábrica correspondiente. Esto nos permite separar estructuralmente la "Identidad" (Clase base `User` para login) del "Comportamiento" (Interfaz `Player` para jugar), evitando que administradores o árbitros hereden propiedades innecesarias como el número dorsal.
 
+**Strategy - Validador de Correos (`EmailValidator`)**
+- **¿Por qué lo elegimos?** Existen reglas estrictas de registro: los estudiantes y graduados usan el dominio `@mail.escuelaing.edu.co`. Los profesores y administrativos(staff) deben usar el dominio `@escuelaing.edu.co` y los familiares usan Gmail.
+- **¿Cómo ayuda a resolver el problema?** Encapsulamos cada regla de validación en su propia clase. Antes de persistir el usuario en la base de datos, el `PlayerService` invoca dinámicamente la estrategia correspondiente. Si la universidad cambia su dominio en el futuro, solo se modifica una clase concreta sin alterar la lógica global.
 
-### 1. DIAGRAMAS
+---
 
-#### 1.1 DIAGRAMA DE CONTEXTO DEL SISTEMA
+### 2. DIAGRAMAS
 
-El diagrama de contexto representa a alto nivel cómo interactúa el sistema TECHCUP FÚTBOL con los actores externos que lo rodean. Su propósito es mostrar los límites del sistema y las relaciones que tiene con el mundo exterior, sin entrar en detalles técnicos internos.
+#### 2.1 DIAGRAMA DE CONTEXTO DEL SISTEMA
+Representa cómo interactúa TECHCUP FÚTBOL con los actores externos. Su propósito es mostrar los límites del sistema.
 
-Actores del sistema:
+![DiagramaContexto.png](docs/images/ContextDiagram.png)
 
-- Jugador: Estudiante, profesor, graduado, familiar o personal administrativo que se registra en la plataforma. Registra su perfil deportivo, elige su número dorsal, indica su posición de juego y acepta o rechaza invitaciones a equipos.
-- Capitán: Jugador responsable de crear el equipo, invitar integrantes, gestionar el pago de la inscripción y organizar la formación táctica antes de cada partido.
-- Organizador: Encargado de crear el torneo, definir el reglamento, validar los comprobantes de pago de los equipos y registrar los resultados de los partidos.
-- Árbitro: Usuario con permisos exclusivos para consultar la programación, horarios y canchas asignadas para los partidos que debe dirigir.
-- Administrador: Perfil con control total sobre el sistema, encargado de la gestión de roles, permisos y la auditoría de acciones realizadas en la plataforma.
+* **Jugadores / Capitanes:** Interactúan para registrar perfiles, aceptar invitaciones, pagar inscripciones y armar alineaciones.
+* **Personal de Gestión (Organizador, Administrador):** Controlan el ciclo de vida del torneo y la seguridad.
+* **Árbitros:** Reportan resultados, tarjetas y faltas.
+* **Sistema externo:** Sistema de correo electrónico (SMTP) para notificaciones y File Storage (S3) para fotos de perfil y comprobantes.
 
-Sistema externo:
+#### 2.2 DIAGRAMA DE CLASES (Core de Negocio)
+Enfocado en las entidades de negocio y la aplicación de los patrones. Destaca la jerarquía de herencia con estrategia `SINGLE_TABLE`:
+Una clase base abstracta `User` (para el sistema de seguridad JWT) de la cual extienden todos los usuarios. Los actores que participan en los partidos implementan adicionalmente la interfaz `Player`, mientras que los usuarios de gestión (`AdminUser`, `OrganizerUser`, `RefereeUser`) solo extienden de `User`.
 
-Proveedor de Identidad Externo (OAuth 2.0 / OpenID Connect): Sistema encargado de autenticar de forma segura a los usuarios. Valida las credenciales del personal de la Escuela mediante correo institucional y de los familiares mediante correo Gmail, retornando una confirmación de identidad al sistema principal para permitir el acceso basado en roles.
+![ClassDiagram.png](docs/images/ClassDiagram.png)
 
-
-![diagramacontexto.png](docs/images/diagramacontexto.png)
-
-[DiagramaContexto.pdf](docs/uml/DiagramaContexto.pdf)
-
-#### 1.2 DIAGRAMA DE CLASES
-
-**Patrónes utilizados**
-
-**Factory Method - PlayerFactory**
-- ¿Por qué lo elegimos?
-    - El sistema tiene cinco tipos de participantes Estudiante, Graduado, Profesor, Personal Administrativo y Familiar que
-      comparten atributos comunes como nombre, correo y posición de juego, pero tienen diferencias concretas en cómo se crean
-      y validan. El Estudiante y el Graduado se registran con correo institucional, el Familiar con Gmail, el Profesor tiene
-      departamento y cargo.
-
-- ¿Cómo ayuda a resolver el problema del sistema?
-    - Factory Method centraliza la creación de cada tipo de Jugador en su propia fábrica. Cuando llega una solicitud de
-      registro al PlayerController, este simplemente delega a la PlayerFactory correspondiente según el userType recibido,
-      y esa fábrica construye el objeto correcto con sus validaciones propias.
-
-**Strategy - EmailValidator**
-- ¿Por qué lo eligieron?
-    - Porque no todos los jugadores usan el mismo tipo de correo. Un estudiante debe registrarse con correo institucional,
-      un familiar con Gmail, un administrativo con su correo de la universidad. Si no usáramos este patrón, tendríamos que
-      escribir la misma lógica de validación repetida en cada tipo de jugador, y si algo cambia habría que buscarla y
-      modificarla en varios lugares al mismo tiempo.
-- ¿Cómo ayuda a resolver el problema del sistema?
-    - Cada regla de validación vive en su propia clase. Cuando se registra un jugador, el sistema simplemente escoge el
-      validador que le corresponde según su tipo y lo aplica. Si mañana la universidad cambia su dominio de correo,
-      solo se toca una clase. Si se agrega un nuevo tipo de jugador, solo se crea un validador nuevo sin tocar nada más.
-
-
-**Command - MatchCommand**
-- ¿Por qué lo eligieron?
-    - Porque el árbitro puede equivocarse. Si registra un gol que no era o una tarjeta al jugador incorrecto, necesita poder corregirlo.
-      Sin este patrón no habría forma ordenada de deshacer una acción ya ejecutada, y tampoco habría registro de todo lo que pasó
-      durante el partido.
-- ¿Cómo ayuda a resolver el problema del sistema?
-    - Cada acción del árbitro se guarda como un objeto independiente antes de ejecutarse. Ese objeto recuerda cómo estaba el
-      partido antes del cambio, así que si algo estuvo mal simplemente se deshace y el partido vuelve al estado anterior.
-      Además, como todas las acciones quedan guardadas en orden, al final del partido existe un historial completo de todo
-      lo que el árbitro registró y corrigió.
-
-![diagramaclases.png](docs/images/diagramaclases.png)
-
-https://lucid.app/lucidchart/3777f7f9-49cb-4f47-859d-86e581460502/edit?viewport_loc=-1363%2C-885%2C3299%2C1490%2C0_0&invitationId=inv_96e5594f-9313-43cc-99e2-2ea8478b8063
-
-#### 1.3 DIAGRAMAS DE SECUENCIA
-
-#### 1.4 DIAGRAMAS DE COMPONENTES
-
-**Diagrama de Componentes General**
-El diagrama de componentes general muestra la arquitectura del sistema desde una perspectiva de alto nivel, describiendo los bloques tecnológicos principales y cómo se comunican entre sí.
-
-Componentes principales:
-
-- React App (Frontend): Aplicación web construida en React que contiene los componentes de interfaz de usuario (UI Components) y un cliente HTTP (HTTP Client) encargado de realizar las peticiones al backend en formato JSON.
-- Spring Boot API (Backend): Núcleo del sistema, organizado internamente en capas: los Rest Controllers reciben las peticiones HTTP, delegan la lógica al Service Layer y validan los tokens de autenticación a través de Spring Security. El Service Layer utiliza los Repositories para persistir datos y los Adapters para comunicarse con servicios externos.
-- Servicios externos:
-PostgreSQL: Base de datos relacional donde se almacenan todos los datos del torneo.
-Google OAuth2: Servicio de autenticación delegada para validar identidades institucionales y de Gmail.
-File Storage (S3): Almacenamiento de archivos para fotos de perfil y comprobantes de pago.
-SMTP Server: Servidor de correo para el envío de notificaciones a los usuarios.
+#### 2.3 DIAGRAMAS DE COMPONENTES
+**Diagrama de Componentes General (Vista Macro)**
+Muestra los bloques tecnológicos principales: La SPA en React interactuando vía JSON/HTTP con el API en Spring Boot, el cual se conecta de manera segura a PostgreSQL 16.
 
 ![componentesgeneral.png](docs/images/componentesgeneral.png)
 
-**Diagrama de Componentes Específico**
-El diagrama de componentes específico detalla la arquitectura interna del backend de TECHCUP FÚTBOL construido en Spring Boot, mostrando cada componente individual y sus dependencias exactas.
-- Capa de controladores (Controllers): Los controladores PlayerController, MatchController, TournamentController, TeamController y PaymentController exponen los endpoints REST de la API. Cada uno recibe las peticiones HTTP y las delega a su servicio correspondiente. El OAuth2Adapter se encarga de la comunicación con GoogleOAuth2 para la autenticación.
-- Capa de servicios (Services): PlayerService, MatchService, TournamentService, TeamService y PaymentService contienen la lógica de negocio del sistema. Aplican las validaciones, las reglas del torneo y coordinan las operaciones entre repositorios y adaptadores.
-- Capa de fábricas (Factories): El PlayerFactory implementa el patrón Factory Method para crear los distintos tipos de jugadores según su rol: StudentFactory, TeacherFactory, GraduateFactory y RelativeFactory. Cada fábrica se encarga de validar el correo electrónico correspondiente a su tipo de usuario.
-- Capa de repositorios (Repositories): PlayerRepository, MatchRepository, TournamentRepository, TeamRepository y PaymentRepository gestionan la persistencia de los datos, comunicándose directamente con la base de datos PostgreSQL.
-- Adaptadores (Adapters): FileStorageAdapter gestiona la subida y descarga de archivos hacia File Storage (S3). EmailAdapter se comunica con el SMTP Server para el envío de correos. Ambos son utilizados por los servicios cuando la lógica de negocio lo requiere.
+**Diagrama de Componentes Específico (Arquitectura Interna)**
+Detalla las capas del backend:
+1. `Config`: Seguridad (Filtros JWT), Base de datos (Seeder) y Swagger.
+2. `Controller`: Exposición de endpoints REST y manejo de DTOs.
+3. `Service`: Lógica central (ej. `MatchService`, `TournamentService`, `StatsService`).
+4. `Repository`: Interfaces de Spring Data JPA (ej. `UserRepository`).
 
 ![componentesespecifico.png](docs/images/componentesespecifico.png)
 
-#### 1.5 DIAGRAMA ER (ENTIDAD-RELACIÓN)
-
-El diagrama de entidad relación representa la estructura lógica de la base de datos del sistema, mostrando cómo se organizan y relacionan los datos entre sí. Cada entidad corresponde a una tabla en PostgreSQL, cada atributo a una columna, y las líneas entre entidades representan las relaciones con su cardinalidad.
-Entidades y relaciones principales:
-
-- USER y PLAYER: USER es la clase base que contiene los datos de autenticación (email, contraseña, foto de perfil). PLAYER extiende a USER en una relación 1 a 1, añadiendo atributos deportivos como posición, dorsal y disponibilidad. El campo userType identifica el subtipo del jugador: estudiante, profesor, graduado, familiar o administrativo.
-- PLAYER y TEAM: Un jugador puede pertenecer a cero o un equipo, y un equipo puede tener entre 0 y 12 jugadores, implementando una relación muchos a uno. Al aceptar una invitación, el campo teamId en PLAYER se actualiza y su disponibilidad cambia a false.
-- TEAM y TOURNAMENT: Un equipo se inscribe en un torneo en una relación muchos a uno. El torneo controla su ciclo de vida mediante el campo status (Borrador -> Activo -> En progreso -> Finalizado) y define el número máximo de equipos permitidos con maxTeams.
-- TOURNAMENT y MATCH: Un torneo contiene múltiples partidos en una relación uno a muchos. Cada MATCH referencia dos equipos mediante homeTeamId y awayTeamId, ambas llaves foráneas hacia TEAM, representando el equipo local y el visitante respectivamente.
-- MATCH y MATCH_EVENT: Durante un partido se registran eventos como goles, tarjetas amarillas y rojas en una relación uno a muchos. Cada evento referencia el partido (matchId) y el jugador involucrado (playerId), y almacena el tipo de evento y el minuto en que ocurrió.
-- TEAM y PAYMENT: Cada equipo tiene asociado un comprobante de pago en una relación uno a uno. El pago gestiona su propio ciclo de estados: Pendiente -> En revisión -> Aprobado / Rechazado, e incluye la URL del comprobante y los comentarios del organizador.
-- MATCH y REFEREE: Un árbitro puede estar asignado a múltiples partidos en una relación uno a muchos, lo que permite consultar su programación completa de partidos mediante el campo licenseNumber como identificador oficial.
+#### 2.4 DIAGRAMA ER (ENTIDAD-RELACIÓN)
+Representa el modelo físico en PostgreSQL:
+- **`users`**: Centraliza todas las credenciales mediante la columna discriminadora `user_type`.
+- **`teams` / `tournaments`**: Relación Mucho-a-Mucho mediante la tabla intermedia `tournament_teams`.
+- La alineación de equipos y suplentes (`startingPlayerIds`, `reservePlayerIds`) se persiste eficientemente mediante `@ElementCollection`.
 
 ![DiagramaER.png](docs/images/DiagramaER.png)
 
-### 2. ANÁLISIS DE REQUERIMIENTOS
+---
 
-[Plantilla Analisis de requerimientos.pdf](docs/requirements/Plantilla%20Analisis%20de%20requerimientos.pdf)
+### 3. SEGURIDAD Y CONTROL DE ACCESO (RBAC)
+El sistema implementa seguridad *Stateless* utilizando **JSON Web Tokens (JWT)**.
+* Todo endpoint (excepto login y registro) es interceptado por un `JwtAuthenticationFilter`.
+* Se cuenta con un Seeder idempotente que garantiza la existencia de perfiles maestros al iniciar la BD:
+    * `admin@techcup.edu.co` (ROLE_ADMIN)
+    * `organizador@techcup.edu.co` (ROLE_ORGANIZADOR)
+    * `arbitro@techcup.edu.co` (ROLE_ARBITRO)
+
+---
+
+### 4. CALIDAD Y DEUDA TÉCNICA (TESTING)
+Para garantizar el control de la deuda técnica, el proyecto cuenta con un entorno de validación robusto:
+* **Pruebas Unitarias:** 492 tests ejecutados mediante JUnit y Mockito, sin levantar el contexto de Spring (priorizando velocidad de ejecución).
+* **Cobertura de Código (JaCoCo):** El sistema mantiene un **99% de cobertura** en Líneas, Clases y Métodos en las capas `Controller`, `Service` y `Config`.
+![JacocoCoverage.png](docs/jacoco/JacocoCoverage.png)
+* 
+* Los escenarios de prueba documentados en Jira (Happy paths, errores de negocio, excepciones de validación cruzada) se reflejan uno a uno en la suite automatizada.
 
 
-### 3. JIRA 
+### 5. ANÁLISIS DE REQUERIMIENTOS Y GESTIÓN
+Ir a la ruta `docs/requirements/RequirementsAnalisis.pdf` o darle click a
+[Requirements Analisis](docs/requirements/RequirementsAnalisis.pdf)
 
-El Product Backlog es uno de los artefactos fundamentales del framework Scrum. Representa la lista completa, 
-ordenada y priorizada de todo el trabajo que debe realizarse para construir el producto. En el contexto de TECHCUP FÚTBOL, 
-el backlog fue gestionado a través de Jira, herramienta que permitió al equipo planificar, asignar, estimar y hacer seguimiento 
-de cada tarea a lo largo del desarrollo del proyecto.
-
-![JiraSprint3.png](docs/images/Jira/JiraSprint3.png)
-
-https://java-burguers-tech.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog?atlOrigin=eyJpIjoiOWEwYzQwNzE3NzNjNDNlODk4ODFiZjliZDk2OTIzNzMiLCJwIjoiaiJ9
-
-### 4. ANALISIS ESTÁTICO CON SONARQUBE
-
-![AnalisisSonarQube.png](docs/images/AnalisisSonarQube.png)
+* **Gestión en Jira:** Todo el Product Backlog, Épicas e Historias de Usuario están trazadas en nuestro board ágil.
+  ![JiraSprint3.png](docs/images/Jira/JiraSprint3.png)
 

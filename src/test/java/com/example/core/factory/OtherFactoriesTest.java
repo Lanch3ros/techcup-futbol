@@ -1,7 +1,11 @@
 package com.example.core.factory;
 
 import com.example.controller.dto.request.PlayerRegistrationRequest;
-import com.example.core.model.*;
+import com.example.core.model.GraduatePlayer;
+import com.example.core.model.RelativePlayer;
+import com.example.core.model.StaffPlayer;
+import com.example.core.model.TeacherPlayer;
+import com.example.core.model.User;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -18,14 +22,6 @@ class OtherFactoriesTest {
         request.setJerseyNumber(10);
         request.setPosition("Delantero");
         return request;
-    }
-
-    @Test
-    void adminFactory_CreatesAdminUser() {
-        AdminFactory factory = new AdminFactory();
-        PlayerRegistrationRequest dto = buildRequest("Admin", "admin@escuelaing.edu.co", "ADMIN");
-        User result = factory.registerPlayerData(dto);
-        assertTrue(result instanceof AdminUser);
     }
 
     @Test

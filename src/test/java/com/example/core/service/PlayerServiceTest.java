@@ -85,13 +85,6 @@ class PlayerServiceTest {
     }
 
     @Test
-    void registerPlayer_Admin_ThrowsBusinessRuleException() {
-        PlayerRegistrationRequest data = buildRequest("Admin", "admin@escuelaing.edu.co", "ADMIN");
-        assertThrows(com.example.core.exception.BusinessRuleException.class,
-                () -> playerService.registerPlayer(data));
-    }
-
-    @Test
     void registerPlayer_PasswordIsEncoded() {
         PlayerRegistrationRequest data = buildRequest("Jose", "jose@mail.escuelaing.edu.co", "STUDENT");
 

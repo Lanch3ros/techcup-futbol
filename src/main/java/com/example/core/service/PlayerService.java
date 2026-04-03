@@ -199,7 +199,6 @@ public class PlayerService {
             case "TEACHER"  -> new TeacherFactory();
             case "RELATIVE" -> new RelativeFactory();
             case "STAFF"    -> new StaffFactory();
-            case "ADMIN"    -> new AdminFactory();
             default -> {
                 log.error("Rol no válido recibido: {}", role);
                 throw new IllegalArgumentException("Rol no válido: " + role);

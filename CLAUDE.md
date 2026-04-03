@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 mvn clean install                        # Compile and resolve dependencies
 mvn spring-boot:run -Dmaven.test.skip=true  # Start server at localhost:8080 (skips test compilation)
-mvn clean test                           # Run all tests (437 tests, all green)
+mvn clean test                           # Run all tests (501 tests, all green)
 mvn test -Dtest=PlayerServiceTest        # Run a single test class
 mvn clean test jacoco:report             # Tests + JaCoCo HTML report in target/site/jacoco/
 ```
@@ -33,7 +33,7 @@ Layered: **Controller → Service → Repository → Model**, cross-cutting conc
 
 ```
 src/main/java/com/example/
-├── config/          # SecurityConfig, JwtAuthenticationFilter, SwaggerConfig
+├── config/          # SecurityConfig, JwtAuthenticationFilter, SwaggerConfig, DatabaseSeeder
 ├── controller/      # REST controllers (all prefixed /api/v1) + DTOs + Mappers
 ├── core/
 │   ├── service/     # Business logic + JwtService + CustomUserDetailsService
@@ -47,21 +47,34 @@ src/main/java/com/example/
 ## Domain Model & Persistence
 
 **User hierarchy** — `SINGLE_TABLE` inheritance in the `users` table:
-- Discriminator column: `user_type` = `STUDENT | TEACHER | GRADUATE | RELATIVE | ADMIN`
-- Abstract `User implements Player`; concrete subtypes: `StudentPlayer`, `TeacherPlayer`, `GraduatePlayer`, `RelativePlayer`, `AdminPlayer`
-- `PlayerRepository extends JpaRepository<User, Long>` — returns `User`, cast to `Player` in services when needed
+- Discriminator column: `user_type` = `STUDENT | TEACHER | GRADUATE | RELATIVE | ADMIN | ORGANIZER | REFEREE`
+- Abstract `User` base class; concrete subtypes: `StudentPlayer`, `TeacherPlayer`, `GraduatePlayer`, `RelativePlayer`, `StaffPlayer`, `AdminUser`, `OrganizerUser`, `RefereeUser`
+- `UserRepository extends JpaRepository<User, Long>` — returns `User`, cast to `Player` in services when needed
 
-**`Team.players`** is `@Transient` — never JPA-mapped. Always load players via `playerRepository.findByTeamId(teamId)`.
+**`Team.players`** is `@Transient` — never JPA-mapped. Always load players via `userRepository.findByTeamId(teamId)`.
 
-**`Invitation`** entity (`invitations` table) — persists each team→player invite with status `PENDING | ACCEPTED | REJECTED`. Created in `TeamService.sendInvitation()`, processed in `PlayerService.processInvitationResponse()`.
+**`Invitation`** entity (`invitations` table) — persists each team→player invite with status `PENDING | ACCEPTED | REJECTED`. Created in `TeamService.sendInvitation()`, processed in `PlayerService.respondToInvitation()`.
 
 **Key relationships:**
 - `Tournament.registeredTeams` → `@ManyToMany @JoinTable(name="tournament_teams")`
+- `Tournament.matches` → `@OneToMany @JoinColumn(name="tournament_id")`
 - `Match.homeTeam / awayTeam` → `@ManyToOne`
 - `Match.events / lineups` → `@Transient` (loaded separately)
-- `Referee.assignedMatchIds` → `@ElementCollection @CollectionTable(name="referee_matches")`
+- `RefereeUser.assignedMatchIds` → `@ElementCollection @CollectionTable(name="referee_matches")`
 
 **`ddl-auto: update`** — Hibernate auto-creates/updates all tables on startup.
+
+## Database Seeder
+
+`DatabaseSeeder` (`config/DatabaseSeeder.java`) implements `CommandLineRunner` and runs at startup. It inserts three system users the first time the app starts against an empty database (idempotent — checks for `admin@techcup.edu.co` before inserting):
+
+| Email | Type | Role | Discriminator |
+|-------|------|------|---------------|
+| `admin@techcup.edu.co` | `AdminUser` | `ADMIN` | `ADMIN` |
+| `organizador@techcup.edu.co` | `OrganizerUser` | `ORGANIZADOR` | `ORGANIZER` |
+| `arbitro@techcup.edu.co` | `RefereeUser` | `ARBITRO` | `REFEREE` |
+
+Default password for all: `Admin123*` (BCrypt-encoded at startup).
 
 ## Security (JWT)
 
@@ -71,7 +84,7 @@ HTTP Basic is **disabled**. All protected endpoints require a Bearer JWT.
 1. `POST /api/v1/auth/login` → `AuthController` → `AuthenticationManager` (BCrypt verify) → `JwtService.generateToken()` → returns `{ token, type: "Bearer", email }`
 2. Every subsequent request: `JwtAuthenticationFilter` (runs before `UsernamePasswordAuthenticationFilter`) extracts the token, validates via `JwtService.isTokenValid()`, loads user via `CustomUserDetailsService.loadUserByUsername(email)`, sets `SecurityContextHolder`
 
-**`CustomUserDetailsService`** looks up the user by `email` in `PlayerRepository`. Role resolution: uses `user.getRole()` if set; otherwise `ADMIN` type → `ROLE_ADMIN`, anything else → `ROLE_JUGADOR`.
+**`CustomUserDetailsService`** looks up the user by `email` in `UserRepository`. Role resolution: uses `user.getRole()` if non-blank; otherwise resolves by type — `AdminUser` → `ROLE_ADMIN`, `OrganizerUser` → `ROLE_ORGANIZADOR`, `RefereeUser` → `ROLE_ARBITRO`, anything else → `ROLE_JUGADOR`.
 
 **`JwtService`** — HS256, 24h expiry. `@Value` fields `app.jwt.secret` and `app.jwt.expiration-ms`. Token includes a `"roles"` claim (list of Spring Security authority strings). `isTokenValid()` catches `JwtException` internally and returns `false` instead of propagating.
 
@@ -91,19 +104,35 @@ HTTP Basic is **disabled**. All protected endpoints require a Bearer JWT.
 
 - **RN-03-4**: `>50%` of team players must belong to an engineering `Program` (SISTEMAS, IA, CIBERSEGURIDAD, ESTADISTICA). Maestría programs do **not** count. Enforced in `TeamService.validateEngineeringProgramComposition()`, triggered on `configureLineup()`.
 - **RN-09-2**: Each finished match in which a team had zero cards awards +1 FairPlay point. Computed in `StatsService.calculateFairPlayPoints()` and added to base points in `getTeamStats()` / `getTournamentStandings()`.
-- **RN-11-3**: Accepting an invitation auto-rejects all other `PENDING` invitations for the same player via `invitationRepository.saveAll()` in `PlayerService.processInvitationResponse()`.
+- **RN-11-3**: Accepting an invitation auto-rejects all other `PENDING` invitations for the same player via `invitationRepository.saveAll()` in `PlayerService.respondToInvitation()`.
 - **RN-08-1**: `MatchService.registerResult()` throws `BusinessRuleException` if match status ≠ `"Finalizado"`.
+- **GAP-13**: `MatchService.registerResult()` updates both teams' stats after saving the match result: `matchesPlayed`, `matchesWon/Lost/Drawn`, `goalsFor`, `goalsAgainst`, `goalDifference`, `points` (3/1/0).
+- **Plantilla congelada**: `TeamService.sendInvitation()` and `removePlayer()` throw `BusinessRuleException` if the team's tournament is `"En progreso"`.
 - **Brackets (6.11)**: `TournamentService.generateQuarterFinals()` ranks top-8 teams by points → goal difference → goals scored, then pairs: 1v8, 2v7, 3v6, 4v5. Guards: tournament must be `"En progreso"`, no existing QF matches, ≥8 registered teams.
+
+## Statistics Engine (Phase 4)
+
+- **GAP-14** `StatsService.getTournamentStandings()` — filters to only registered teams of the tournament via `tournament.getRegisteredTeams()`.
+- **GAP-15** `StatsService.getTopScorersByTournament()` — scopes events to match IDs from `tournament.getMatches()` using `matchEventRepository.findByMatchIdIn()`.
+- **GAP-16** `StatsService.getPlayerStats()` — computes `matchesPlayed` as distinct finished matches where the player had at least one event; resolves `teamName` via `teamRepository.findById(player.getTeamId())`.
+
+`StatsService` constructor: `StatsService(TeamRepository, MatchRepository, MatchEventRepository, UserRepository, TournamentRepository)` — 5 args.
 
 ## Password & Registration
 
-`PlayerService.registerPlayer()` calls `passwordEncoder.encode()` on the password **after** the factory builds the entity and **before** `playerRepository.save()`. Factories set the plaintext password; encoding always happens in the service layer.
+`PlayerService.registerPlayer()` calls `passwordEncoder.encode()` on the password **after** the factory builds the entity and **before** `userRepository.save()`. Factories set the plaintext password; encoding always happens in the service layer.
 
 ## Testing Conventions
 
-**437 tests, all green. JaCoCo coverage: 100% instructions, 100% lines, 100% methods, 100% classes, 99.6% branches.**
+**501 tests, all green. JaCoCo coverage: 100% instructions, 100% lines, 100% methods, 100% classes, 99.2% branches (356/359).**
 
-The single missed branch is a structural false negative in `JwtService#isTokenValid`: the `isTokenExpired() = true` path is unreachable because JJWT throws `ExpiredJwtException` before that boolean can return `true`. This is accepted as unavoidable.
+The 3 missed branches are accepted structural false negatives:
+
+| Class | Branch | Reason |
+|-------|--------|--------|
+| `JwtService#isTokenValid` | `isTokenExpired() = true` | JJWT throws `ExpiredJwtException` before the boolean can return `true` |
+| `TeamService#isValidProgram` | non-null, non-engineering, non-master program | No `Program` enum value meets this condition |
+| `TeamService#isMasterProgram` | false path | Same reason — impossible with current enum values |
 
 **Test layers and strategies:**
 
@@ -124,8 +153,9 @@ The single missed branch is a structural false negative in `JwtService#isTokenVa
 `@Value` fields in `JwtService` are injected in tests via `ReflectionTestUtils.setField()`.
 
 When adding a dependency to a service constructor, update **all** test files that instantiate that service directly — they will fail to compile otherwise. Current multi-dependency services:
-- `PlayerService(PlayerRepository, PasswordEncoder, InvitationRepository)`
-- `TeamService(TeamRepository, PlayerRepository, InvitationRepository)`
+- `PlayerService(UserRepository, PasswordEncoder, InvitationRepository)`
+- `TeamService(TeamRepository, UserRepository, InvitationRepository, TournamentRepository)`
+- `StatsService(TeamRepository, MatchRepository, MatchEventRepository, UserRepository, TournamentRepository)`
 
 **Jackson configuration note:** Spring Boot 4.x uses Jackson 3.x (`tools.jackson`). `ACCEPT_CASE_INSENSITIVE_ENUMS` is a `MapperFeature` (not `DeserializationFeature`) in Jackson 3.x. The correct `application.yaml` key is `spring.jackson.mapper.accept-case-insensitive-enums: true`.
 

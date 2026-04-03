@@ -1,5 +1,6 @@
 # **| JAVABURGUERS |**
-![pantalla inicio readme.png](docs/images/pantalla%20inicio%20readme.png)
+
+![LandingPageImage.png](docs/images/LandingPageImage.png)
 
 ### NOMBRES DE INTEGRANTES:
 - Andres Camilo Vivas Baquero

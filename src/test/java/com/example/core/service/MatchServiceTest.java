@@ -290,7 +290,7 @@ class MatchServiceTest {
     @DisplayName("assignReferee – asigna árbitro correctamente")
     void assignReferee_Success() {
         Match m = new Match(); m.setId(1L); m.setStatus("Programado");
-        Referee referee = new Referee();
+        RefereeUser referee = new RefereeUser();
         referee.setId(1L); referee.setFullName("Carlos Pérez");
         referee.setAssignedMatchIds(new ArrayList<>());
 

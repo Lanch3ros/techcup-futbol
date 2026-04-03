@@ -5,7 +5,7 @@ import com.example.core.model.Player;
 import com.example.core.model.StudentPlayer;
 import com.example.core.model.User;
 import com.example.repository.InvitationRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -22,18 +22,18 @@ import static org.mockito.Mockito.*;
 
 class PlayerServiceTest {
 
-    private PlayerRepository playerRepository;
+    private UserRepository userRepository;
     private PasswordEncoder passwordEncoder;
     private InvitationRepository invitationRepository;
     private PlayerService playerService;
 
     @BeforeEach
     void setUp() {
-        playerRepository    = Mockito.mock(PlayerRepository.class);
+        userRepository    = Mockito.mock(UserRepository.class);
         passwordEncoder     = Mockito.mock(PasswordEncoder.class);
         invitationRepository = Mockito.mock(InvitationRepository.class);
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$hashed");
-        playerService = new PlayerService(playerRepository, passwordEncoder, invitationRepository);
+        playerService = new PlayerService(userRepository, passwordEncoder, invitationRepository);
     }
 
     private PlayerRegistrationRequest buildRequest(String name, String email, String role) {
@@ -54,7 +54,7 @@ class PlayerServiceTest {
         StudentPlayer mockPlayer = new StudentPlayer();
         mockPlayer.setId(1L);
 
-        when(playerRepository.save(any(User.class))).thenReturn(mockPlayer);
+        when(userRepository.save(any(User.class))).thenReturn(mockPlayer);
 
         Player result = playerService.registerPlayer(data);
 
@@ -65,29 +65,29 @@ class PlayerServiceTest {
     @Test
     void registerPlayer_Graduate_Success() {
         PlayerRegistrationRequest data = buildRequest("Ana", "ana@mail.escuelaing.edu.co", "GRADUATE");
-        when(playerRepository.save(any(User.class))).thenReturn(new StudentPlayer());
+        when(userRepository.save(any(User.class))).thenReturn(new StudentPlayer());
         assertDoesNotThrow(() -> playerService.registerPlayer(data));
     }
 
     @Test
     void registerPlayer_Teacher_Success() {
         PlayerRegistrationRequest data = buildRequest("Prof", "prof@escuelaing.edu.co", "TEACHER");
-        when(playerRepository.save(any(User.class))).thenReturn(new StudentPlayer());
+        when(userRepository.save(any(User.class))).thenReturn(new StudentPlayer());
         assertDoesNotThrow(() -> playerService.registerPlayer(data));
     }
 
     @Test
     void registerPlayer_Relative_Success() {
         PlayerRegistrationRequest data = buildRequest("Fam", "fam@gmail.com", "RELATIVE");
-        when(playerRepository.save(any(User.class))).thenReturn(new StudentPlayer());
+        when(userRepository.save(any(User.class))).thenReturn(new StudentPlayer());
         assertDoesNotThrow(() -> playerService.registerPlayer(data));
     }
 
     @Test
-    void registerPlayer_Admin_Success() {
+    void registerPlayer_Admin_ThrowsBusinessRuleException() {
         PlayerRegistrationRequest data = buildRequest("Admin", "admin@escuelaing.edu.co", "ADMIN");
-        when(playerRepository.save(any(User.class))).thenReturn(new StudentPlayer());
-        assertDoesNotThrow(() -> playerService.registerPlayer(data));
+        assertThrows(com.example.core.exception.BusinessRuleException.class,
+                () -> playerService.registerPlayer(data));
     }
 
     @Test
@@ -97,7 +97,7 @@ class PlayerServiceTest {
         StudentPlayer mockPlayer = new StudentPlayer();
         mockPlayer.setId(1L);
 
-        when(playerRepository.save(any(User.class))).thenAnswer(inv -> {
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
             User saved = inv.getArgument(0);
             // La contraseña guardada NO debe ser el texto plano original
             assertNotEquals("12345678", saved.getPassword(), "La contraseña debe estar encriptada antes de persistir");
@@ -132,7 +132,7 @@ class PlayerServiceTest {
     void searchPlayer_Found_ReturnsPlayer() {
         StudentPlayer mockPlayer = new StudentPlayer();
         mockPlayer.setId(1L);
-        when(playerRepository.findById(1L)).thenReturn(Optional.of(mockPlayer));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockPlayer));
 
         Player result = playerService.searchPlayer(1L);
 
@@ -142,7 +142,7 @@ class PlayerServiceTest {
 
     @Test
     void searchPlayer_NotFound_ReturnsNull() {
-        when(playerRepository.findById(99L)).thenReturn(Optional.empty());
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
         Player result = playerService.searchPlayer(99L);
 
@@ -151,7 +151,7 @@ class PlayerServiceTest {
 
     @Test
     void getAllPlayers_ReturnsList() {
-        when(playerRepository.findAll()).thenReturn(List.of(new StudentPlayer()));
+        when(userRepository.findAll()).thenReturn(List.of(new StudentPlayer()));
 
         List<Player> result = playerService.getAllPlayers();
 

@@ -9,7 +9,7 @@ import com.example.core.model.Program;
 import com.example.core.model.Team;
 import com.example.core.model.User;
 import com.example.repository.InvitationRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.UserRepository;
 import com.example.repository.TeamRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,13 +22,13 @@ import java.util.stream.Collectors;
 public class TeamService {
 
     private final TeamRepository teamRepository;
-    private final PlayerRepository playerRepository;
+    private final UserRepository userRepository;
     private final InvitationRepository invitationRepository;
 
-    public TeamService(TeamRepository teamRepository, PlayerRepository playerRepository,
+    public TeamService(TeamRepository teamRepository, UserRepository userRepository,
                        InvitationRepository invitationRepository) {
         this.teamRepository = teamRepository;
-        this.playerRepository = playerRepository;
+        this.userRepository = userRepository;
         this.invitationRepository = invitationRepository;
     }
 
@@ -59,7 +59,8 @@ public class TeamService {
     public List<Player> getTeamPlayers(Long teamId) {
         log.info("Consultando jugadores del equipo ID: {}", teamId);
         getTeamById(teamId);
-        List<Player> players = playerRepository.findByTeamId(teamId).stream()
+        List<Player> players = userRepository.findByTeamId(teamId).stream()
+                .filter(u -> u instanceof Player)
                 .map(u -> (Player) u)
                 .collect(Collectors.toList());
         log.info("Total de jugadores en equipo ID {}: {}", teamId, players.size());
@@ -70,7 +71,7 @@ public class TeamService {
         log.info("Removiendo jugador ID: {} del equipo ID: {}", playerId, teamId);
         getTeamById(teamId);
 
-        User player = playerRepository.findById(playerId).orElseThrow(() -> {
+        User player = userRepository.findById(playerId).orElseThrow(() -> {
             log.warn("Jugador ID: {} no encontrado", playerId);
             return new ResourceNotFoundException("El jugador con ID " + playerId + " no pertenece a este equipo");
         });
@@ -82,7 +83,7 @@ public class TeamService {
 
         player.setAvailable(true);
         player.setTeamId(null);
-        playerRepository.save(player);
+        userRepository.save(player);
 
         log.info("Jugador ID: {} removido exitosamente del equipo ID: {}", playerId, teamId);
     }
@@ -95,7 +96,7 @@ public class TeamService {
             return new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
         });
 
-        User player = playerRepository.findById(playerId).orElseThrow(() -> {
+        User player = userRepository.findById(playerId).orElseThrow(() -> {
             log.warn("Jugador no encontrado al enviar invitación - ID: {}", playerId);
             return new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
         });
@@ -105,7 +106,7 @@ public class TeamService {
             throw new BusinessRuleException("El jugador ya tiene un equipo o no está disponible.");
         }
 
-        if (playerRepository.countByTeamId(teamId) >= 12) {
+        if (userRepository.countByTeamId(teamId) >= 12) {
             log.warn("Equipo ID: {} alcanzó el límite máximo de 12 jugadores", teamId);
             throw new BusinessRuleException("El equipo ya alcanzó el límite máximo de 12 jugadores permitidos.");
         }
@@ -138,7 +139,8 @@ public class TeamService {
             return new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
         });
 
-        List<Player> teamPlayers = playerRepository.findByTeamId(teamId).stream()
+        List<Player> teamPlayers = userRepository.findByTeamId(teamId).stream()
+                .filter(u -> u instanceof Player)
                 .map(u -> (Player) u)
                 .collect(Collectors.toList());
 

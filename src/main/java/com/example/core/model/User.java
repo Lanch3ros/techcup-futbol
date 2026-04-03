@@ -12,7 +12,7 @@ import lombok.AllArgsConstructor;
 @Table(name = "users")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "user_type", discriminatorType = DiscriminatorType.STRING)
-public abstract class User implements Player {
+public abstract class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,7 +30,7 @@ public abstract class User implements Player {
     @Column(name = "profile_photo")
     protected String profilePhoto;
 
-    // ── Campos comunes a todos los tipos de jugador ──────────────────────────
+    // ── Campos comunes a jugadores (nullable para tipos no-jugador) ────────────
     @Column(name = "jersey_number")
     protected Integer jerseyNumber;
 
@@ -45,16 +45,23 @@ public abstract class User implements Player {
     @Enumerated(EnumType.STRING)
     protected Program program;       // STUDENT, GRADUATE
 
-    protected String department;     // STUDENT, TEACHER, ADMIN
+    protected String department;     // STUDENT, TEACHER
 
     protected String relationship;   // RELATIVE
 
-    // Métodos de Player que los subtipos deben implementar
-    public abstract boolean validateEmail();
-    public abstract void acceptInvitation(Long teamId);
-    public abstract void rejectInvitation(Long teamId);
+    // ── Campos específicos de árbitro (nullable para tipos no-árbitro) ────────
+    @Column(name = "license_number", unique = true)
+    protected String licenseNumber;
+
+    @Column(name = "certification_level")
+    protected String certificationLevel;
+
+    /** Retorna el discriminador del subtipo. Requerido para resolución de roles. */
     public abstract String getUserType();
 
-    public abstract boolean login();
-    public abstract void logout();
+    /** Login stub — subtipos de jugador/árbitro pueden sobreescribir. */
+    public boolean login() { return false; }
+
+    /** Logout stub. */
+    public void logout() {}
 }

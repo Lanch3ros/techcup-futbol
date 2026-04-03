@@ -23,7 +23,7 @@ public class Team {
     @Column(name = "payment_status")
     private String paymentStatus;
 
-    // Relación gestionada a nivel de aplicación; se carga vía PlayerRepository.findByTeamId()
+    // Relación gestionada a nivel de aplicación; se carga vía UserRepository.findByTeamId()
     @Transient
     private List<Player> players;
 

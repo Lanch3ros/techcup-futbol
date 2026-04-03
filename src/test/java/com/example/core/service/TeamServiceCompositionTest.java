@@ -7,7 +7,7 @@ import com.example.core.model.StudentPlayer;
 import com.example.core.model.Team;
 import com.example.core.model.User;
 import com.example.repository.InvitationRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.UserRepository;
 import com.example.repository.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.*;
 class TeamServiceCompositionTest {
 
     private TeamRepository teamRepository;
-    private PlayerRepository playerRepository;
+    private UserRepository userRepository;
     private InvitationRepository invitationRepository;
     private TeamService teamService;
 
@@ -34,9 +34,9 @@ class TeamServiceCompositionTest {
     @BeforeEach
     void setUp() {
         teamRepository       = mock(TeamRepository.class);
-        playerRepository     = mock(PlayerRepository.class);
+        userRepository     = mock(UserRepository.class);
         invitationRepository = mock(InvitationRepository.class);
-        teamService = new TeamService(teamRepository, playerRepository, invitationRepository);
+        teamService = new TeamService(teamRepository, userRepository, invitationRepository);
 
         team = new Team();
         team.setId(1L);
@@ -78,7 +78,7 @@ class TeamServiceCompositionTest {
                 player(7, Program.CIBERSEGURIDAD),
                 player(8, Program.ESTADISTICA)
         );
-        when(playerRepository.findByTeamId(1L)).thenReturn(players);
+        when(userRepository.findByTeamId(1L)).thenReturn(players);
         List<Long> ids = List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L);
 
         assertDoesNotThrow(() -> teamService.configureLineup(1L, lineupOf(ids)));
@@ -96,7 +96,7 @@ class TeamServiceCompositionTest {
                 player(6, Program.MAESTRIA_INFORMATICA),
                 player(7, Program.MAESTRIA_GESTION_INFORMACION)
         );
-        when(playerRepository.findByTeamId(1L)).thenReturn(players);
+        when(userRepository.findByTeamId(1L)).thenReturn(players);
 
         assertDoesNotThrow(() -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L))));
     }
@@ -113,7 +113,7 @@ class TeamServiceCompositionTest {
                 player(6, Program.MAESTRIA_GESTION_INFORMACION),
                 player(7, Program.MAESTRIA_CIENCIA_DATOS)
         );
-        when(playerRepository.findByTeamId(1L)).thenReturn(players);
+        when(userRepository.findByTeamId(1L)).thenReturn(players);
 
         assertDoesNotThrow(() -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L))));
     }
@@ -132,7 +132,7 @@ class TeamServiceCompositionTest {
                 player(6, Program.MAESTRIA_CIENCIA_DATOS),
                 player(7, Program.MAESTRIA_INFORMATICA)
         );
-        when(playerRepository.findByTeamId(1L)).thenReturn(players);
+        when(userRepository.findByTeamId(1L)).thenReturn(players);
 
         BusinessRuleException ex = assertThrows(BusinessRuleException.class,
                 () -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L))));
@@ -151,7 +151,7 @@ class TeamServiceCompositionTest {
                 player(6, Program.MAESTRIA_CIENCIA_DATOS),
                 player(7, Program.MAESTRIA_INFORMATICA)
         );
-        when(playerRepository.findByTeamId(1L)).thenReturn(players);
+        when(userRepository.findByTeamId(1L)).thenReturn(players);
 
         assertThrows(BusinessRuleException.class,
                 () -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L))));
@@ -170,7 +170,7 @@ class TeamServiceCompositionTest {
                 player(7, Program.MAESTRIA_CIENCIA_DATOS),
                 player(8, Program.MAESTRIA_INFORMATICA)
         );
-        when(playerRepository.findByTeamId(1L)).thenReturn(players);
+        when(userRepository.findByTeamId(1L)).thenReturn(players);
 
         assertThrows(BusinessRuleException.class,
                 () -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L))),
@@ -191,7 +191,7 @@ class TeamServiceCompositionTest {
                 player(6, Program.MAESTRIA_GESTION_INFORMACION), // maestría
                 player(7, Program.MAESTRIA_CIENCIA_DATOS)        // maestría
         );
-        when(playerRepository.findByTeamId(1L)).thenReturn(players);
+        when(userRepository.findByTeamId(1L)).thenReturn(players);
 
         // 4/7 ≈ 57% → válido
         assertDoesNotThrow(() -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L))));
@@ -207,7 +207,7 @@ class TeamServiceCompositionTest {
                 player(2, Program.IA),
                 player(3, Program.CIBERSEGURIDAD)
         );
-        when(playerRepository.findByTeamId(1L)).thenReturn(players);
+        when(userRepository.findByTeamId(1L)).thenReturn(players);
 
         assertThrows(BusinessRuleException.class,
                 () -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L))));
@@ -220,7 +220,7 @@ class TeamServiceCompositionTest {
         for (int i = 1; i <= 7; i++) {
             players.add(player(i, Program.SISTEMAS));
         }
-        when(playerRepository.findByTeamId(1L)).thenReturn(players);
+        when(userRepository.findByTeamId(1L)).thenReturn(players);
 
         // El ID 99 no existe en la plantilla
         assertThrows(BusinessRuleException.class,
@@ -249,7 +249,7 @@ class TeamServiceCompositionTest {
         List<User> playersWithNull = new java.util.ArrayList<>(players.subList(0, 6));
         playersWithNull.add(nullProgramPlayer);
 
-        when(playerRepository.findByTeamId(1L)).thenReturn(playersWithNull);
+        when(userRepository.findByTeamId(1L)).thenReturn(playersWithNull);
 
         // 5/7 = 71% (null no cuenta) → válido
         assertDoesNotThrow(() -> teamService.configureLineup(1L, lineupOf(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L))));

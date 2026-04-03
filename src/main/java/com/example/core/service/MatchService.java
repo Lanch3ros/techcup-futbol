@@ -5,7 +5,10 @@ import com.example.controller.dto.request.MatchEventRequest;
 import com.example.controller.dto.request.MatchResultRequest;
 import com.example.core.exception.BusinessRuleException;
 import com.example.core.exception.ResourceNotFoundException;
-import com.example.core.model.*;
+import com.example.core.model.Match;
+import com.example.core.model.MatchEvent;
+import com.example.core.model.RefereeUser;
+import com.example.core.model.Team;
 import com.example.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -137,7 +140,7 @@ public class MatchService {
         log.info("Asignando árbitro ID: {} al partido ID: {}", refereeId, matchId);
         Match match = getMatchById(matchId);
 
-        Referee referee = refereeRepository.findById(refereeId).orElseThrow(() -> {
+        RefereeUser referee = refereeRepository.findById(refereeId).orElseThrow(() -> {
             log.warn("Árbitro no encontrado - ID: {}", refereeId);
             return new ResourceNotFoundException("Árbitro con ID " + refereeId + " no encontrado");
         });

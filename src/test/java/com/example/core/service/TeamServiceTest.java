@@ -3,7 +3,7 @@ package com.example.core.service;
 import com.example.core.exception.ResourceNotFoundException;
 import com.example.core.model.Team;
 import com.example.repository.InvitationRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.UserRepository;
 import com.example.repository.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,16 +19,16 @@ import static org.mockito.Mockito.when;
 class TeamServiceTest {
 
     private TeamRepository teamRepository;
-    private PlayerRepository playerRepository;
+    private UserRepository userRepository;
     private InvitationRepository invitationRepository;
     private TeamService teamService;
 
     @BeforeEach
     void setUp() {
         teamRepository       = Mockito.mock(TeamRepository.class);
-        playerRepository     = Mockito.mock(PlayerRepository.class);
+        userRepository     = Mockito.mock(UserRepository.class);
         invitationRepository = Mockito.mock(InvitationRepository.class);
-        teamService = new TeamService(teamRepository, playerRepository, invitationRepository);
+        teamService = new TeamService(teamRepository, userRepository, invitationRepository);
     }
 
     @Test

@@ -3,7 +3,7 @@ package com.example.core.service;
 import com.example.controller.dto.request.RefereeRequest;
 import com.example.core.exception.ResourceNotFoundException;
 import com.example.core.model.Match;
-import com.example.core.model.Referee;
+import com.example.core.model.RefereeUser;
 import com.example.repository.MatchRepository;
 import com.example.repository.RefereeRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +43,7 @@ class RefereeServiceTest {
         req.setLicenseNumber("LIC-001");
         req.setCertificationLevel("FIFA");
 
-        Referee saved = new Referee();
+        RefereeUser saved = new RefereeUser();
         saved.setId(1L);
         saved.setFullName("Carlos Árbitro");
         saved.setEmail("carlos@arbitro.com");
@@ -51,12 +51,12 @@ class RefereeServiceTest {
         saved.setCertificationLevel("FIFA");
         when(refereeRepository.save(any())).thenReturn(saved);
 
-        Referee result = refereeService.createReferee(req);
+        RefereeUser result = refereeService.createReferee(req);
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
         assertEquals("Carlos Árbitro", result.getFullName());
-        verify(refereeRepository).save(any(Referee.class));
+        verify(refereeRepository).save(any(RefereeUser.class));
     }
 
     // ── getAllReferees ─────────────────────────────────────────────────────────
@@ -64,11 +64,11 @@ class RefereeServiceTest {
     @Test
     @DisplayName("getAllReferees – devuelve lista completa")
     void getAllReferees_ReturnsList() {
-        Referee r1 = new Referee(); r1.setId(1L);
-        Referee r2 = new Referee(); r2.setId(2L);
+        RefereeUser r1 = new RefereeUser(); r1.setId(1L);
+        RefereeUser r2 = new RefereeUser(); r2.setId(2L);
         when(refereeRepository.findAll()).thenReturn(List.of(r1, r2));
 
-        List<Referee> result = refereeService.getAllReferees();
+        List<RefereeUser> result = refereeService.getAllReferees();
         assertEquals(2, result.size());
     }
 
@@ -84,10 +84,10 @@ class RefereeServiceTest {
     @Test
     @DisplayName("getRefereeById – árbitro encontrado")
     void getRefereeById_Found() {
-        Referee r = new Referee(); r.setId(1L); r.setFullName("Árbitro A");
+        RefereeUser r = new RefereeUser(); r.setId(1L); r.setFullName("Árbitro A");
         when(refereeRepository.findById(1L)).thenReturn(Optional.of(r));
 
-        Referee result = refereeService.getRefereeById(1L);
+        RefereeUser result = refereeService.getRefereeById(1L);
         assertEquals(1L, result.getId());
     }
 
@@ -103,7 +103,7 @@ class RefereeServiceTest {
     @Test
     @DisplayName("getRefereeMatches – devuelve partidos asignados")
     void getRefereeMatches_WithMatches() {
-        Referee referee = new Referee();
+        RefereeUser referee = new RefereeUser();
         referee.setId(1L);
         referee.setAssignedMatchIds(new ArrayList<>(List.of(10L, 11L)));
 
@@ -121,7 +121,7 @@ class RefereeServiceTest {
     @Test
     @DisplayName("getRefereeMatches – partido no encontrado es filtrado (rama m != null)")
     void getRefereeMatches_MissingMatchFiltered() {
-        Referee referee = new Referee();
+        RefereeUser referee = new RefereeUser();
         referee.setId(1L);
         referee.setAssignedMatchIds(new ArrayList<>(List.of(10L, 99L)));
 
@@ -138,7 +138,7 @@ class RefereeServiceTest {
     @Test
     @DisplayName("getRefereeMatches – sin partidos asignados → lista vacía")
     void getRefereeMatches_NoMatches() {
-        Referee referee = new Referee();
+        RefereeUser referee = new RefereeUser();
         referee.setId(1L);
         referee.setAssignedMatchIds(new ArrayList<>());
 

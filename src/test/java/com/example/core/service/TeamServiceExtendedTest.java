@@ -8,7 +8,7 @@ import com.example.core.model.StudentPlayer;
 import com.example.core.model.Team;
 import com.example.core.model.User;
 import com.example.repository.InvitationRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.UserRepository;
 import com.example.repository.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,16 +25,16 @@ import static org.mockito.Mockito.*;
 class TeamServiceExtendedTest {
 
     private TeamRepository teamRepository;
-    private PlayerRepository playerRepository;
+    private UserRepository userRepository;
     private InvitationRepository invitationRepository;
     private TeamService teamService;
 
     @BeforeEach
     void setUp() {
         teamRepository       = mock(TeamRepository.class);
-        playerRepository     = mock(PlayerRepository.class);
+        userRepository     = mock(UserRepository.class);
         invitationRepository = mock(InvitationRepository.class);
-        teamService = new TeamService(teamRepository, playerRepository, invitationRepository);
+        teamService = new TeamService(teamRepository, userRepository, invitationRepository);
     }
 
     private StudentPlayer player(long id, boolean available, Long teamId) {
@@ -60,7 +60,7 @@ class TeamServiceExtendedTest {
     void getTeamPlayers_ReturnsList() {
         Team t = team(1L);
         when(teamRepository.findById(1L)).thenReturn(Optional.of(t));
-        when(playerRepository.findByTeamId(1L)).thenReturn(
+        when(userRepository.findByTeamId(1L)).thenReturn(
                 List.of(player(1L, false, 1L), player(2L, false, 1L)));
 
         List<Player> result = teamService.getTeamPlayers(1L);
@@ -103,7 +103,7 @@ class TeamServiceExtendedTest {
     @DisplayName("removePlayer – jugador no encontrado → ResourceNotFoundException")
     void removePlayer_PlayerNotFound() {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team(1L)));
-        when(playerRepository.findById(99L)).thenReturn(Optional.empty());
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> teamService.removePlayer(1L, 99L));
     }
@@ -113,7 +113,7 @@ class TeamServiceExtendedTest {
     void removePlayer_PlayerNotInTeam() {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team(1L)));
         StudentPlayer p = player(5L, false, 99L); // pertenece al equipo 99, no al 1
-        when(playerRepository.findById(5L)).thenReturn(Optional.of(p));
+        when(userRepository.findById(5L)).thenReturn(Optional.of(p));
 
         assertThrows(ResourceNotFoundException.class, () -> teamService.removePlayer(1L, 5L));
     }
@@ -124,13 +124,13 @@ class TeamServiceExtendedTest {
         Team t = team(1L);
         StudentPlayer p = player(5L, false, 1L);
         when(teamRepository.findById(1L)).thenReturn(Optional.of(t));
-        when(playerRepository.findById(5L)).thenReturn(Optional.of(p));
-        when(playerRepository.save(any())).thenReturn(p);
+        when(userRepository.findById(5L)).thenReturn(Optional.of(p));
+        when(userRepository.save(any())).thenReturn(p);
 
         assertDoesNotThrow(() -> teamService.removePlayer(1L, 5L));
         assertTrue(p.isAvailable());
         assertNull(p.getTeamId());
-        verify(playerRepository).save(p);
+        verify(userRepository).save(p);
     }
 
     // ── sendInvitation ────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ class TeamServiceExtendedTest {
     @DisplayName("sendInvitation – jugador no encontrado → ResourceNotFoundException")
     void sendInvitation_PlayerNotFound() {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team(1L)));
-        when(playerRepository.findById(99L)).thenReturn(Optional.empty());
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> teamService.sendInvitation(1L, 99L));
     }
@@ -156,7 +156,7 @@ class TeamServiceExtendedTest {
     void sendInvitation_PlayerUnavailable() {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team(1L)));
         StudentPlayer p = player(2L, false, 7L); // no disponible
-        when(playerRepository.findById(2L)).thenReturn(Optional.of(p));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(p));
 
         assertThrows(BusinessRuleException.class, () -> teamService.sendInvitation(1L, 2L));
     }
@@ -166,8 +166,8 @@ class TeamServiceExtendedTest {
     void sendInvitation_TeamFull() {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team(1L)));
         StudentPlayer p = player(3L, true, null);
-        when(playerRepository.findById(3L)).thenReturn(Optional.of(p));
-        when(playerRepository.countByTeamId(1L)).thenReturn(12L);
+        when(userRepository.findById(3L)).thenReturn(Optional.of(p));
+        when(userRepository.countByTeamId(1L)).thenReturn(12L);
 
         assertThrows(BusinessRuleException.class, () -> teamService.sendInvitation(1L, 3L));
     }
@@ -177,8 +177,8 @@ class TeamServiceExtendedTest {
     void sendInvitation_PendingAlreadyExists() {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team(1L)));
         StudentPlayer p = player(3L, true, null);
-        when(playerRepository.findById(3L)).thenReturn(Optional.of(p));
-        when(playerRepository.countByTeamId(1L)).thenReturn(5L);
+        when(userRepository.findById(3L)).thenReturn(Optional.of(p));
+        when(userRepository.countByTeamId(1L)).thenReturn(5L);
         when(invitationRepository.existsByPlayerIdAndTeamIdAndStatusIgnoreCase(3L, 1L, Invitation.PENDING))
                 .thenReturn(true);
 
@@ -190,8 +190,8 @@ class TeamServiceExtendedTest {
     void sendInvitation_Success() {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team(1L)));
         StudentPlayer p = player(3L, true, null);
-        when(playerRepository.findById(3L)).thenReturn(Optional.of(p));
-        when(playerRepository.countByTeamId(1L)).thenReturn(3L);
+        when(userRepository.findById(3L)).thenReturn(Optional.of(p));
+        when(userRepository.countByTeamId(1L)).thenReturn(3L);
         when(invitationRepository.existsByPlayerIdAndTeamIdAndStatusIgnoreCase(3L, 1L, Invitation.PENDING))
                 .thenReturn(false);
         when(invitationRepository.save(any())).thenReturn(new Invitation());

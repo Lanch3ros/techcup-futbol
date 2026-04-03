@@ -3,7 +3,10 @@ package com.example.core.service;
 import com.example.controller.dto.response.StandingDTO;
 import com.example.core.exception.ResourceNotFoundException;
 import com.example.core.model.*;
-import com.example.repository.*;
+import com.example.repository.MatchEventRepository;
+import com.example.repository.MatchRepository;
+import com.example.repository.TeamRepository;
+import com.example.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -17,16 +20,16 @@ public class StatsService {
     private final MatchEventRepository matchEventRepository;
     private final MatchRepository matchRepository;
     private final TeamRepository teamRepository;
-    private final PlayerRepository playerRepository;
+    private final UserRepository userRepository;
 
     public StatsService(MatchEventRepository matchEventRepository,
                         MatchRepository matchRepository,
                         TeamRepository teamRepository,
-                        PlayerRepository playerRepository) {
+                        UserRepository userRepository) {
         this.matchEventRepository = matchEventRepository;
         this.matchRepository = matchRepository;
         this.teamRepository = teamRepository;
-        this.playerRepository = playerRepository;
+        this.userRepository = userRepository;
     }
 
     public List<PlayerStats> getTopScorers() {
@@ -48,7 +51,7 @@ public class StatsService {
 
     public PlayerStats getPlayerStats(Long playerId) {
         log.info("Consultando estadísticas del jugador ID: {}", playerId);
-        Player player = playerRepository.findById(playerId).orElseThrow(() -> {
+        User player = userRepository.findById(playerId).orElseThrow(() -> {
             log.warn("Jugador no encontrado al consultar estadísticas - ID: {}", playerId);
             return new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
         });
@@ -134,7 +137,7 @@ public class StatsService {
         return matchEventRepository.findByMatchId(match.getId()).stream()
                 .filter(e -> "AMARILLA".equalsIgnoreCase(e.getType()) || "ROJA".equalsIgnoreCase(e.getType()))
                 .noneMatch(e -> {
-                    Player player = playerRepository.findById(e.getPlayerId()).orElse(null);
+                    User player = userRepository.findById(e.getPlayerId()).orElse(null);
                     return player != null && teamId.equals(player.getTeamId());
                 });
     }

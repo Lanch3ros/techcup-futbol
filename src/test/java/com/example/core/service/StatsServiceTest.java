@@ -20,7 +20,7 @@ class StatsServiceTest {
     private MatchEventRepository matchEventRepository;
     private MatchRepository matchRepository;
     private TeamRepository teamRepository;
-    private PlayerRepository playerRepository;
+    private UserRepository userRepository;
     private StatsService statsService;
 
     @BeforeEach
@@ -28,8 +28,8 @@ class StatsServiceTest {
         matchEventRepository = mock(MatchEventRepository.class);
         matchRepository      = mock(MatchRepository.class);
         teamRepository       = mock(TeamRepository.class);
-        playerRepository     = mock(PlayerRepository.class);
-        statsService = new StatsService(matchEventRepository, matchRepository, teamRepository, playerRepository);
+        userRepository     = mock(UserRepository.class);
+        statsService = new StatsService(matchEventRepository, matchRepository, teamRepository, userRepository);
     }
 
     // ── getTopScorers ─────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ class StatsServiceTest {
     @Test
     @DisplayName("getPlayerStats – jugador no encontrado → ResourceNotFoundException")
     void getPlayerStats_NotFound() {
-        when(playerRepository.findById(99L)).thenReturn(Optional.empty());
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> statsService.getPlayerStats(99L));
     }
 
@@ -110,7 +110,7 @@ class StatsServiceTest {
     void getPlayerStats_NoEvents_ZeroStats() {
         StudentPlayer p = new StudentPlayer();
         p.setId(1L); p.setFullName("Juan Jugador");
-        when(playerRepository.findById(1L)).thenReturn(Optional.of(p));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(p));
         when(matchEventRepository.findAll()).thenReturn(List.of());
 
         PlayerStats stats = statsService.getPlayerStats(1L);
@@ -125,7 +125,7 @@ class StatsServiceTest {
     void getPlayerStats_WithEvents_AllTypes() {
         StudentPlayer p = new StudentPlayer();
         p.setId(1L); p.setFullName("Carlos Golea");
-        when(playerRepository.findById(1L)).thenReturn(Optional.of(p));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(p));
 
         MatchEvent g1  = event(1L, "Carlos Golea", "GOL");
         MatchEvent g2  = event(1L, "Carlos Golea", "GOL");

@@ -1,8 +1,8 @@
 package com.example.core.factory;
 
 import com.example.controller.dto.request.PlayerRegistrationRequest;
-import com.example.core.model.Player;
-import com.example.core.model.AdminPlayer;
+import com.example.core.model.AdminUser;
+import com.example.core.model.User;
 import com.example.core.validator.AdminValidator;
 
 public class AdminFactory extends PlayerFactory {
@@ -10,8 +10,8 @@ public class AdminFactory extends PlayerFactory {
     private final AdminValidator emailValidator = new AdminValidator();
 
     @Override
-    protected Player createPlayer(PlayerRegistrationRequest data) {
-        AdminPlayer admin = new AdminPlayer();
+    protected User createUser(PlayerRegistrationRequest data) {
+        AdminUser admin = new AdminUser();
         admin.setFullName(data.getName());
         admin.setIdentification(data.getIdentification());
         admin.setEmail(data.getEmail());

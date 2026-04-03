@@ -3,7 +3,7 @@ package com.example.controller;
 import com.example.controller.dto.request.RefereeRequest;
 import com.example.controller.dto.response.GenericResponse;
 import com.example.core.model.Match;
-import com.example.core.model.Referee;
+import com.example.core.model.RefereeUser;
 import com.example.core.service.RefereeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,7 +43,7 @@ class RefereeControllerTest {
     @Test
     @DisplayName("createReferee – éxito → 201 CREATED con árbitro en el cuerpo")
     void createReferee_Success_Returns201() {
-        Referee referee = new Referee();
+        RefereeUser referee = new RefereeUser();
         referee.setId(1L);
         referee.setFullName("Carlos Árbitro");
         when(refereeService.createReferee(any())).thenReturn(referee);
@@ -73,9 +73,9 @@ class RefereeControllerTest {
     @Test
     @DisplayName("getAllReferees → 200 OK con lista de árbitros")
     void getAllReferees_Returns200() {
-        when(refereeService.getAllReferees()).thenReturn(List.of(new Referee(), new Referee()));
+        when(refereeService.getAllReferees()).thenReturn(List.of(new RefereeUser(), new RefereeUser()));
 
-        ResponseEntity<List<Referee>> response = refereeController.getAllReferees();
+        ResponseEntity<List<RefereeUser>> response = refereeController.getAllReferees();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(2, response.getBody().size());
@@ -86,7 +86,7 @@ class RefereeControllerTest {
     void getAllReferees_EmptyList() {
         when(refereeService.getAllReferees()).thenReturn(List.of());
 
-        ResponseEntity<List<Referee>> response = refereeController.getAllReferees();
+        ResponseEntity<List<RefereeUser>> response = refereeController.getAllReferees();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.getBody().isEmpty());
@@ -97,12 +97,12 @@ class RefereeControllerTest {
     @Test
     @DisplayName("getRefereeById – encontrado → 200 OK con árbitro")
     void getRefereeById_Found_Returns200() {
-        Referee referee = new Referee();
+        RefereeUser referee = new RefereeUser();
         referee.setId(1L);
         referee.setFullName("Carlos Árbitro");
         when(refereeService.getRefereeById(1L)).thenReturn(referee);
 
-        ResponseEntity<Referee> response = refereeController.getRefereeById(1L);
+        ResponseEntity<RefereeUser> response = refereeController.getRefereeById(1L);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Carlos Árbitro", response.getBody().getFullName());
@@ -114,7 +114,7 @@ class RefereeControllerTest {
         when(refereeService.getRefereeById(99L))
                 .thenThrow(new RuntimeException("Árbitro no encontrado"));
 
-        ResponseEntity<Referee> response = refereeController.getRefereeById(99L);
+        ResponseEntity<RefereeUser> response = refereeController.getRefereeById(99L);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }

@@ -1,8 +1,8 @@
 package com.example.core.factory;
 
 import com.example.controller.dto.request.PlayerRegistrationRequest;
-import com.example.core.model.Player;
 import com.example.core.model.GraduatePlayer;
+import com.example.core.model.User;
 import com.example.core.validator.StudentEmailValidator;
 
 public class GraduateFactory extends PlayerFactory {
@@ -10,7 +10,7 @@ public class GraduateFactory extends PlayerFactory {
     private final StudentEmailValidator emailValidator = new StudentEmailValidator();
 
     @Override
-    protected Player createPlayer(PlayerRegistrationRequest data) {
+    protected User createUser(PlayerRegistrationRequest data) {
         GraduatePlayer graduate = new GraduatePlayer();
         graduate.setFullName(data.getName());
         graduate.setIdentification(data.getIdentification());

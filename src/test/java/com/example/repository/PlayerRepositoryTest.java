@@ -15,11 +15,11 @@ import static org.mockito.Mockito.when;
 
 class PlayerRepositoryTest {
 
-    private PlayerRepository playerRepository;
+    private UserRepository userRepository;
 
     @BeforeEach
     void setUp() {
-        playerRepository = Mockito.mock(PlayerRepository.class);
+        userRepository = Mockito.mock(UserRepository.class);
     }
 
     @Test
@@ -31,9 +31,9 @@ class PlayerRepositoryTest {
         savedPlayer.setId(1L);
         savedPlayer.setFullName("Jugador Nuevo");
 
-        when(playerRepository.save(any(User.class))).thenReturn(savedPlayer);
+        when(userRepository.save(any(User.class))).thenReturn(savedPlayer);
 
-        User result = playerRepository.save(player);
+        User result = userRepository.save(player);
 
         assertNotNull(result.getId());
         assertEquals(1L, result.getId());
@@ -46,9 +46,9 @@ class PlayerRepositoryTest {
         player.setId(5L);
         player.setFullName("Jugador Existente");
 
-        when(playerRepository.save(any(User.class))).thenReturn(player);
+        when(userRepository.save(any(User.class))).thenReturn(player);
 
-        User savedPlayer = playerRepository.save(player);
+        User savedPlayer = userRepository.save(player);
 
         assertEquals(5L, savedPlayer.getId());
         assertEquals("Jugador Existente", savedPlayer.getFullName());
@@ -56,9 +56,9 @@ class PlayerRepositoryTest {
 
     @Test
     void findAll_ReturnsAllSavedPlayers() {
-        when(playerRepository.findAll()).thenReturn(List.of(new StudentPlayer(), new StudentPlayer()));
+        when(userRepository.findAll()).thenReturn(List.of(new StudentPlayer(), new StudentPlayer()));
 
-        List<User> players = playerRepository.findAll();
+        List<User> players = userRepository.findAll();
 
         assertEquals(2, players.size());
     }
@@ -68,9 +68,9 @@ class PlayerRepositoryTest {
         StudentPlayer player = new StudentPlayer();
         player.setId(1L);
 
-        when(playerRepository.findById(1L)).thenReturn(Optional.of(player));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(player));
 
-        Optional<User> result = playerRepository.findById(1L);
+        Optional<User> result = userRepository.findById(1L);
 
         assertTrue(result.isPresent());
         assertEquals(1L, result.get().getId());
@@ -78,9 +78,9 @@ class PlayerRepositoryTest {
 
     @Test
     void findById_NonExistingId_ReturnsEmpty() {
-        when(playerRepository.findById(99L)).thenReturn(Optional.empty());
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
-        Optional<User> result = playerRepository.findById(99L);
+        Optional<User> result = userRepository.findById(99L);
 
         assertFalse(result.isPresent());
     }

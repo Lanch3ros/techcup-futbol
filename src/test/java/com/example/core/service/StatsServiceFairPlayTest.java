@@ -4,7 +4,7 @@ import com.example.controller.dto.response.StandingDTO;
 import com.example.core.model.*;
 import com.example.repository.MatchEventRepository;
 import com.example.repository.MatchRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.UserRepository;
 import com.example.repository.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,7 +22,7 @@ class StatsServiceFairPlayTest {
     private MatchEventRepository matchEventRepository;
     private MatchRepository matchRepository;
     private TeamRepository teamRepository;
-    private PlayerRepository playerRepository;
+    private UserRepository userRepository;
     private StatsService statsService;
 
     // Fixtures reutilizables
@@ -35,10 +35,10 @@ class StatsServiceFairPlayTest {
         matchEventRepository = mock(MatchEventRepository.class);
         matchRepository      = mock(MatchRepository.class);
         teamRepository       = mock(TeamRepository.class);
-        playerRepository     = mock(PlayerRepository.class);
+        userRepository     = mock(UserRepository.class);
 
         statsService = new StatsService(matchEventRepository, matchRepository,
-                teamRepository, playerRepository);
+                teamRepository, userRepository);
 
         team1 = new Team(); team1.setId(1L); team1.setName("Team A"); team1.setPoints(3);
         team2 = new Team(); team2.setId(2L); team2.setName("Team B"); team2.setPoints(0);
@@ -90,7 +90,7 @@ class StatsServiceFairPlayTest {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
         when(matchRepository.findAll()).thenReturn(List.of(finishedMatch));
         when(matchEventRepository.findByMatchId(10L)).thenReturn(List.of(yellowCard));
-        when(playerRepository.findById(99L)).thenReturn(Optional.of(playerWithCard));
+        when(userRepository.findById(99L)).thenReturn(Optional.of(playerWithCard));
 
         StandingDTO result = statsService.getTeamStats(1L);
 
@@ -111,7 +111,7 @@ class StatsServiceFairPlayTest {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
         when(matchRepository.findAll()).thenReturn(List.of(finishedMatch));
         when(matchEventRepository.findByMatchId(10L)).thenReturn(List.of(redCard));
-        when(playerRepository.findById(88L)).thenReturn(Optional.of(playerWithCard));
+        when(userRepository.findById(88L)).thenReturn(Optional.of(playerWithCard));
 
         StandingDTO result = statsService.getTeamStats(1L);
 
@@ -132,7 +132,7 @@ class StatsServiceFairPlayTest {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
         when(matchRepository.findAll()).thenReturn(List.of(finishedMatch));
         when(matchEventRepository.findByMatchId(10L)).thenReturn(List.of(yellowCard));
-        when(playerRepository.findById(77L)).thenReturn(Optional.of(rivalPlayer));
+        when(userRepository.findById(77L)).thenReturn(Optional.of(rivalPlayer));
 
         StandingDTO result = statsService.getTeamStats(1L);
 
@@ -218,7 +218,7 @@ class StatsServiceFairPlayTest {
         when(teamRepository.findById(1L)).thenReturn(Optional.of(team1));
         when(matchRepository.findAll()).thenReturn(List.of(finishedMatch));
         when(matchEventRepository.findByMatchId(10L)).thenReturn(List.of(card));
-        when(playerRepository.findById(999L)).thenReturn(Optional.empty()); // → orElse(null) → null
+        when(userRepository.findById(999L)).thenReturn(Optional.empty()); // → orElse(null) → null
 
         StandingDTO result = statsService.getTeamStats(1L);
         // player es null → no puede contar como tarjeta de team1 → FairPlay otorgado
@@ -278,7 +278,7 @@ class StatsServiceFairPlayTest {
 
         StandingDTO result = statsService.getTeamStats(1L);
         assertEquals(4, result.getPoints(), "3 pts + 1 FairPlay: GOL no es tarjeta");
-        verifyNoInteractions(playerRepository);
+        verifyNoInteractions(userRepository);
     }
 
     @Test
@@ -302,7 +302,7 @@ class StatsServiceFairPlayTest {
         when(matchRepository.findAll()).thenReturn(List.of(finishedMatch, cleanMatch));
         when(matchEventRepository.findByMatchId(10L)).thenReturn(List.of(card));  // partido sucio
         when(matchEventRepository.findByMatchId(11L)).thenReturn(List.of());       // partido limpio
-        when(playerRepository.findById(55L)).thenReturn(Optional.of(playerWithCard));
+        when(userRepository.findById(55L)).thenReturn(Optional.of(playerWithCard));
 
         StandingDTO result = statsService.getTeamStats(1L);
 

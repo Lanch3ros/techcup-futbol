@@ -3,6 +3,7 @@ package com.example.core.factory;
 import com.example.controller.dto.request.PlayerRegistrationRequest;
 import com.example.core.model.Player;
 import com.example.core.model.StudentPlayer;
+import com.example.core.model.User;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,7 +27,7 @@ class StudentFactoryTest {
     void registerPlayerData_Success_ReturnsStudentPlayer() {
         PlayerRegistrationRequest dto = buildRequest("Jose Lancheros", "jose@mail.escuelaing.edu.co");
 
-        Player result = factory.registerPlayerData(dto);
+        User result = factory.registerPlayerData(dto);
 
         assertNotNull(result);
         assertTrue(result instanceof StudentPlayer);

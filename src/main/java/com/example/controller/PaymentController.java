@@ -131,6 +131,21 @@ public class PaymentController {
     }
 
 
+    @Operation(summary = "Enviar pago a revisión (Pendiente → En revisión)")
+    @PatchMapping("/{id}/review")
+    public ResponseEntity<GenericResponse> sendPaymentToReview(@PathVariable Long id) {
+        log.info("PATCH /api/v1/payments/{}/review", id);
+        try {
+            paymentService.sendPaymentToReview(id);
+            log.info("Pago ID: {} enviado a revisión exitosamente", id);
+            return ResponseEntity.ok(new GenericResponse("Éxito", "Pago enviado a revisión correctamente."));
+        } catch (Exception e) {
+            log.error("Error al enviar a revisión pago ID: {} - {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
+    }
+
+
     @Operation(summary = "Consultar estado de pago de un equipo")
     @GetMapping("/team/{teamId}")
     public ResponseEntity<Payment> getPaymentByTeam(@PathVariable Long teamId) {

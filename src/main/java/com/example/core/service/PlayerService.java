@@ -7,7 +7,7 @@ import com.example.core.model.Invitation;
 import com.example.core.model.Player;
 import com.example.core.model.User;
 import com.example.repository.InvitationRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.UserRepository;
 import com.example.core.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,13 +20,13 @@ import java.util.stream.Collectors;
 @Service
 public class PlayerService {
 
-    private final PlayerRepository playerRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final InvitationRepository invitationRepository;
 
-    public PlayerService(PlayerRepository playerRepository, PasswordEncoder passwordEncoder,
+    public PlayerService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                          InvitationRepository invitationRepository) {
-        this.playerRepository = playerRepository;
+        this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.invitationRepository = invitationRepository;
     }
@@ -34,27 +34,31 @@ public class PlayerService {
     public Player registerPlayer(PlayerRegistrationRequest data) {
         log.info("Iniciando registro de jugador con rol: {}, email: {}", data.getUserType(), data.getEmail());
         PlayerFactory factory = getFactoryByRole(data.getUserType());
-        Player newPlayer = factory.registerPlayerData(data);
-        ((User) newPlayer).setPassword(passwordEncoder.encode(((User) newPlayer).getPassword()));
-        User savedPlayer = playerRepository.save((User) newPlayer);
-        log.info("Jugador registrado exitosamente - ID: {}, email: {}", savedPlayer.getId(), data.getEmail());
-        return savedPlayer;
+        User newUser = factory.registerPlayerData(data);
+        if (!(newUser instanceof Player)) {
+            throw new BusinessRuleException("El tipo de usuario '" + data.getUserType() + "' no es un jugador registrable.");
+        }
+        newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
+        User savedUser = userRepository.save(newUser);
+        log.info("Jugador registrado exitosamente - ID: {}, email: {}", savedUser.getId(), data.getEmail());
+        return (Player) savedUser;
     }
 
     public Player searchPlayer(Long id) {
         log.info("Buscando jugador con ID: {}", id);
-        Player player = playerRepository.findById(id).orElse(null);
-        if (player == null) {
+        User user = userRepository.findById(id).orElse(null);
+        if (user == null) {
             log.warn("Jugador no encontrado - ID: {}", id);
-        } else {
-            log.info("Jugador encontrado - ID: {}", id);
+            return null;
         }
-        return player;
+        log.info("Jugador encontrado - ID: {}", id);
+        return user instanceof Player ? (Player) user : null;
     }
 
     public List<Player> getAllPlayers() {
         log.info("Consultando la lista de todos los jugadores");
-        List<Player> players = playerRepository.findAll().stream()
+        List<Player> players = userRepository.findAll().stream()
+                .filter(u -> u instanceof Player)
                 .map(u -> (Player) u)
                 .collect(Collectors.toList());
         log.info("Total de jugadores obtenidos: {}", players.size());
@@ -63,9 +67,10 @@ public class PlayerService {
 
     public List<Player> getAvailablePlayers() {
         log.info("Consultando jugadores disponibles (agentes libres)");
-        List<Player> available = playerRepository.findAll().stream()
-                .filter(Player::isAvailable)
+        List<Player> available = userRepository.findAll().stream()
+                .filter(u -> u instanceof Player)
                 .map(u -> (Player) u)
+                .filter(Player::isAvailable)
                 .collect(Collectors.toList());
         log.info("Total de jugadores disponibles: {}", available.size());
         return available;
@@ -73,10 +78,11 @@ public class PlayerService {
 
     public List<Player> searchPlayers(String position, String name) {
         log.info("Buscando jugadores con filtros - posición: {}, nombre: {}", position, name);
-        List<Player> result = playerRepository.findAll().stream()
+        List<Player> result = userRepository.findAll().stream()
+                .filter(u -> u instanceof Player)
+                .map(u -> (Player) u)
                 .filter(p -> position == null || position.isBlank() || position.equalsIgnoreCase(p.getPosition()))
                 .filter(p -> name == null || name.isBlank() || p.getFullName().toLowerCase().contains(name.toLowerCase()))
-                .map(u -> (Player) u)
                 .collect(Collectors.toList());
         log.info("Jugadores encontrados con filtros aplicados: {}", result.size());
         return result;
@@ -84,55 +90,55 @@ public class PlayerService {
 
     public void updatePosition(Long id, String position) {
         log.info("Actualizando posición del jugador ID: {} a '{}'", id, position);
-        User player = playerRepository.findById(id).orElseThrow(() -> {
+        User player = userRepository.findById(id).orElseThrow(() -> {
             log.warn("Jugador no encontrado al actualizar posición - ID: {}", id);
             return new ResourceNotFoundException("Jugador con ID " + id + " no encontrado");
         });
         player.setPosition(position);
-        playerRepository.save(player);
+        userRepository.save(player);
         log.info("Posición actualizada exitosamente para jugador ID: {} -> '{}'", id, position);
     }
 
     public void updateAvailability(Long id, boolean isAvailable) {
         log.info("Actualizando disponibilidad del jugador ID: {} a {}", id, isAvailable);
-        User player = playerRepository.findById(id).orElseThrow(() -> {
+        User player = userRepository.findById(id).orElseThrow(() -> {
             log.warn("Jugador no encontrado al actualizar disponibilidad - ID: {}", id);
             return new ResourceNotFoundException("Jugador con ID " + id + " no encontrado");
         });
         player.setAvailable(isAvailable);
-        playerRepository.save(player);
+        userRepository.save(player);
         log.info("Disponibilidad actualizada exitosamente para jugador ID: {} -> {}", id, isAvailable);
     }
 
     public void updateJerseyNumber(Long id, Integer jerseyNumber) {
         log.info("Actualizando número dorsal del jugador ID: {} a {}", id, jerseyNumber);
-        User player = playerRepository.findById(id).orElseThrow(() -> {
+        User player = userRepository.findById(id).orElseThrow(() -> {
             log.warn("Jugador no encontrado al actualizar dorsal - ID: {}", id);
             return new ResourceNotFoundException("Jugador con ID " + id + " no encontrado");
         });
         player.setJerseyNumber(jerseyNumber);
-        playerRepository.save(player);
+        userRepository.save(player);
         log.info("Número dorsal actualizado exitosamente para jugador ID: {} -> {}", id, jerseyNumber);
     }
 
     public void respondToInvitation(Long id, Long teamId, String action) {
         log.info("Procesando respuesta a invitación - jugador ID: {}, equipo ID: {}, acción: {}", id, teamId, action);
-        User player = playerRepository.findById(id).orElseThrow(() -> {
+        User player = userRepository.findById(id).orElseThrow(() -> {
             log.warn("Jugador no encontrado al procesar invitación - ID: {}", id);
             return new ResourceNotFoundException("Jugador con ID " + id + " no encontrado");
         });
 
         if ("ACCEPT".equalsIgnoreCase(action)) {
-            player.acceptInvitation(teamId);
             player.setTeamId(teamId);
             player.setAvailable(false);
+            if (player instanceof Player) ((Player) player).acceptInvitation(teamId);
             log.info("Jugador ID: {} aceptó unirse al equipo ID: {}", id, teamId);
         } else if ("REJECT".equalsIgnoreCase(action)) {
-            player.rejectInvitation(teamId);
+            if (player instanceof Player) ((Player) player).rejectInvitation(teamId);
             log.info("Jugador ID: {} rechazó unirse al equipo ID: {}", id, teamId);
         }
 
-        playerRepository.save(player);
+        userRepository.save(player);
         log.info("Respuesta a invitación procesada exitosamente - jugador ID: {}, acción: {}", id, action);
     }
 
@@ -155,12 +161,12 @@ public class PlayerService {
         }
 
         if ("ACCEPT".equalsIgnoreCase(action)) {
-            User player = playerRepository.findById(invitation.getPlayerId()).orElseThrow(() ->
+            User player = userRepository.findById(invitation.getPlayerId()).orElseThrow(() ->
                     new ResourceNotFoundException("Jugador con ID " + invitation.getPlayerId() + " no encontrado"));
 
             player.setTeamId(invitation.getTeamId());
             player.setAvailable(false);
-            playerRepository.save(player);
+            userRepository.save(player);
 
             invitation.setStatus(Invitation.ACCEPTED);
             invitationRepository.save(invitation);
@@ -188,11 +194,12 @@ public class PlayerService {
         }
 
         return switch (role.toUpperCase()) {
-            case "STUDENT" -> new StudentFactory();
+            case "STUDENT"  -> new StudentFactory();
             case "GRADUATE" -> new GraduateFactory();
-            case "TEACHER" -> new TeacherFactory();
+            case "TEACHER"  -> new TeacherFactory();
             case "RELATIVE" -> new RelativeFactory();
-            case "ADMIN" -> new AdminFactory();
+            case "STAFF"    -> new StaffFactory();
+            case "ADMIN"    -> new AdminFactory();
             default -> {
                 log.error("Rol no válido recibido: {}", role);
                 throw new IllegalArgumentException("Rol no válido: " + role);

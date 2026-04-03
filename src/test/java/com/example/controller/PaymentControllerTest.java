@@ -225,6 +225,32 @@ class PaymentControllerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 
+    // ── sendPaymentToReview (GAP-08) ──────────────────────────────────────────
+
+    @Test
+    @DisplayName("sendPaymentToReview – éxito → 200 OK")
+    void sendPaymentToReview_Success_Returns200() {
+        doNothing().when(paymentService).sendPaymentToReview(1L);
+
+        ResponseEntity<GenericResponse> response = paymentController.sendPaymentToReview(1L);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Éxito", response.getBody().getMessage());
+        verify(paymentService).sendPaymentToReview(1L);
+    }
+
+    @Test
+    @DisplayName("sendPaymentToReview – excepción → 400 BAD REQUEST")
+    void sendPaymentToReview_Exception_Returns400() {
+        doThrow(new RuntimeException("Estado no permitido"))
+                .when(paymentService).sendPaymentToReview(1L);
+
+        ResponseEntity<GenericResponse> response = paymentController.sendPaymentToReview(1L);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Estado no permitido", response.getBody().getData());
+    }
+
     // ── getPaymentByTeam ──────────────────────────────────────────────────────
 
     @Test

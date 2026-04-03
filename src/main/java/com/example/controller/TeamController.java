@@ -174,6 +174,26 @@ public class TeamController {
     }
 
 
+    @Operation(summary = "Actualizar URL del escudo del equipo")
+    @PatchMapping("/{id}/shield")
+    public ResponseEntity<GenericResponse> updateShieldUrl(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        log.info("PATCH /api/v1/teams/{}/shield", id);
+        try {
+            String shieldUrl = payload.get("shieldUrl");
+            if (shieldUrl == null || shieldUrl.isBlank()) {
+                log.warn("Campo 'shieldUrl' vacío para equipo ID: {}", id);
+                return ResponseEntity.badRequest().body(new GenericResponse("Error", "El campo 'shieldUrl' es obligatorio"));
+            }
+            teamService.updateShieldUrl(id, shieldUrl);
+            log.info("Escudo actualizado para equipo ID: {}", id);
+            return ResponseEntity.ok(new GenericResponse("Éxito", "Escudo del equipo actualizado correctamente"));
+        } catch (Exception e) {
+            log.error("Error al actualizar escudo del equipo ID: {} - {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new GenericResponse("Error", e.getMessage()));
+        }
+    }
+
+
     @Operation(summary = "Configurar alineación titular (Mín. 7 jugadores)")
     @PutMapping("/{id}/lineup")
     public ResponseEntity<GenericResponse> configureLineup(@PathVariable Long id, @RequestBody @Valid LineupRequest request) {

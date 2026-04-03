@@ -7,13 +7,16 @@ import com.example.core.model.Invitation;
 import com.example.core.model.Player;
 import com.example.core.model.Program;
 import com.example.core.model.Team;
+import com.example.core.model.Tournament;
 import com.example.core.model.User;
 import com.example.repository.InvitationRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.TournamentRepository;
+import com.example.repository.UserRepository;
 import com.example.repository.TeamRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,14 +25,17 @@ import java.util.stream.Collectors;
 public class TeamService {
 
     private final TeamRepository teamRepository;
-    private final PlayerRepository playerRepository;
+    private final UserRepository userRepository;
     private final InvitationRepository invitationRepository;
+    private final TournamentRepository tournamentRepository;
 
-    public TeamService(TeamRepository teamRepository, PlayerRepository playerRepository,
-                       InvitationRepository invitationRepository) {
+    public TeamService(TeamRepository teamRepository, UserRepository userRepository,
+                       InvitationRepository invitationRepository,
+                       TournamentRepository tournamentRepository) {
         this.teamRepository = teamRepository;
-        this.playerRepository = playerRepository;
+        this.userRepository = userRepository;
         this.invitationRepository = invitationRepository;
+        this.tournamentRepository = tournamentRepository;
     }
 
     public Team createTeam(Team team) {
@@ -59,7 +65,8 @@ public class TeamService {
     public List<Player> getTeamPlayers(Long teamId) {
         log.info("Consultando jugadores del equipo ID: {}", teamId);
         getTeamById(teamId);
-        List<Player> players = playerRepository.findByTeamId(teamId).stream()
+        List<Player> players = userRepository.findByTeamId(teamId).stream()
+                .filter(u -> u instanceof Player)
                 .map(u -> (Player) u)
                 .collect(Collectors.toList());
         log.info("Total de jugadores en equipo ID {}: {}", teamId, players.size());
@@ -68,9 +75,12 @@ public class TeamService {
 
     public void removePlayer(Long teamId, Long playerId) {
         log.info("Removiendo jugador ID: {} del equipo ID: {}", playerId, teamId);
-        getTeamById(teamId);
+        Team team = getTeamById(teamId);
 
-        User player = playerRepository.findById(playerId).orElseThrow(() -> {
+        // GAP-12: bloquear si el torneo está "En progreso"
+        validateRosterNotFrozen(team);
+
+        User player = userRepository.findById(playerId).orElseThrow(() -> {
             log.warn("Jugador ID: {} no encontrado", playerId);
             return new ResourceNotFoundException("El jugador con ID " + playerId + " no pertenece a este equipo");
         });
@@ -82,7 +92,7 @@ public class TeamService {
 
         player.setAvailable(true);
         player.setTeamId(null);
-        playerRepository.save(player);
+        userRepository.save(player);
 
         log.info("Jugador ID: {} removido exitosamente del equipo ID: {}", playerId, teamId);
     }
@@ -95,17 +105,21 @@ public class TeamService {
             return new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
         });
 
-        User player = playerRepository.findById(playerId).orElseThrow(() -> {
+        // GAP-12: bloquear si el torneo está "En progreso"
+        validateRosterNotFrozen(team);
+
+        User player = userRepository.findById(playerId).orElseThrow(() -> {
             log.warn("Jugador no encontrado al enviar invitación - ID: {}", playerId);
             return new ResourceNotFoundException("Jugador con ID " + playerId + " no encontrado");
         });
 
-        if (!player.isAvailable()) {
-            log.warn("Jugador ID: {} no disponible para recibir invitación", playerId);
-            throw new BusinessRuleException("El jugador ya tiene un equipo o no está disponible.");
+        // GAP-07: verificar explícitamente que el jugador no tenga equipo
+        if (player.getTeamId() != null) {
+            log.warn("Jugador ID: {} ya pertenece a un equipo (ID: {})", playerId, player.getTeamId());
+            throw new BusinessRuleException("El jugador ya pertenece a un equipo.");
         }
 
-        if (playerRepository.countByTeamId(teamId) >= 12) {
+        if (userRepository.countByTeamId(teamId) >= 12) {
             log.warn("Equipo ID: {} alcanzó el límite máximo de 12 jugadores", teamId);
             throw new BusinessRuleException("El equipo ya alcanzó el límite máximo de 12 jugadores permitidos.");
         }
@@ -123,22 +137,38 @@ public class TeamService {
         log.info("Invitación persistida exitosamente - jugador ID: {}, equipo ID: {}", playerId, teamId);
     }
 
+    // GAP-11: retorna la alineación persistida o null si no ha sido configurada
     public LineupRequest getTeamLineup(Long teamId) {
         log.info("Consultando alineación del equipo ID: {}", teamId);
-        getTeamById(teamId);
-        log.warn("No hay alineación configurada para el equipo ID: {}", teamId);
-        return null;
+        Team team = getTeamById(teamId);
+
+        List<Long> starting = team.getStartingPlayerIds();
+        if (starting == null || starting.isEmpty()) {
+            log.info("No hay alineación configurada para el equipo ID: {}", teamId);
+            return null;
+        }
+
+        LineupRequest lineup = new LineupRequest();
+        lineup.setStartingPlayersIds(starting);
+        lineup.setReservePlayerIds(team.getReservePlayerIds() != null ? team.getReservePlayerIds() : new ArrayList<>());
+        lineup.setFormation(team.getFormation());
+        log.info("Alineación retornada para equipo ID: {} - {} titulares, {} suplentes",
+                teamId, starting.size(),
+                lineup.getReservePlayerIds().size());
+        return lineup;
     }
 
     public void configureLineup(Long teamId, LineupRequest request) {
-        log.info("Configurando alineación para equipo ID: {}, formación: {}, jugadores: {}", teamId, request.getFormation(), request.getStartingPlayersIds().size());
+        log.info("Configurando alineación para equipo ID: {}, formación: {}, titulares: {}",
+                teamId, request.getFormation(), request.getStartingPlayersIds().size());
 
-        teamRepository.findById(teamId).orElseThrow(() -> {
+        Team team = teamRepository.findById(teamId).orElseThrow(() -> {
             log.warn("Equipo no encontrado al configurar alineación - ID: {}", teamId);
             return new ResourceNotFoundException("Equipo con ID " + teamId + " no encontrado");
         });
 
-        List<Player> teamPlayers = playerRepository.findByTeamId(teamId).stream()
+        List<Player> teamPlayers = userRepository.findByTeamId(teamId).stream()
+                .filter(u -> u instanceof Player)
                 .map(u -> (Player) u)
                 .collect(Collectors.toList());
 
@@ -156,18 +186,49 @@ public class TeamService {
             }
         }
 
+        // GAP-10: validar suplentes también pertenecen al equipo
+        List<Long> reserveIds = request.getReservePlayerIds();
+        if (reserveIds != null) {
+            for (Long playerId : reserveIds) {
+                boolean belongsToTeam = teamPlayers.stream().anyMatch(p -> p.getId().equals(playerId));
+                if (!belongsToTeam) {
+                    log.warn("Suplente ID: {} no pertenece a la plantilla del equipo ID: {}", playerId, teamId);
+                    throw new BusinessRuleException("El suplente con ID " + playerId + " no pertenece a la plantilla de este equipo.");
+                }
+            }
+        }
+
         validateEngineeringProgramComposition(teamPlayers, teamId);
 
-        log.info("Alineación configurada exitosamente para equipo ID: {} - {} jugadores, formación: '{}'", teamId, startingIds.size(), request.getFormation());
+        // GAP-10/11: persistir alineación en el equipo
+        team.setStartingPlayerIds(new ArrayList<>(startingIds));
+        team.setReservePlayerIds(reserveIds != null ? new ArrayList<>(reserveIds) : new ArrayList<>());
+        team.setFormation(request.getFormation());
+        teamRepository.save(team);
+
+        log.info("Alineación configurada exitosamente para equipo ID: {} - {} titulares, {} suplentes, formación: '{}'",
+                teamId, startingIds.size(),
+                reserveIds != null ? reserveIds.size() : 0,
+                request.getFormation());
     }
 
-    // RN-03-4: más del 50% de los jugadores deben pertenecer a programas de ingeniería
+    // GAP-06: >50% ingeniería Y el resto EXCLUSIVAMENTE maestrías válidas (no null, no programa ajeno)
     private void validateEngineeringProgramComposition(List<Player> players, Long teamId) {
         if (players == null || players.isEmpty()) {
             return;
         }
+
+        for (Player p : players) {
+            if (!isValidProgram(p.getProgram())) {
+                log.warn("Equipo ID: {} tiene jugador con programa inválido o nulo: {}", teamId, p.getProgram());
+                throw new BusinessRuleException(
+                        "Todos los jugadores deben pertenecer a un programa válido (Ingeniería o Maestría reconocida). " +
+                        "Programa inválido detectado: " + p.getProgram());
+            }
+        }
+
         long engineeringCount = players.stream()
-                .filter(p -> p.getProgram() != null && isEngineeringProgram(p.getProgram()))
+                .filter(p -> isEngineeringProgram(p.getProgram()))
                 .count();
         double ratio = (double) engineeringCount / players.size();
         if (ratio <= 0.5) {
@@ -179,10 +240,43 @@ public class TeamService {
         log.info("Equipo ID: {} cumple RN-03-4: {}/{} jugadores de ingeniería", teamId, engineeringCount, players.size());
     }
 
+    private boolean isValidProgram(Program program) {
+        return program != null && (isEngineeringProgram(program) || isMasterProgram(program));
+    }
+
     private boolean isEngineeringProgram(Program program) {
         return program == Program.SISTEMAS
                 || program == Program.IA
                 || program == Program.CIBERSEGURIDAD
                 || program == Program.ESTADISTICA;
+    }
+
+    private boolean isMasterProgram(Program program) {
+        return program == Program.MAESTRIA_GESTION_INFORMACION
+                || program == Program.MAESTRIA_INFORMATICA
+                || program == Program.MAESTRIA_CIENCIA_DATOS;
+    }
+
+    // GAP-12: lanza BusinessRuleException si el equipo está en un torneo "En progreso"
+    private void validateRosterNotFrozen(Team team) {
+        if (team.getTournamentId() == null) {
+            return;
+        }
+        tournamentRepository.findById(team.getTournamentId()).ifPresent(tournament -> {
+            if ("En progreso".equalsIgnoreCase(tournament.getStatus())) {
+                log.warn("Intento de modificar plantilla del equipo ID: {} con torneo en progreso", team.getId());
+                throw new BusinessRuleException(
+                        "No se puede modificar la plantilla: el torneo ya está en progreso.");
+            }
+        });
+    }
+
+    public Team updateShieldUrl(Long teamId, String shieldUrl) {
+        log.info("Actualizando escudo del equipo ID: {}", teamId);
+        Team team = getTeamById(teamId);
+        team.setShieldUrl(shieldUrl);
+        Team updated = teamRepository.save(team);
+        log.info("Escudo actualizado para equipo ID: {}", teamId);
+        return updated;
     }
 }

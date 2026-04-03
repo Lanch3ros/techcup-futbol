@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -23,7 +24,10 @@ public class Team {
     @Column(name = "payment_status")
     private String paymentStatus;
 
-    // Relación gestionada a nivel de aplicación; se carga vía PlayerRepository.findByTeamId()
+    @Column(name = "shield_url")
+    private String shieldUrl;
+
+    // Relación gestionada a nivel de aplicación; se carga vía UserRepository.findByTeamId()
     @Transient
     private List<Player> players;
 
@@ -57,6 +61,20 @@ public class Team {
     private int goalDifference;
 
     private int points;
+
+    // ── Alineación persistida (Fase 2: GAP-10, GAP-11) ───────────────────────
+    @ElementCollection
+    @CollectionTable(name = "team_starting_players", joinColumns = @JoinColumn(name = "team_id"))
+    @Column(name = "player_id")
+    private List<Long> startingPlayerIds = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "team_reserve_players", joinColumns = @JoinColumn(name = "team_id"))
+    @Column(name = "player_id")
+    private List<Long> reservePlayerIds = new ArrayList<>();
+
+    @Column(name = "formation")
+    private String formation;
 
     public void addPlayer(Player player) {}
     public void removePlayer(Long playerId) {}

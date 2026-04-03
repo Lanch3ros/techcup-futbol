@@ -1,7 +1,7 @@
 package com.example.core.service;
 
 import com.example.core.model.User;
-import com.example.repository.PlayerRepository;
+import com.example.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,17 +15,17 @@ import java.util.List;
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final PlayerRepository playerRepository;
+    private final UserRepository userRepository;
 
-    public CustomUserDetailsService(PlayerRepository playerRepository) {
-        this.playerRepository = playerRepository;
+    public CustomUserDetailsService(UserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         log.info("Autenticando usuario con email: {}", email);
 
-        User user = playerRepository.findByEmail(email)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> {
                     log.warn("Usuario no encontrado para autenticación - email: {}", email);
                     return new UsernameNotFoundException("Usuario no encontrado: " + email);
@@ -44,12 +44,17 @@ public class CustomUserDetailsService implements UserDetailsService {
     /**
      * Determina el rol de seguridad del usuario.
      * Usa el campo {@code role} si está definido; si no, deriva uno del tipo de usuario:
-     * ADMIN → ADMIN, cualquier otro tipo → JUGADOR.
+     * ADMIN → ADMIN, REFEREE → ARBITRO, cualquier otro tipo → JUGADOR.
      */
     private String resolveRole(User user) {
         if (user.getRole() != null && !user.getRole().isBlank()) {
             return user.getRole().toUpperCase();
         }
-        return "ADMIN".equalsIgnoreCase(user.getUserType()) ? "ADMIN" : "JUGADOR";
+        return switch (user.getUserType().toUpperCase()) {
+            case "ADMIN"    -> "ADMIN";
+            case "ORGANIZER"-> "ORGANIZADOR";
+            case "REFEREE"  -> "ARBITRO";
+            default         -> "JUGADOR";
+        };
     }
 }

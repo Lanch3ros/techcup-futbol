@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     Optional<Payment> findFirstByTeamId(Long teamId);
+
+    Optional<Payment> findFirstByTeamIdAndStatusIgnoreCase(Long teamId, String status);
 }

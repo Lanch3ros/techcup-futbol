@@ -6,18 +6,13 @@ import static org.junit.jupiter.api.Assertions.*;
 class OtherPlayersTest {
 
     @Test
-    void testAdminPlayerMethods() {
-        AdminPlayer player = new AdminPlayer();
-        assertFalse(player.validateEmail());
-        assertEquals("ADMIN", player.getUserType());
-        assertNull(player.getProfile());
-        assertFalse(player.login());
-        assertNull(player.getProfilePhoto());   // cubre rama getProfilePhoto()
-
-        player.logout();
-        player.acceptInvitation(1L);
-        player.rejectInvitation(1L);
-        player.setAvailable(true);
+    void testAdminUserMethods() {
+        AdminUser user = new AdminUser();
+        assertEquals("ADMIN", user.getUserType());
+        assertNull(user.getProfile());
+        assertFalse(user.login());
+        assertNull(user.getProfilePhoto());
+        user.logout();
     }
 
     @Test
@@ -55,6 +50,21 @@ class OtherPlayersTest {
         RelativePlayer player = new RelativePlayer();
         assertFalse(player.validateEmail());
         assertEquals("RELATIVE", player.getUserType());
+        assertNull(player.getProfile());
+        assertFalse(player.login());
+        assertNull(player.getProfilePhoto());
+
+        player.logout();
+        player.acceptInvitation(1L);
+        player.rejectInvitation(1L);
+        player.setAvailable(true);
+    }
+
+    @Test
+    void testStaffPlayerMethods() {
+        StaffPlayer player = new StaffPlayer();
+        assertFalse(player.validateEmail());
+        assertEquals("STAFF", player.getUserType());
         assertNull(player.getProfile());
         assertFalse(player.login());
         assertNull(player.getProfilePhoto());

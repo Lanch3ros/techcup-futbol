@@ -5,7 +5,10 @@ import com.example.controller.dto.request.MatchEventRequest;
 import com.example.controller.dto.request.MatchResultRequest;
 import com.example.core.exception.BusinessRuleException;
 import com.example.core.exception.ResourceNotFoundException;
-import com.example.core.model.*;
+import com.example.core.model.Match;
+import com.example.core.model.MatchEvent;
+import com.example.core.model.RefereeUser;
+import com.example.core.model.Team;
 import com.example.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -103,10 +106,46 @@ public class MatchService {
             throw new BusinessRuleException("El resultado solo puede registrarse una vez que el partido está en estado 'Finalizado'.");
         }
 
-        match.setHomeGoals(request.getHomeGoals());
-        match.setAwayGoals(request.getAwayGoals());
+        int hg = request.getHomeGoals();
+        int ag = request.getAwayGoals();
+        match.setHomeGoals(hg);
+        match.setAwayGoals(ag);
         matchRepository.save(match);
-        log.info("Resultado registrado exitosamente para partido ID: {} -> {} - {}", matchId, request.getHomeGoals(), request.getAwayGoals());
+
+        // GAP-13: actualizar estadísticas de ambos equipos
+        Team home = match.getHomeTeam();
+        Team away = match.getAwayTeam();
+        if (home != null && away != null) {
+            home.setMatchesPlayed(home.getMatchesPlayed() + 1);
+            home.setGoalsFor(home.getGoalsFor() + hg);
+            home.setGoalsAgainst(home.getGoalsAgainst() + ag);
+            home.setGoalDifference(home.getGoalDifference() + hg - ag);
+
+            away.setMatchesPlayed(away.getMatchesPlayed() + 1);
+            away.setGoalsFor(away.getGoalsFor() + ag);
+            away.setGoalsAgainst(away.getGoalsAgainst() + hg);
+            away.setGoalDifference(away.getGoalDifference() + ag - hg);
+
+            if (hg > ag) {
+                home.setMatchesWon(home.getMatchesWon() + 1);
+                home.setPoints(home.getPoints() + 3);
+                away.setMatchesLost(away.getMatchesLost() + 1);
+            } else if (hg < ag) {
+                away.setMatchesWon(away.getMatchesWon() + 1);
+                away.setPoints(away.getPoints() + 3);
+                home.setMatchesLost(home.getMatchesLost() + 1);
+            } else {
+                home.setMatchesDrawn(home.getMatchesDrawn() + 1);
+                home.setPoints(home.getPoints() + 1);
+                away.setMatchesDrawn(away.getMatchesDrawn() + 1);
+                away.setPoints(away.getPoints() + 1);
+            }
+
+            teamRepository.save(home);
+            teamRepository.save(away);
+        }
+
+        log.info("Resultado registrado exitosamente para partido ID: {} -> {} - {}", matchId, hg, ag);
     }
 
     public MatchEvent registerEvent(Long matchId, MatchEventRequest request) {
@@ -137,7 +176,7 @@ public class MatchService {
         log.info("Asignando árbitro ID: {} al partido ID: {}", refereeId, matchId);
         Match match = getMatchById(matchId);
 
-        Referee referee = refereeRepository.findById(refereeId).orElseThrow(() -> {
+        RefereeUser referee = refereeRepository.findById(refereeId).orElseThrow(() -> {
             log.warn("Árbitro no encontrado - ID: {}", refereeId);
             return new ResourceNotFoundException("Árbitro con ID " + refereeId + " no encontrado");
         });

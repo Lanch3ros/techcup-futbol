@@ -3,7 +3,7 @@ package com.example.controller;
 import com.example.controller.dto.request.RefereeRequest;
 import com.example.controller.dto.response.GenericResponse;
 import com.example.core.model.Match;
-import com.example.core.model.Referee;
+import com.example.core.model.RefereeUser;
 import com.example.core.service.RefereeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,7 +33,7 @@ public class RefereeController {
     public ResponseEntity<GenericResponse> createReferee(@RequestBody @Valid RefereeRequest request) {
         log.info("POST /api/v1/referees - nombre: {}, licencia: {}", request.getFullName(), request.getLicenseNumber());
         try {
-            Referee referee = refereeService.createReferee(request);
+            RefereeUser referee = refereeService.createReferee(request);
             log.info("Árbitro registrado exitosamente - nombre: {}", request.getFullName());
             return new ResponseEntity<>(new GenericResponse("Éxito", referee), HttpStatus.CREATED);
         } catch (Exception e) {
@@ -45,9 +45,9 @@ public class RefereeController {
 
     @Operation(summary = "Listar todos los árbitros")
     @GetMapping
-    public ResponseEntity<List<Referee>> getAllReferees() {
+    public ResponseEntity<List<RefereeUser>> getAllReferees() {
         log.info("GET /api/v1/referees");
-        List<Referee> referees = refereeService.getAllReferees();
+        List<RefereeUser> referees = refereeService.getAllReferees();
         log.info("Total de árbitros retornados: {}", referees.size());
         return ResponseEntity.ok(referees);
     }
@@ -55,10 +55,10 @@ public class RefereeController {
 
     @Operation(summary = "Ver perfil de un árbitro")
     @GetMapping("/{id}")
-    public ResponseEntity<Referee> getRefereeById(@PathVariable Long id) {
+    public ResponseEntity<RefereeUser> getRefereeById(@PathVariable Long id) {
         log.info("GET /api/v1/referees/{}", id);
         try {
-            Referee referee = refereeService.getRefereeById(id);
+            RefereeUser referee = refereeService.getRefereeById(id);
             log.info("Árbitro encontrado - ID: {}, nombre: {}", id, referee.getFullName());
             return ResponseEntity.ok(referee);
         } catch (Exception e) {

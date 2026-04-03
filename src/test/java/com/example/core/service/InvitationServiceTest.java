@@ -6,7 +6,7 @@ import com.example.core.model.Invitation;
 import com.example.core.model.StudentPlayer;
 import com.example.core.model.User;
 import com.example.repository.InvitationRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
 @DisplayName("PlayerService – Gestión de Invitaciones (RF-11 / RN-11-3)")
 class InvitationServiceTest {
 
-    private PlayerRepository playerRepository;
+    private UserRepository userRepository;
     private InvitationRepository invitationRepository;
     private PlayerService playerService;
 
@@ -32,12 +32,12 @@ class InvitationServiceTest {
 
     @BeforeEach
     void setUp() {
-        playerRepository     = mock(PlayerRepository.class);
+        userRepository     = mock(UserRepository.class);
         invitationRepository = mock(InvitationRepository.class);
         PasswordEncoder encoder = mock(PasswordEncoder.class);
         when(encoder.encode(anyString())).thenReturn("$2a$10$hashed");
 
-        playerService = new PlayerService(playerRepository, encoder, invitationRepository);
+        playerService = new PlayerService(userRepository, encoder, invitationRepository);
 
         player = new StudentPlayer();
         player.setId(10L);
@@ -57,13 +57,13 @@ class InvitationServiceTest {
     @DisplayName("Aceptar → jugador queda vinculado al equipo y no disponible")
     void accept_LinksPlayerToTeamAndSetsUnavailable() {
         when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
-        when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
+        when(userRepository.findById(10L)).thenReturn(Optional.of(player));
         when(invitationRepository.findByPlayerIdAndStatusIgnoreCase(10L, Invitation.PENDING)).thenReturn(List.of());
 
         playerService.processInvitationResponse(1L, "ACCEPT");
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(playerRepository).save(userCaptor.capture());
+        verify(userRepository).save(userCaptor.capture());
         User saved = userCaptor.getValue();
         assertEquals(5L, saved.getTeamId(), "El teamId debe ser el del equipo que invitó");
         assertFalse(saved.isAvailable(), "El jugador debe quedar no disponible");
@@ -73,7 +73,7 @@ class InvitationServiceTest {
     @DisplayName("Aceptar → la invitación queda con estado ACCEPTED")
     void accept_InvitationStatusBecomesAccepted() {
         when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
-        when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
+        when(userRepository.findById(10L)).thenReturn(Optional.of(player));
         when(invitationRepository.findByPlayerIdAndStatusIgnoreCase(10L, Invitation.PENDING)).thenReturn(List.of());
 
         playerService.processInvitationResponse(1L, "ACCEPT");
@@ -89,7 +89,7 @@ class InvitationServiceTest {
         Invitation other2 = new Invitation(); other2.setId(3L); other2.setPlayerId(10L); other2.setTeamId(9L); other2.setStatus(Invitation.PENDING);
 
         when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
-        when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
+        when(userRepository.findById(10L)).thenReturn(Optional.of(player));
         when(invitationRepository.findByPlayerIdAndStatusIgnoreCase(10L, Invitation.PENDING))
                 .thenReturn(List.of(other1, other2));
 
@@ -108,7 +108,7 @@ class InvitationServiceTest {
     @DisplayName("RN-11-3: Sin otras invitaciones pendientes → saveAll con lista vacía")
     void accept_NoOtherPending_SaveAllEmpty() {
         when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
-        when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
+        when(userRepository.findById(10L)).thenReturn(Optional.of(player));
         when(invitationRepository.findByPlayerIdAndStatusIgnoreCase(10L, Invitation.PENDING)).thenReturn(List.of());
 
         playerService.processInvitationResponse(1L, "ACCEPT");
@@ -127,7 +127,7 @@ class InvitationServiceTest {
 
         assertEquals(Invitation.REJECTED, pendingInvitation.getStatus());
         verify(invitationRepository).save(pendingInvitation);
-        verifyNoInteractions(playerRepository);
+        verifyNoInteractions(userRepository);
     }
 
     @Test
@@ -137,7 +137,7 @@ class InvitationServiceTest {
 
         playerService.processInvitationResponse(1L, "REJECT");
 
-        verify(playerRepository, never()).save(any());
+        verify(userRepository, never()).save(any());
         assertNull(player.getTeamId());
         assertTrue(player.isAvailable());
     }
@@ -177,7 +177,7 @@ class InvitationServiceTest {
     @DisplayName("Aceptar → jugador del invitation no encontrado → ResourceNotFoundException")
     void accept_PlayerNotFound_ThrowsResourceNotFound() {
         when(invitationRepository.findById(1L)).thenReturn(Optional.of(pendingInvitation));
-        when(playerRepository.findById(10L)).thenReturn(Optional.empty()); // jugador no existe
+        when(userRepository.findById(10L)).thenReturn(Optional.empty()); // jugador no existe
 
         assertThrows(com.example.core.exception.ResourceNotFoundException.class,
                 () -> playerService.processInvitationResponse(1L, "ACCEPT"));
@@ -191,6 +191,6 @@ class InvitationServiceTest {
         assertDoesNotThrow(() -> playerService.processInvitationResponse(1L, "IGNORAR"));
         // La invitación sigue PENDING, no se guardó ni se rechazó
         assertEquals(Invitation.PENDING, pendingInvitation.getStatus());
-        verifyNoInteractions(playerRepository);
+        verifyNoInteractions(userRepository);
     }
 }

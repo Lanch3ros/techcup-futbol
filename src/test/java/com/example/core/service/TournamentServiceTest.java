@@ -6,11 +6,14 @@ import com.example.core.model.Match;
 import com.example.core.model.Team;
 import com.example.core.model.Tournament;
 import com.example.repository.MatchRepository;
+import com.example.repository.PaymentRepository;
 import com.example.repository.TeamRepository;
 import com.example.repository.TournamentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import com.example.core.model.Payment;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -27,6 +30,7 @@ class TournamentServiceTest {
     private TournamentRepository tournamentRepository;
     private TeamRepository teamRepository;
     private MatchRepository matchRepository;
+    private PaymentRepository paymentRepository;
     private TournamentService tournamentService;
 
     @BeforeEach
@@ -34,7 +38,8 @@ class TournamentServiceTest {
         tournamentRepository = mock(TournamentRepository.class);
         teamRepository       = mock(TeamRepository.class);
         matchRepository      = mock(MatchRepository.class);
-        tournamentService    = new TournamentService(tournamentRepository, teamRepository, matchRepository);
+        paymentRepository    = mock(PaymentRepository.class);
+        tournamentService    = new TournamentService(tournamentRepository, teamRepository, matchRepository, paymentRepository);
     }
 
     private Tournament activeTournament() {
@@ -235,6 +240,10 @@ class TournamentServiceTest {
         when(tournamentRepository.save(any())).thenReturn(t);
         when(teamRepository.save(any())).thenReturn(team);
 
+        Payment approvedPayment = new Payment(); approvedPayment.setId(1L); approvedPayment.setStatus("Aprobado");
+        when(paymentRepository.findFirstByTeamIdAndStatusIgnoreCase(7L, "Aprobado"))
+                .thenReturn(Optional.of(approvedPayment));
+
         assertDoesNotThrow(() -> tournamentService.registerTeamToTournament(1L, 7L));
         assertTrue(t.getRegisteredTeams().contains(team));
         assertEquals(1L, team.getTournamentId());
@@ -252,9 +261,81 @@ class TournamentServiceTest {
         when(tournamentRepository.save(any())).thenReturn(t);
         when(teamRepository.save(any())).thenReturn(team);
 
+        Payment approvedPayment = new Payment(); approvedPayment.setId(1L); approvedPayment.setStatus("Aprobado");
+        when(paymentRepository.findFirstByTeamIdAndStatusIgnoreCase(8L, "Aprobado"))
+                .thenReturn(Optional.of(approvedPayment));
+
         assertDoesNotThrow(() -> tournamentService.registerTeamToTournament(1L, 8L));
         assertNotNull(t.getRegisteredTeams());
         assertTrue(t.getRegisteredTeams().contains(team));
+    }
+
+    // ── GAP-09: pago aprobado requerido ───────────────────────────────────────
+
+    @Test
+    @DisplayName("GAP-09: registerTeamToTournament – sin pago aprobado → BusinessRuleException")
+    void registerTeamToTournament_NoApprovedPayment_Throws() {
+        Tournament t = activeTournament();
+        Team team = new Team(); team.setId(9L); team.setName("FC SinPago");
+
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(t));
+        when(teamRepository.findById(9L)).thenReturn(Optional.of(team));
+        when(paymentRepository.findFirstByTeamIdAndStatusIgnoreCase(9L, "Aprobado"))
+                .thenReturn(Optional.empty());
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class,
+                () -> tournamentService.registerTeamToTournament(1L, 9L));
+        assertTrue(ex.getMessage().contains("Aprobado"));
+    }
+
+    // ── GAP-02: startTournament / finishTournament ────────────────────────────
+
+    @Test
+    @DisplayName("startTournament – torneo Activo → pasa a En progreso")
+    void startTournament_FromActivo_Success() {
+        Tournament t = activeTournament(); // status = "Activo"
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(t));
+        when(tournamentRepository.save(any())).thenReturn(t);
+
+        Tournament result = tournamentService.startTournament(1L);
+        assertEquals("En progreso", result.getStatus());
+        verify(tournamentRepository).save(t);
+    }
+
+    @Test
+    @DisplayName("startTournament – torneo no Activo → BusinessRuleException")
+    void startTournament_NotActivo_Throws() {
+        Tournament t = activeTournament();
+        t.setStatus("Borrador");
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(t));
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class,
+                () -> tournamentService.startTournament(1L));
+        assertTrue(ex.getMessage().contains("Activo"));
+    }
+
+    @Test
+    @DisplayName("finishTournament – torneo En progreso → pasa a Finalizado")
+    void finishTournament_FromEnProgreso_Success() {
+        Tournament t = activeTournament();
+        t.setStatus("En progreso");
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(t));
+        when(tournamentRepository.save(any())).thenReturn(t);
+
+        Tournament result = tournamentService.finishTournament(1L);
+        assertEquals("Finalizado", result.getStatus());
+        verify(tournamentRepository).save(t);
+    }
+
+    @Test
+    @DisplayName("finishTournament – torneo no En progreso → BusinessRuleException")
+    void finishTournament_NotEnProgreso_Throws() {
+        Tournament t = activeTournament(); // status = "Activo"
+        when(tournamentRepository.findById(1L)).thenReturn(Optional.of(t));
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class,
+                () -> tournamentService.finishTournament(1L));
+        assertTrue(ex.getMessage().contains("En progreso"));
     }
 
     // ── generateMatches ───────────────────────────────────────────────────────

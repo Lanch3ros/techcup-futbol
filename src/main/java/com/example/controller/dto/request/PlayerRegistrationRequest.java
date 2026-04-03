@@ -3,6 +3,7 @@ package com.example.controller.dto.request;
 import com.example.core.model.Program;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import java.time.LocalDate;
 
 @Data
 public class PlayerRegistrationRequest {
@@ -31,4 +32,9 @@ public class PlayerRegistrationRequest {
     @Pattern(regexp = "^(Portero|Defensa|Volante|Delantero)$", message = "Posición invalida")
     private String position;
 
+    private LocalDate birthDate;
+
+    private String gender;
+
+    private Integer semester;
 }

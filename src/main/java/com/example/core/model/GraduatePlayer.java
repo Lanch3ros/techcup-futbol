@@ -14,8 +14,6 @@ public class GraduatePlayer extends User implements Player {
     @Override public void rejectInvitation(Long teamId) {}
     @Override public void setAvailable(boolean available) { this.available = available; }
     @Override public String getUserType() { return "GRADUATE"; }
-    @Override public boolean login() { return false; }
-    @Override public void logout() {}
     @Override public String getProfilePhoto() { return profilePhoto; }
 
     public Object getProfile() { return null; }

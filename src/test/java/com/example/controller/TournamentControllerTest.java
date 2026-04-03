@@ -321,6 +321,58 @@ class TournamentControllerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 
+    // ── startTournament ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("startTournament – éxito → 200 OK")
+    void startTournament_Success_Returns200() {
+        Tournament t = buildTournament(1L, "En progreso");
+        when(tournamentService.startTournament(1L)).thenReturn(t);
+
+        ResponseEntity<GenericResponse> response = tournamentController.startTournament(1L);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Éxito", response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("startTournament – excepción → 400 BAD REQUEST")
+    void startTournament_Exception_Returns400() {
+        when(tournamentService.startTournament(1L))
+                .thenThrow(new RuntimeException("Estado no permitido"));
+
+        ResponseEntity<GenericResponse> response = tournamentController.startTournament(1L);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Estado no permitido", response.getBody().getData());
+    }
+
+    // ── finishTournament ──────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("finishTournament – éxito → 200 OK")
+    void finishTournament_Success_Returns200() {
+        Tournament t = buildTournament(1L, "Finalizado");
+        when(tournamentService.finishTournament(1L)).thenReturn(t);
+
+        ResponseEntity<GenericResponse> response = tournamentController.finishTournament(1L);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Éxito", response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("finishTournament – excepción → 400 BAD REQUEST")
+    void finishTournament_Exception_Returns400() {
+        when(tournamentService.finishTournament(1L))
+                .thenThrow(new RuntimeException("No está en progreso"));
+
+        ResponseEntity<GenericResponse> response = tournamentController.finishTournament(1L);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("No está en progreso", response.getBody().getData());
+    }
+
     // ── updateTournamentStatus ────────────────────────────────────────────────
 
     @Test

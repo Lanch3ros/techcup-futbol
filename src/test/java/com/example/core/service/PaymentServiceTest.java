@@ -266,6 +266,49 @@ class PaymentServiceTest {
         verify(paymentRepository).save(p);
     }
 
+    // ── sendPaymentToReview (GAP-08) ──────────────────────────────────────────
+
+    @Test
+    @DisplayName("sendPaymentToReview – pago Pendiente → pasa a En revisión")
+    void sendPaymentToReview_FromPendiente_Success() {
+        Payment p = new Payment(); p.setId(1L); p.setStatus("Pendiente");
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(p));
+        when(paymentRepository.save(any())).thenReturn(p);
+
+        assertDoesNotThrow(() -> paymentService.sendPaymentToReview(1L));
+        assertEquals("En revisión", p.getStatus());
+        verify(paymentRepository).save(p);
+    }
+
+    @Test
+    @DisplayName("sendPaymentToReview – pago no Pendiente → BusinessRuleException")
+    void sendPaymentToReview_NotPendiente_Throws() {
+        Payment p = new Payment(); p.setId(1L); p.setStatus("Aprobado");
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(p));
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class,
+                () -> paymentService.sendPaymentToReview(1L));
+        assertTrue(ex.getMessage().contains("Pendiente"));
+    }
+
+    @Test
+    @DisplayName("sendPaymentToReview – pago no encontrado → ResourceNotFoundException")
+    void sendPaymentToReview_NotFound_Throws() {
+        when(paymentRepository.findById(99L)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> paymentService.sendPaymentToReview(99L));
+    }
+
+    @Test
+    @DisplayName("sendPaymentToReview – case-insensitive 'PENDIENTE' → pasa a En revisión")
+    void sendPaymentToReview_CaseInsensitive_Success() {
+        Payment p = new Payment(); p.setId(1L); p.setStatus("PENDIENTE");
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(p));
+        when(paymentRepository.save(any())).thenReturn(p);
+
+        assertDoesNotThrow(() -> paymentService.sendPaymentToReview(1L));
+        assertEquals("En revisión", p.getStatus());
+    }
+
     // ── getPaymentByTeam ──────────────────────────────────────────────────────
 
     @Test

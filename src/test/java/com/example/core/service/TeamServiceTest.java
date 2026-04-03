@@ -3,7 +3,8 @@ package com.example.core.service;
 import com.example.core.exception.ResourceNotFoundException;
 import com.example.core.model.Team;
 import com.example.repository.InvitationRepository;
-import com.example.repository.PlayerRepository;
+import com.example.repository.TournamentRepository;
+import com.example.repository.UserRepository;
 import com.example.repository.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,16 +20,18 @@ import static org.mockito.Mockito.when;
 class TeamServiceTest {
 
     private TeamRepository teamRepository;
-    private PlayerRepository playerRepository;
+    private UserRepository userRepository;
     private InvitationRepository invitationRepository;
+    private TournamentRepository tournamentRepository;
     private TeamService teamService;
 
     @BeforeEach
     void setUp() {
         teamRepository       = Mockito.mock(TeamRepository.class);
-        playerRepository     = Mockito.mock(PlayerRepository.class);
+        userRepository     = Mockito.mock(UserRepository.class);
         invitationRepository = Mockito.mock(InvitationRepository.class);
-        teamService = new TeamService(teamRepository, playerRepository, invitationRepository);
+        tournamentRepository = Mockito.mock(TournamentRepository.class);
+        teamService = new TeamService(teamRepository, userRepository, invitationRepository, tournamentRepository);
     }
 
     @Test
@@ -81,5 +84,27 @@ class TeamServiceTest {
 
         // TeamService lanza ResourceNotFoundException cuando no encuentra el equipo
         assertThrows(ResourceNotFoundException.class, () -> teamService.getTeamById(99L));
+    }
+
+    @Test
+    void updateShieldUrl_Success_ReturnsUpdatedTeam() {
+        Team team = new Team();
+        team.setId(1L);
+        team.setName("Sistemas FC");
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team));
+        when(teamRepository.save(any(Team.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Team result = teamService.updateShieldUrl(1L, "https://cdn.example.com/shield.png");
+
+        assertNotNull(result);
+        assertEquals("https://cdn.example.com/shield.png", result.getShieldUrl());
+    }
+
+    @Test
+    void updateShieldUrl_TeamNotFound_ThrowsResourceNotFoundException() {
+        when(teamRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> teamService.updateShieldUrl(99L, "https://cdn.example.com/shield.png"));
     }
 }

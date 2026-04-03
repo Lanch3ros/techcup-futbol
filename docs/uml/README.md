@@ -31,20 +31,6 @@ Link diagramas: https://lucid.app/lucidchart/3777f7f9-49cb-4f47-859d-86e58146050
   validador que le corresponde según su tipo y lo aplica. Si mañana la universidad cambia su dominio de correo, 
   solo se toca una clase. Si se agrega un nuevo tipo de jugador, solo se crea un validador nuevo sin tocar nada más.
 
-
-**Command - MatchCommand**
-- ¿Por qué lo eligieron?
-  - Porque el árbitro puede equivocarse. Si registra un gol que no era o una tarjeta al jugador incorrecto, necesita poder corregirlo. 
-  Sin este patrón no habría forma ordenada de deshacer una acción ya ejecutada, y tampoco habría registro de todo lo que pasó 
-  durante el partido.
-- ¿Cómo ayuda a resolver el problema del sistema?
-  - Cada acción del árbitro se guarda como un objeto independiente antes de ejecutarse. Ese objeto recuerda cómo estaba el 
-  partido antes del cambio, así que si algo estuvo mal simplemente se deshace y el partido vuelve al estado anterior. 
-  Además, como todas las acciones quedan guardadas en orden, al final del partido existe un historial completo de todo 
-  lo que el árbitro registró y corrigió.
-
-
-
 ## Diagrama De Componentes General y Especifico
 
 **General**

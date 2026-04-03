@@ -60,7 +60,7 @@ Para la construcción del core de la aplicación, el equipo analizó e implement
 - **¿Cómo ayuda a resolver el problema?** Centraliza la lógica de instanciación. Cuando un usuario envía un JSON al endpoint de registro, el controlador delega a la fábrica correspondiente. Esto nos permite separar estructuralmente la "Identidad" (Clase base `User` para login) del "Comportamiento" (Interfaz `Player` para jugar), evitando que administradores o árbitros hereden propiedades innecesarias como el número dorsal.
 
 **Strategy - Validador de Correos (`EmailValidator`)**
-- **¿Por qué lo elegimos?** Existen reglas estrictas de registro: los estudiantes, graduados, profesores y administrativos deben usar el dominio `@escuelaing.edu.co`, mientras que los familiares usan Gmail.
+- **¿Por qué lo elegimos?** Existen reglas estrictas de registro: los estudiantes y graduados usan el dominio `@mail.escuelaing.edu.co`. Los profesores y administrativos(staff) deben usar el dominio `@escuelaing.edu.co` y los familiares usan Gmail.
 - **¿Cómo ayuda a resolver el problema?** Encapsulamos cada regla de validación en su propia clase. Antes de persistir el usuario en la base de datos, el `PlayerService` invoca dinámicamente la estrategia correspondiente. Si la universidad cambia su dominio en el futuro, solo se modifica una clase concreta sin alterar la lógica global.
 
 ---
@@ -70,7 +70,7 @@ Para la construcción del core de la aplicación, el equipo analizó e implement
 #### 2.1 DIAGRAMA DE CONTEXTO DEL SISTEMA
 Representa cómo interactúa TECHCUP FÚTBOL con los actores externos. Su propósito es mostrar los límites del sistema.
 
-![DiagramaContexto.png](docs/images/DiagramaContexto.png)
+![DiagramaContexto.png](docs/images/ContextDiagram.png)
 
 * **Jugadores / Capitanes:** Interactúan para registrar perfiles, aceptar invitaciones, pagar inscripciones y armar alineaciones.
 * **Personal de Gestión (Organizador, Administrador):** Controlan el ciclo de vida del torneo y la seguridad.
@@ -81,7 +81,7 @@ Representa cómo interactúa TECHCUP FÚTBOL con los actores externos. Su propó
 Enfocado en las entidades de negocio y la aplicación de los patrones. Destaca la jerarquía de herencia con estrategia `SINGLE_TABLE`:
 Una clase base abstracta `User` (para el sistema de seguridad JWT) de la cual extienden todos los usuarios. Los actores que participan en los partidos implementan adicionalmente la interfaz `Player`, mientras que los usuarios de gestión (`AdminUser`, `OrganizerUser`, `RefereeUser`) solo extienden de `User`.
 
-![diagramaclases.png](docs/images/diagramaclases.png)
+![ClassDiagram.png](docs/images/ClassDiagram.png)
 
 #### 2.3 DIAGRAMAS DE COMPONENTES
 **Diagrama de Componentes General (Vista Macro)**
@@ -120,12 +120,17 @@ El sistema implementa seguridad *Stateless* utilizando **JSON Web Tokens (JWT)**
 
 ### 4. CALIDAD Y DEUDA TÉCNICA (TESTING)
 Para garantizar el control de la deuda técnica, el proyecto cuenta con un entorno de validación robusto:
-* **Pruebas Unitarias:** +480 tests ejecutados mediante JUnit y Mockito, sin levantar el contexto de Spring (priorizando velocidad de ejecución).
-* **Cobertura de Código (JaCoCo):** El sistema mantiene un **100% de cobertura** en Líneas, Clases y Métodos en las capas `Controller`, `Service` y `Config`.
+* **Pruebas Unitarias:** 492 tests ejecutados mediante JUnit y Mockito, sin levantar el contexto de Spring (priorizando velocidad de ejecución).
+* **Cobertura de Código (JaCoCo):** El sistema mantiene un **99% de cobertura** en Líneas, Clases y Métodos en las capas `Controller`, `Service` y `Config`.
+![JacocoCoverage.png](docs/jacoco/JacocoCoverage.png)
+* 
 * Los escenarios de prueba documentados en Jira (Happy paths, errores de negocio, excepciones de validación cruzada) se reflejan uno a uno en la suite automatizada.
 
+
 ### 5. ANÁLISIS DE REQUERIMIENTOS Y GESTIÓN
-* [Análisis de Requerimientos Inicial](docs/requirements/Plantilla%20Analisis%20de%20requerimientos.pdf)
+Ir a la ruta `docs/requirements/RequirementsAnalisis.pdf` o darle click a
+[Requirements Analisis](docs/requirements/RequirementsAnalisis.pdf)
+
 * **Gestión en Jira:** Todo el Product Backlog, Épicas e Historias de Usuario están trazadas en nuestro board ágil.
   ![JiraSprint3.png](docs/images/Jira/JiraSprint3.png)
 

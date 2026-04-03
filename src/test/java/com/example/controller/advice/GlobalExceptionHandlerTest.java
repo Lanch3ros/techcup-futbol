@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.when;
@@ -66,6 +68,22 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals(400, response.getBody().getStatus());
         assertEquals("Datos inválidos en la petición", response.getBody().getMessage());
+        assertEquals("/api/v1/recurso-prueba", response.getBody().getPath());
+    }
+
+    @Test
+    void handleDataIntegrityViolation_ShouldReturn409() {
+        DataIntegrityViolationException ex = new DataIntegrityViolationException(
+                "could not execute statement; SQL [n/a]; constraint [users_license_number_key]");
+
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleDataIntegrityViolation(ex, request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(409, response.getBody().getStatus());
+        assertEquals(
+                "Ya existe un registro con ese valor único (correo, número de licencia u otro campo irrepetible).",
+                response.getBody().getMessage());
         assertEquals("/api/v1/recurso-prueba", response.getBody().getPath());
     }
 

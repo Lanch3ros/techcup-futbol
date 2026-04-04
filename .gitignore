@@ -34,6 +34,8 @@ mcp-config.json
 # Para que las imagenes de pago no se suban al repo
 uploads/
 
+#HTTP TEST
+api-tests/
 test_api_flow.sh
 test_e2e_section6.sh
 test_full_match_simulation.sh

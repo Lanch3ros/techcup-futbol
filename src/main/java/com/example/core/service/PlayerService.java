@@ -38,6 +38,13 @@ public class PlayerService {
         if (!(newUser instanceof Player)) {
             throw new BusinessRuleException("El tipo de usuario '" + data.getUserType() + "' no es un jugador registrable.");
         }
+        if (userRepository.existsByEmail(data.getEmail())) {
+            throw new BusinessRuleException("El correo '" + data.getEmail() + "' ya está registrado.");
+        }
+        if (data.getIdentification() != null && !data.getIdentification().isBlank()
+                && userRepository.existsByIdentification(data.getIdentification())) {
+            throw new BusinessRuleException("La identificación '" + data.getIdentification() + "' ya está registrada.");
+        }
         newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
         User savedUser = userRepository.save(newUser);
         log.info("Jugador registrado exitosamente - ID: {}, email: {}", savedUser.getId(), data.getEmail());

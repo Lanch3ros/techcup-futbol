@@ -15,6 +15,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.List;
 import java.util.Optional;
 
+import com.example.core.exception.BusinessRuleException;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -139,6 +141,30 @@ class PlayerServiceTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
                 () -> playerService.registerPlayer(data));
         assertEquals("Rol no válido: GOKU", exception.getMessage());
+    }
+
+    @Test
+    void registerPlayer_DuplicateEmail_ThrowsBusinessRuleException() {
+        PlayerRegistrationRequest data = buildRequest("Jose", "jose@mail.escuelaing.edu.co", "STUDENT");
+        when(userRepository.existsByEmail("jose@mail.escuelaing.edu.co")).thenReturn(true);
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class,
+                () -> playerService.registerPlayer(data));
+        assertTrue(ex.getMessage().contains("ya está registrado"));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void registerPlayer_DuplicateIdentification_ThrowsBusinessRuleException() {
+        PlayerRegistrationRequest data = buildRequest("Jose", "jose@mail.escuelaing.edu.co", "STUDENT");
+        data.setIdentification("IDA001");
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByIdentification("IDA001")).thenReturn(true);
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class,
+                () -> playerService.registerPlayer(data));
+        assertTrue(ex.getMessage().contains("ya está registrada"));
+        verify(userRepository, never()).save(any());
     }
 
     @Test

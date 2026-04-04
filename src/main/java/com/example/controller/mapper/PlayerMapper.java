@@ -18,6 +18,7 @@ public class PlayerMapper {
         Integer semester = (user instanceof StudentPlayer sp) ? sp.getSemester() : null;
 
         return new ProfileDTO(
+                user.getId(),
                 player.getFullName(),
                 player.getEmail(),
                 player.getUserType(),

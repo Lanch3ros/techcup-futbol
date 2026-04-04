@@ -99,7 +99,7 @@ class PlayerControllerTest {
     @Test
     void searchPlayer_Found_Returns200() {
         StudentPlayer mockPlayer = new StudentPlayer();
-        ProfileDTO mockProfile = new ProfileDTO("Juan", "juan@mail.com", "STUDENT", null, null, null, null, null, null, null, null, null);
+        ProfileDTO mockProfile = new ProfileDTO(null, "Juan", "juan@mail.com", "STUDENT", null, null, null, null, null, null, null, null, null);
 
         when(playerService.searchPlayer(1L)).thenReturn(mockPlayer);
         when(playerMapper.toDto(mockPlayer)).thenReturn(mockProfile);
@@ -122,7 +122,7 @@ class PlayerControllerTest {
     @Test
     void getAllPlayers_Returns200() {
         StudentPlayer mockPlayer = new StudentPlayer();
-        ProfileDTO mockProfile = new ProfileDTO("Juan", "juan@mail.com", "STUDENT", null, null, null, null, null, null, null, null, null);
+        ProfileDTO mockProfile = new ProfileDTO(null, "Juan", "juan@mail.com", "STUDENT", null, null, null, null, null, null, null, null, null);
 
         when(playerService.getAllPlayers()).thenReturn(List.of(mockPlayer));
         when(playerMapper.toDto(any(Player.class))).thenReturn(mockProfile);

@@ -3,7 +3,7 @@ server:
   ssl:
     enabled: true
     key-store: classpath:keystore.p12
-    key-store-password: ${SSL_KEY_STORE_PASSWORD:techcup}
+    key-store-password: ${SSL_KEY_STORE_PASSWORD:techcup123}
     key-store-type: PKCS12
     key-alias: techcup
 

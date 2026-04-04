@@ -4,6 +4,7 @@ import com.example.core.model.Program;
 import java.time.LocalDate;
 
 public record ProfileDTO(
+        Long id,
         String fullName,
         String email,
         String userType,

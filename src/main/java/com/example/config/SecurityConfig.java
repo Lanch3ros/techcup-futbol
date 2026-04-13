@@ -92,9 +92,7 @@ public class SecurityConfig {
                 // Revisión de pagos
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/payments/*/approve").hasAnyRole("ORGANIZADOR", "ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/payments/*/reject").hasAnyRole("ORGANIZADOR", "ADMIN")
-                // Creación de partidos y árbitros
-                .requestMatchers(HttpMethod.POST,  "/api/v1/matches").hasAnyRole("ORGANIZADOR", "ADMIN")
-                .requestMatchers(HttpMethod.POST,  "/api/v1/referees").hasAnyRole("ORGANIZADOR", "ADMIN")
+                .requestMatchers(HttpMethod.POST,  "/api/v1/referees").permitAll()
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/matches/*/referee").hasAnyRole("ORGANIZADOR", "ADMIN")
 
                 // ── ÁRBITRO ──────────────────────────────────────────────────

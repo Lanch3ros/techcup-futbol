@@ -38,6 +38,7 @@ class PlayerControllerTest {
     void registerPlayer_Success_Returns201() {
         PlayerRegistrationRequest request = new PlayerRegistrationRequest();
         request.setName("Jose");
+        request.setIdentification("id-001");
         request.setEmail("jose@mail.escuelaing.edu.co");
         request.setPassword("12345678");
         request.setUserType("STUDENT");
@@ -60,6 +61,7 @@ class PlayerControllerTest {
     void registerPlayer_InvalidImageFormat_Returns400() {
         PlayerRegistrationRequest request = new PlayerRegistrationRequest();
         request.setName("Jose");
+        request.setIdentification("id-002");
         request.setEmail("jose@mail.escuelaing.edu.co");
         request.setPassword("12345678");
         request.setUserType("STUDENT");
@@ -80,6 +82,7 @@ class PlayerControllerTest {
     void registerPlayer_Exception_Returns400() {
         PlayerRegistrationRequest request = new PlayerRegistrationRequest();
         request.setName("Jose");
+        request.setIdentification("id-003");
         request.setEmail("jose@mail.escuelaing.edu.co");
         request.setPassword("12345678");
         request.setUserType("STUDENT");
@@ -94,6 +97,26 @@ class PlayerControllerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("Error interno", response.getBody().getData());
+    }
+
+    @Test
+    void registerPlayerJson_Success_Returns201() {
+        PlayerRegistrationRequest request = new PlayerRegistrationRequest();
+        request.setName("Jose");
+        request.setIdentification("id-004");
+        request.setEmail("jose@mail.escuelaing.edu.co");
+        request.setPassword("12345678");
+        request.setUserType("STUDENT");
+        request.setJerseyNumber(10);
+        request.setPosition("Delantero");
+
+        when(playerService.registerPlayer(any(PlayerRegistrationRequest.class)))
+                .thenReturn(new StudentPlayer());
+
+        ResponseEntity<GenericResponse> response = playerController.registerPlayerJson(request);
+
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertNotNull(response.getBody());
     }
 
     @Test

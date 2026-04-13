@@ -36,20 +36,34 @@ public class PlayerController {
     }
 
 
-    @Operation(summary = "Registrar un nuevo jugador")
+    @Operation(summary = "Registrar un nuevo jugador (multipart: playerData + foto opcional)")
     @PostMapping(value = "/register", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<GenericResponse> registerPlayer(
             @Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
             @Valid @RequestPart("playerData") PlayerRegistrationRequest request,
             @RequestPart(value = "profilePhoto", required = false) MultipartFile profilePhoto) {
 
-        log.info("POST /api/v1/players/register - userType: {}, email: {}", request.getUserType(), request.getEmail());
+        log.info("POST /api/v1/players/register (multipart) - userType: {}, email: {}", request.getUserType(), request.getEmail());
 
-        if (profilePhoto != null && !profilePhoto.getContentType().startsWith("image/")) {
-            log.warn("Formato de imagen inválido: {}", profilePhoto.getContentType());
-            return new ResponseEntity<>(new GenericResponse("Error", "Solo se permiten imágenes"), HttpStatus.BAD_REQUEST);
+        if (profilePhoto != null) {
+            String contentType = profilePhoto.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                log.warn("Formato de imagen inválido: {}", contentType);
+                return new ResponseEntity<>(new GenericResponse("Error", "Solo se permiten imágenes"), HttpStatus.BAD_REQUEST);
+            }
         }
 
+        return completeRegistration(request);
+    }
+
+    @Operation(summary = "Registrar un nuevo jugador (JSON en el cuerpo; sin foto de perfil en esta variante)")
+    @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<GenericResponse> registerPlayerJson(@Valid @RequestBody PlayerRegistrationRequest request) {
+        log.info("POST /api/v1/players/register (JSON) - userType: {}, email: {}", request.getUserType(), request.getEmail());
+        return completeRegistration(request);
+    }
+
+    private ResponseEntity<GenericResponse> completeRegistration(PlayerRegistrationRequest request) {
         try {
             playerService.registerPlayer(request);
             log.info("Jugador registrado exitosamente - email: {}", request.getEmail());
@@ -233,7 +247,8 @@ public class PlayerController {
 
         log.info("PATCH /api/v1/players/{}/photo", id);
         try {
-            if (photo == null || !photo.getContentType().startsWith("image/")) {
+            String photoType = photo != null ? photo.getContentType() : null;
+            if (photo == null || photoType == null || !photoType.startsWith("image/")) {
                 log.warn("Formato de archivo inválido para foto de jugador ID: {}", id);
                 return ResponseEntity.badRequest().body(new GenericResponse("Error", "Solo se permiten archivos de imagen"));
             }

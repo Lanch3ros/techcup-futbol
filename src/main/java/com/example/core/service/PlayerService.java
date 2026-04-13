@@ -5,6 +5,7 @@ import com.example.core.exception.BusinessRuleException;
 import com.example.core.factory.*;
 import com.example.core.model.Invitation;
 import com.example.core.model.Player;
+import com.example.core.model.RefereeUser;
 import com.example.core.model.User;
 import com.example.repository.InvitationRepository;
 import com.example.repository.UserRepository;
@@ -13,7 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -31,8 +34,13 @@ public class PlayerService {
         this.invitationRepository = invitationRepository;
     }
 
-    public Player registerPlayer(PlayerRegistrationRequest data) {
-        log.info("Iniciando registro de jugador con rol: {}, email: {}", data.getUserType(), data.getEmail());
+    public User registerPlayer(PlayerRegistrationRequest data) {
+        normalizeIncomingRegistration(data);
+        log.info("Iniciando registro con tipo: {}, email: {}", data.getUserType(), data.getEmail());
+        if ("REFEREE".equalsIgnoreCase(data.getUserType())) {
+            return registerRefereeUser(data);
+        }
+
         PlayerFactory factory = getFactoryByRole(data.getUserType());
         User newUser = factory.registerPlayerData(data);
         if (!(newUser instanceof Player)) {
@@ -45,10 +53,50 @@ public class PlayerService {
                 && userRepository.existsByIdentification(data.getIdentification())) {
             throw new BusinessRuleException("La identificación '" + data.getIdentification() + "' ya está registrada.");
         }
+        if (data.getSecurityRole() != null && !data.getSecurityRole().isBlank()) {
+            newUser.setRole(data.getSecurityRole());
+        }
         newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
         User savedUser = userRepository.save(newUser);
         log.info("Jugador registrado exitosamente - ID: {}, email: {}", savedUser.getId(), data.getEmail());
-        return (Player) savedUser;
+        return savedUser;
+    }
+
+    private User registerRefereeUser(PlayerRegistrationRequest data) {
+        if (userRepository.existsByEmail(data.getEmail())) {
+            throw new BusinessRuleException("El correo '" + data.getEmail() + "' ya está registrado.");
+        }
+        String license = data.getIdentification() != null ? data.getIdentification().trim() : "";
+        if (license.isBlank()) {
+            throw new BusinessRuleException("La identificación / número de licencia es obligatorio para árbitros.");
+        }
+        if (userRepository.existsByIdentification(license)) {
+            throw new BusinessRuleException("La identificación '" + license + "' ya está registrada.");
+        }
+        if (userRepository.existsByLicenseNumber(license)) {
+            throw new BusinessRuleException("El número de licencia '" + license + "' ya está registrado.");
+        }
+
+        RefereeUser referee = new RefereeUser();
+        referee.setFullName(data.getName());
+        referee.setEmail(data.getEmail().trim().toLowerCase(Locale.ROOT));
+        referee.setIdentification(license);
+        referee.setLicenseNumber(license);
+        referee.setPassword(passwordEncoder.encode(data.getPassword()));
+        referee.setRole("ARBITRO");
+        if (data.getSkillLevel() != null && !data.getSkillLevel().isBlank()) {
+            referee.setCertificationLevel(data.getSkillLevel());
+        }
+        if (data.getBirthDate() != null) {
+            referee.setBirthDate(data.getBirthDate());
+        }
+        if (data.getGender() != null && !data.getGender().isBlank()) {
+            referee.setGender(data.getGender());
+        }
+
+        User saved = userRepository.save(referee);
+        log.info("Árbitro registrado exitosamente - ID: {}, email: {}", saved.getId(), data.getEmail());
+        return saved;
     }
 
     public Player searchPlayer(Long id) {
@@ -200,8 +248,8 @@ public class PlayerService {
             throw new IllegalArgumentException("El rol no puede estar vacío");
         }
 
-        return switch (role.toUpperCase()) {
-            case "STUDENT"  -> new StudentFactory();
+        return switch (role.toUpperCase(Locale.ROOT)) {
+            case "STUDENT", "PLAYER" -> new StudentFactory();
             case "GRADUATE" -> new GraduateFactory();
             case "TEACHER"  -> new TeacherFactory();
             case "RELATIVE" -> new RelativeFactory();
@@ -212,4 +260,65 @@ public class PlayerService {
             }
         };
     }
+
+    private static boolean isCaptainUserType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return false;
+        }
+        String u = raw.trim().toUpperCase(Locale.ROOT);
+        return "CAPTAIN".equals(u) || "CAPITAN".equals(u) || "CAPTAN".equals(u);
+    }
+
+    private static boolean isRefereeUserType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return false;
+        }
+        String u = raw.trim().toUpperCase(Locale.ROOT);
+        return "REFEREE".equals(u) || "ARBITRO".equals(u);
+    }
+
+    /**
+     * Alinea payloads del front (firstName/lastName, PLAYER/CAPTAIN/REFEREE, posición, dorsal, etc.)
+     * con los campos que usan las factories o el registro de árbitro.
+     */
+    private void normalizeIncomingRegistration(PlayerRegistrationRequest data) {
+        String rawType = data.getUserType() != null ? data.getUserType().trim() : "";
+
+        if (isCaptainUserType(rawType)) {
+            data.setSecurityRole("CAPITAN");
+            data.setUserType("STUDENT");
+        } else if (isRefereeUserType(rawType)) {
+            data.setUserType("REFEREE");
+        } else if ("PLAYER".equalsIgnoreCase(rawType) || "JUGADOR".equalsIgnoreCase(rawType)) {
+            data.setUserType("STUDENT");
+        }
+
+        if ((data.getName() == null || data.getName().isBlank())
+                && data.getFirstName() != null && data.getLastName() != null) {
+            data.setName(data.getFirstName().trim() + " " + data.getLastName().trim());
+        }
+
+        boolean referee = "REFEREE".equalsIgnoreCase(data.getUserType());
+
+        if (!referee && data.getPosition() != null && !data.getPosition().isBlank()) {
+            String lower = data.getPosition().trim().toLowerCase(Locale.ROOT);
+            data.setPosition(switch (lower) {
+                case "portero" -> "Portero";
+                case "defensa" -> "Defensa";
+                case "volante" -> "Volante";
+                case "delantero" -> "Delantero";
+                default -> data.getPosition().trim();
+            });
+        }
+        if (!referee && data.getBirthDate() == null && data.getAge() != null && data.getAge() > 0) {
+            data.setBirthDate(LocalDate.now().minusYears(data.getAge()));
+        }
+        if (!referee && (data.getJerseyNumber() == null || data.getJerseyNumber() < 1 || data.getJerseyNumber() > 99)) {
+            data.setJerseyNumber(10);
+        }
+        if (!referee && (data.getPosition() == null || data.getPosition().isBlank())) {
+            data.setPosition("Delantero");
+        }
+    }
 }
+

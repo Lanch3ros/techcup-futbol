@@ -8,9 +8,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @ControllerAdvice
@@ -49,10 +58,61 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex, HttpServletRequest request) {
         log.warn("Error de validación en {}: {}", request.getRequestURI(), ex.getMessage());
 
+        String detail = Stream.concat(
+                        ex.getBindingResult().getFieldErrors().stream().map(FieldError::getDefaultMessage),
+                        ex.getBindingResult().getGlobalErrors().stream().map(ObjectError::getDefaultMessage))
+                .filter(m -> m != null && !m.isBlank())
+                .collect(Collectors.joining("; "));
+        if (detail.isBlank()) {
+            detail = "Datos inválidos en la petición";
+        }
+
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Datos inválidos en la petición",
+                detail,
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler({MultipartException.class, MissingServletRequestPartException.class})
+    public ResponseEntity<ErrorResponse> handleMultipartIssues(Exception ex, HttpServletRequest request) {
+        log.warn("Petición multipart inválida en {}: {}", request.getRequestURI(), ex.getMessage());
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                "Se esperaba multipart/form-data con la parte \"playerData\" (JSON del jugador). "
+                        + "Opcionalmente \"profilePhoto\" (imagen).",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex,
+                                                                    HttpServletRequest request) {
+        log.warn("Tipo de contenido no soportado en {}: {}", request.getRequestURI(), ex.getMessage());
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE.getReasonPhrase(),
+                "Content-Type no aceptado para esta ruta. Revise la documentación del endpoint.",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleMessageNotReadable(HttpMessageNotReadableException ex,
+                                                                  HttpServletRequest request) {
+        log.warn("Cuerpo JSON ilegible en {}: {}", request.getRequestURI(), ex.getMessage());
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                "El cuerpo JSON es inválido o no coincide con el formato esperado.",
                 request.getRequestURI()
         );
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);

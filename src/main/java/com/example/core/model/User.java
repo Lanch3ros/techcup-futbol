@@ -1,5 +1,6 @@
 package com.example.core.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,6 +25,8 @@ public abstract class User {
 
     @Column(unique = true, nullable = false)
     protected String email;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     protected String password;
 
     @Column(name = "full_name")

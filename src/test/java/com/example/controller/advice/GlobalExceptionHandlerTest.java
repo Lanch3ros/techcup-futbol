@@ -9,12 +9,18 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import java.util.Collections;
+
 import static org.mockito.Mockito.when;
 
 class GlobalExceptionHandlerTest {
@@ -60,7 +66,10 @@ class GlobalExceptionHandlerTest {
     @Test
     void handleValidationExceptions_ShouldReturn400() {
         MethodArgumentNotValidException ex = Mockito.mock(MethodArgumentNotValidException.class);
-        when(ex.getMessage()).thenReturn("Error de validación interno");
+        BindingResult br = Mockito.mock(BindingResult.class);
+        when(br.getFieldErrors()).thenReturn(Collections.emptyList());
+        when(br.getGlobalErrors()).thenReturn(Collections.emptyList());
+        when(ex.getBindingResult()).thenReturn(br);
 
         ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleValidationExceptions(ex, request);
 
@@ -98,5 +107,50 @@ class GlobalExceptionHandlerTest {
         assertEquals(500, response.getBody().getStatus());
         assertEquals("Error interno del servidor", response.getBody().getMessage());
         assertEquals("/api/v1/recurso-prueba", response.getBody().getPath());
+    }
+
+    @Test
+    void handleMultipartIssues_ShouldReturn400() {
+        MultipartException ex = new MultipartException("parse failed");
+
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleMultipartIssues(ex, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(400, response.getBody().getStatus());
+        assertEquals("/api/v1/recurso-prueba", response.getBody().getPath());
+    }
+
+    @Test
+    void handleMultipartIssues_MissingPart_ShouldReturn400() {
+        MissingServletRequestPartException ex = new MissingServletRequestPartException("playerData");
+
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleMultipartIssues(ex, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(400, response.getBody().getStatus());
+    }
+
+    @Test
+    void handleUnsupportedMediaType_ShouldReturn415() {
+        HttpMediaTypeNotSupportedException ex = new HttpMediaTypeNotSupportedException("unsupported");
+
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleUnsupportedMediaType(ex, request);
+
+        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(415, response.getBody().getStatus());
+    }
+
+    @Test
+    void handleMessageNotReadable_ShouldReturn400() {
+        HttpMessageNotReadableException ex = new HttpMessageNotReadableException("bad json", null);
+
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleMessageNotReadable(ex, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(400, response.getBody().getStatus());
     }
 }

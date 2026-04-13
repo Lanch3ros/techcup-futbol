@@ -3,6 +3,7 @@ package com.example.core.service;
 import com.example.controller.dto.request.PlayerRegistrationRequest;
 import com.example.core.model.AdminUser;
 import com.example.core.model.Player;
+import com.example.core.model.RefereeUser;
 import com.example.core.model.StudentPlayer;
 import com.example.core.model.User;
 import com.example.repository.InvitationRepository;
@@ -59,10 +60,94 @@ class PlayerServiceTest {
 
         when(userRepository.save(any(User.class))).thenReturn(mockPlayer);
 
-        Player result = playerService.registerPlayer(data);
+        User result = playerService.registerPlayer(data);
 
         assertNotNull(result);
-        assertEquals(1L, result.getId());
+        assertEquals(1L, ((Player) result).getId());
+    }
+
+    @Test
+    void registerPlayer_FrontPayload_PlayerFirstLast_DerivesStudent() {
+        PlayerRegistrationRequest data = new PlayerRegistrationRequest();
+        data.setUserType("PLAYER");
+        data.setEmail("andres@mail.escuelaing.edu.co");
+        data.setPassword("12345678");
+        data.setFirstName("Andres");
+        data.setLastName("Vivas");
+        data.setIdentification("1069720788");
+        data.setPosition("DELANTERO");
+        data.setAge(20);
+
+        when(userRepository.save(any(User.class))).thenReturn(new StudentPlayer());
+
+        assertDoesNotThrow(() -> playerService.registerPlayer(data));
+        assertEquals("STUDENT", data.getUserType());
+        assertEquals("Andres Vivas", data.getName());
+        assertEquals("Delantero", data.getPosition());
+        assertEquals(10, data.getJerseyNumber());
+        assertNotNull(data.getBirthDate());
+    }
+
+    @Test
+    void registerPlayer_Captain_SetsCapitanRole() {
+        PlayerRegistrationRequest data = new PlayerRegistrationRequest();
+        data.setUserType("CAPTAIN");
+        data.setEmail("cap@mail.escuelaing.edu.co");
+        data.setPassword("12345678");
+        data.setFirstName("Ana");
+        data.setLastName("Cap");
+        data.setIdentification("999");
+        data.setPosition("Delantero");
+
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByIdentification("999")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        User saved = playerService.registerPlayer(data);
+        assertEquals("CAPITAN", saved.getRole());
+        assertTrue(saved instanceof StudentPlayer);
+    }
+
+    @Test
+    void registerPlayer_Referee_Success() {
+        PlayerRegistrationRequest data = new PlayerRegistrationRequest();
+        data.setUserType("REFEREE");
+        data.setName("Árbitro Nuevo");
+        data.setEmail("arb@test.com");
+        data.setPassword("12345678");
+        data.setIdentification("LIC-001");
+
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByIdentification("LIC-001")).thenReturn(false);
+        when(userRepository.existsByLicenseNumber("LIC-001")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(77L);
+            return u;
+        });
+
+        User saved = playerService.registerPlayer(data);
+        assertTrue(saved instanceof RefereeUser);
+        assertEquals("ARBITRO", saved.getRole());
+        assertEquals("LIC-001", saved.getIdentification());
+    }
+
+    @Test
+    void registerPlayer_ArbitroAlias_SameAsReferee() {
+        PlayerRegistrationRequest data = new PlayerRegistrationRequest();
+        data.setUserType("ARBITRO");
+        data.setName("Árbitro Dos");
+        data.setEmail("arb2@test.com");
+        data.setPassword("12345678");
+        data.setIdentification("LIC-002");
+
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByIdentification("LIC-002")).thenReturn(false);
+        when(userRepository.existsByLicenseNumber("LIC-002")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        User saved = playerService.registerPlayer(data);
+        assertTrue(saved instanceof RefereeUser);
     }
 
     @Test

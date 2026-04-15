@@ -1,0 +1,799 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  TechCup Fútbol — Simulación Completa de Partido (§6.1 – §6.12)        ║
+# ║  Entorno: seleccionar "local" en el selector de entorno de IntelliJ     ║
+# ║                                                                          ║
+# ║  PREREQUISITO: API corriendo en https://localhost:8443                  ║
+# ║  Ejecutar con "Run All Requests in File" (▶▶ en el margen izquierdo)    ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FASE 0 · AUTENTICACIÓN — Los tres actores del sistema obtienen su JWT
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ORGANIZADOR] Login — captura token en variable global org_token
+# Actor: Organizador del torneo. Puede crear torneos, aprobar pagos, inscribir equipos.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizador@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("org_token", response.body.token);
+  client.log("✔ org_token capturado: " + response.body.token.substring(0, 30) + "...");
+%}
+
+###
+
+### [ÁRBITRO] Login — captura token en variable global arb_token
+# Actor: Árbitro asignado al partido. Puede cambiar estado del partido y registrar eventos.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "arbitro@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("arb_token", response.body.token);
+  client.log("✔ arb_token capturado: " + response.body.token.substring(0, 30) + "...");
+%}
+
+###
+
+### [ADMIN] Login — captura token en variable global adm_token
+# Actor: Administrador / Capitán. Tiene todos los permisos (crea equipos, asigna jugadores, configura alineación).
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("adm_token", response.body.token);
+  client.log("✔ adm_token capturado: " + response.body.token.substring(0, 30) + "...");
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.1 TORNEO — ORGANIZADOR crea y activa el torneo
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ORGANIZADOR] §6.1.1 — Crear torneo (esperado: 201 Created)
+POST {{host}}/tournaments
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "startDate": "2026-05-01",
+  "endDate": "2026-06-30",
+  "teamCost": 50000,
+  "numberOfTeams": 8,
+  "rules": "Torneo E2E — HTTP Client IntelliJ IDEA"
+}
+
+###
+
+### [ORGANIZADOR] §6.1.2 — Listar torneos y capturar ID del recién creado
+# Este GET toma el último torneo de la lista (el que acabamos de crear).
+GET {{host}}/tournaments
+Authorization: Bearer {{org_token}}
+
+> {%
+  var tournaments = response.body;
+  var last = tournaments[tournaments.length - 1];
+  client.global.set("tournament_id", last.id.toString());
+  client.log("✔ tournament_id = " + last.id);
+%}
+
+###
+
+### [ORGANIZADOR] §6.1.3 — Activar el torneo (esperado: 200 OK)
+PATCH {{host}}/tournaments/{{tournament_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": "Activo"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.2 REGISTRO DE JUGADORES — 14 estudiantes (7 por Equipo A, 7 por Equipo B)
+#
+# Emails: @mail.escuelaing.edu.co  → dominio válido para STUDENT (Strategy pattern)
+# Programa: SISTEMAS               → cumple RN-03-4 (≥50% ingeniería)
+# Endpoint público — NO requiere token
+# ─────────────────────────────────────────────────────────────────────────────
+
+### §6.2.A1 — Registrar Jugador A1 (esperado: 201 Created)
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador A1","identification":"IDA001","email":"ja1@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":1,"position":"Delantero","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.A2 — Registrar Jugador A2
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador A2","identification":"IDA002","email":"ja2@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":2,"position":"Volante","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.A3 — Registrar Jugador A3
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador A3","identification":"IDA003","email":"ja3@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":3,"position":"Defensa","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.A4 — Registrar Jugador A4
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador A4","identification":"IDA004","email":"ja4@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":4,"position":"Defensa","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.A5 — Registrar Jugador A5
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador A5","identification":"IDA005","email":"ja5@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":5,"position":"Portero","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.A6 — Registrar Jugador A6
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador A6","identification":"IDA006","email":"ja6@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":6,"position":"Volante","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.A7 — Registrar Jugador A7
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador A7","identification":"IDA007","email":"ja7@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":7,"position":"Delantero","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.B1 — Registrar Jugador B1
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador B1","identification":"IDB001","email":"jb1@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":21,"position":"Delantero","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.B2 — Registrar Jugador B2
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador B2","identification":"IDB002","email":"jb2@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":22,"position":"Volante","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.B3 — Registrar Jugador B3
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador B3","identification":"IDB003","email":"jb3@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":23,"position":"Defensa","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.B4 — Registrar Jugador B4
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador B4","identification":"IDB004","email":"jb4@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":24,"position":"Defensa","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.B5 — Registrar Jugador B5
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador B5","identification":"IDB005","email":"jb5@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":25,"position":"Portero","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.B6 — Registrar Jugador B6
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador B6","identification":"IDB006","email":"jb6@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":26,"position":"Volante","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### §6.2.B7 — Registrar Jugador B7
+POST {{host}}/players/register
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="playerData"
+Content-Type: application/json
+
+{"name":"Jugador B7","identification":"IDB007","email":"jb7@mail.escuelaing.edu.co","password":"Pass1234*","userType":"STUDENT","jerseyNumber":27,"position":"Delantero","program":"SISTEMAS","semester":5}
+--WebAppBoundary--
+
+###
+
+### [ADMIN] §6.2 Capture — GET /players y capturar los 14 IDs por email (1 sola llamada)
+# Un único GET captura los IDs de todos los jugadores registrados arriba.
+# Los IDs se guardan en variables globales player_a1_id … player_b7_id.
+GET {{host}}/players
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var players = response.body;
+  var emailMap = {
+    "ja1@mail.escuelaing.edu.co": "player_a1_id",
+    "ja2@mail.escuelaing.edu.co": "player_a2_id",
+    "ja3@mail.escuelaing.edu.co": "player_a3_id",
+    "ja4@mail.escuelaing.edu.co": "player_a4_id",
+    "ja5@mail.escuelaing.edu.co": "player_a5_id",
+    "ja6@mail.escuelaing.edu.co": "player_a6_id",
+    "ja7@mail.escuelaing.edu.co": "player_a7_id",
+    "jb1@mail.escuelaing.edu.co": "player_b1_id",
+    "jb2@mail.escuelaing.edu.co": "player_b2_id",
+    "jb3@mail.escuelaing.edu.co": "player_b3_id",
+    "jb4@mail.escuelaing.edu.co": "player_b4_id",
+    "jb5@mail.escuelaing.edu.co": "player_b5_id",
+    "jb6@mail.escuelaing.edu.co": "player_b6_id",
+    "jb7@mail.escuelaing.edu.co": "player_b7_id"
+  };
+  var found = 0;
+  for (var i = 0; i < players.length; i++) {
+    var email = players[i].email;
+    if (emailMap.hasOwnProperty(email)) {
+      client.global.set(emailMap[email], players[i].id.toString());
+      client.log("✔ " + emailMap[email] + " = " + players[i].id);
+      found++;
+    }
+  }
+  client.log("IDs capturados: " + found + "/14");
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.3 EQUIPOS — ADMIN crea los dos equipos
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ADMIN] §6.3.1 — Crear Equipo A (esperado: 201 Created)
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo A HTTP",
+  "colors": "rojo/blanco"
+}
+
+###
+
+### [ADMIN] §6.3.2 — Listar equipos y capturar ID de Equipo A
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  var last = teams[teams.length - 1];
+  client.global.set("team_a_id", last.id.toString());
+  client.log("✔ team_a_id = " + last.id);
+%}
+
+###
+
+### [ADMIN] §6.3.3 — Crear Equipo B (esperado: 201 Created)
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo B HTTP",
+  "colors": "azul/amarillo"
+}
+
+###
+
+### [ADMIN] §6.3.4 — Listar equipos y capturar ID de Equipo B
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  var last = teams[teams.length - 1];
+  client.global.set("team_b_id", last.id.toString());
+  client.log("✔ team_b_id = " + last.id);
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FICHAJES — ADMIN asigna los 7 jugadores de cada equipo
+# Mecanismo: PATCH con action=ACCEPT (sin invitation previa, solo ADMIN puede)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ADMIN] Fichar A1 → Equipo A (esperado: 200 OK)
+PATCH {{host}}/players/{{player_a1_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar A2 → Equipo A
+PATCH {{host}}/players/{{player_a2_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar A3 → Equipo A
+PATCH {{host}}/players/{{player_a3_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar A4 → Equipo A
+PATCH {{host}}/players/{{player_a4_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar A5 → Equipo A
+PATCH {{host}}/players/{{player_a5_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar A6 → Equipo A
+PATCH {{host}}/players/{{player_a6_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar A7 → Equipo A
+PATCH {{host}}/players/{{player_a7_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar B1 → Equipo B
+PATCH {{host}}/players/{{player_b1_id}}/invitations/{{team_b_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar B2 → Equipo B
+PATCH {{host}}/players/{{player_b2_id}}/invitations/{{team_b_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar B3 → Equipo B
+PATCH {{host}}/players/{{player_b3_id}}/invitations/{{team_b_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar B4 → Equipo B
+PATCH {{host}}/players/{{player_b4_id}}/invitations/{{team_b_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar B5 → Equipo B
+PATCH {{host}}/players/{{player_b5_id}}/invitations/{{team_b_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar B6 → Equipo B
+PATCH {{host}}/players/{{player_b6_id}}/invitations/{{team_b_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+### [ADMIN] Fichar B7 → Equipo B
+PATCH {{host}}/players/{{player_b7_id}}/invitations/{{team_b_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{"action": "ACCEPT"}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.5 PAGOS — ADMIN sube comprobantes; ORGANIZADOR los aprueba
+# El archivo payment.jpg está en la misma carpeta api-tests/
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ADMIN] §6.5.1 — Subir comprobante de pago Equipo A (esperado: 201 Created)
+POST {{host}}/payments/upload
+Authorization: Bearer {{adm_token}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="teamId"
+
+{{team_a_id}}
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="payment.jpg"
+Content-Type: image/jpeg
+
+< ./payment.jpg
+--WebAppBoundary--
+
+> {%
+  var payId = response.body.data ? response.body.data.id : null;
+  if (payId) {
+    client.global.set("pay_a_id", payId.toString());
+    client.log("✔ pay_a_id = " + payId);
+  }
+%}
+
+###
+
+### [ADMIN] §6.5.2 — Subir comprobante de pago Equipo B (esperado: 201 Created)
+POST {{host}}/payments/upload
+Authorization: Bearer {{adm_token}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="teamId"
+
+{{team_b_id}}
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="payment.jpg"
+Content-Type: image/jpeg
+
+< ./payment.jpg
+--WebAppBoundary--
+
+> {%
+  var payId = response.body.data ? response.body.data.id : null;
+  if (payId) {
+    client.global.set("pay_b_id", payId.toString());
+    client.log("✔ pay_b_id = " + payId);
+  }
+%}
+
+###
+
+### [ORGANIZADOR] §6.5.3 — Aprobar pago Equipo A (esperado: 200 OK)
+PATCH {{host}}/payments/{{pay_a_id}}/approve
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "approvedBy": "Organizador QA"
+}
+
+###
+
+### [ORGANIZADOR] §6.5.4 — Aprobar pago Equipo B (esperado: 200 OK)
+PATCH {{host}}/payments/{{pay_b_id}}/approve
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "approvedBy": "Organizador QA"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.6 INSCRIPCIÓN — ORGANIZADOR registra los equipos en el torneo
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ORGANIZADOR] §6.6.1 — Inscribir Equipo A al torneo (esperado: 200 OK)
+POST {{host}}/tournaments/{{tournament_id}}/teams/{{team_a_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [ORGANIZADOR] §6.6.2 — Inscribir Equipo B al torneo (esperado: 200 OK)
+POST {{host}}/tournaments/{{tournament_id}}/teams/{{team_b_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.7 ALINEACIÓN — ADMIN configura los 7 titulares de cada equipo
+#
+# Regla RN-03-4: ≥50% deben ser de programas de ingeniería (SISTEMAS cuenta).
+# Validación: @Size(min=7) en LineupRequest → mínimo 7 titulares obligatorios.
+# Los IDs son las variables capturadas en §6.2.
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ADMIN] §6.7.1 — Configurar alineación Equipo A — formación 4-2-3 (esperado: 200 OK)
+PUT {{host}}/teams/{{team_a_id}}/lineup
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "startingPlayersIds": [{{player_a1_id}}, {{player_a2_id}}, {{player_a3_id}}, {{player_a4_id}}, {{player_a5_id}}, {{player_a6_id}}, {{player_a7_id}}],
+  "formation": "4-2-3",
+  "reservePlayerIds": []
+}
+
+###
+
+### [ADMIN] §6.7.2 — Configurar alineación Equipo B — formación 4-3-2 (esperado: 200 OK)
+PUT {{host}}/teams/{{team_b_id}}/lineup
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "startingPlayersIds": [{{player_b1_id}}, {{player_b2_id}}, {{player_b3_id}}, {{player_b4_id}}, {{player_b5_id}}, {{player_b6_id}}, {{player_b7_id}}],
+  "formation": "4-3-2",
+  "reservePlayerIds": []
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.4 PARTIDO — ORGANIZADOR crea el partido y asigna al árbitro
+# (En el documento §6.4 va antes de §6.7, pero el flujo real requiere equipos
+#  con planteles confirmados primero para poder configurar la alineación)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ORGANIZADOR] §6.4.1 — Crear partido Equipo A vs Equipo B (esperado: 201 Created)
+POST {{host}}/matches
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeTeamId": {{team_a_id}},
+  "awayTeamId": {{team_b_id}},
+  "matchDate": "2026-05-15T16:00:00",
+  "field": "Campo Principal",
+  "tournamentId": {{tournament_id}}
+}
+
+###
+
+### [ORGANIZADOR] §6.4.2 — Listar partidos y capturar ID del partido recién creado
+GET {{host}}/matches
+
+> {%
+  var matches = response.body;
+  var last = matches[matches.length - 1];
+  client.global.set("match_id", last.id.toString());
+  client.log("✔ match_id = " + last.id);
+%}
+
+###
+
+### [ADMIN] §6.4.3 — Listar árbitros y capturar ID del primer árbitro disponible
+GET {{host}}/referees
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var referees = response.body;
+  if (referees.length > 0) {
+    client.global.set("referee_id", referees[0].id.toString());
+    client.log("✔ referee_id = " + referees[0].id);
+  }
+%}
+
+###
+
+### [ORGANIZADOR] §6.4.4 — Asignar árbitro al partido (esperado: 200 OK)
+PATCH {{host}}/matches/{{match_id}}/referee
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "refereeId": {{referee_id}}
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.8 INICIO DEL PARTIDO — ÁRBITRO cambia el estado a "En Curso"
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ÁRBITRO] §6.8.1 — Partido → "En Curso" (esperado: 200 OK)
+# Estados válidos del motor: Programado → En Curso → Finalizado
+PATCH {{host}}/matches/{{match_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{arb_token}}
+
+{
+  "status": "En Curso"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.9 EVENTOS — ÁRBITRO registra los incidentes del partido
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ÁRBITRO] §6.9.1 — Registrar GOL de Jugador A1 en el minuto 42 (esperado: 201 Created)
+# Tipo: GOL | La variable {{player_a1_id}} es el goleador del Equipo A.
+POST {{host}}/matches/{{match_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{arb_token}}
+
+{
+  "playerId": {{player_a1_id}},
+  "type": "GOL",
+  "minute": 42
+}
+
+###
+
+### [ÁRBITRO] §6.9.2 — Partido → "Finalizado" (esperado: 200 OK)
+PATCH {{host}}/matches/{{match_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{arb_token}}
+
+{
+  "status": "Finalizado"
+}
+
+###
+
+### [ÁRBITRO] §6.9.3 — Registrar resultado 1-0 (Equipo A gana) (esperado: 200 OK)
+# RN-08-1: solo se puede registrar resultado cuando status = "Finalizado"
+# GAP-13: actualiza matchesWon/Lost, points (3/1/0), goalsFor/Against de ambos equipos
+PATCH {{host}}/matches/{{match_id}}/result
+Content-Type: application/json
+Authorization: Bearer {{arb_token}}
+
+{
+  "homeGoals": 1,
+  "awayGoals": 0
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.10 TABLA DE POSICIONES — Motor de estadísticas
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [PÚBLICO] §6.10 — Tabla de posiciones del torneo (esperado: 200 OK)
+# Resultado esperado:
+#   Equipo A HTTP → 4 pts  (3 victoria + 1 FairPlay RN-09-2, sin tarjetas)
+#   Equipo B HTTP → 1 pt   (0 derrota  + 1 FairPlay RN-09-2, sin tarjetas)
+GET {{host}}/tournaments/{{tournament_id}}/standings
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §6.12 ESTADÍSTICAS INDIVIDUALES — Detalle por equipo y goleadores
+# ─────────────────────────────────────────────────────────────────────────────
+
+### §6.12.1 — Stats Equipo A (ganador) (esperado: 200 OK)
+# Verificar: points=4, matchesWon=1, goalsFor=1, goalsAgainst=0
+GET {{host}}/stats/teams/{{team_a_id}}
+
+###
+
+### §6.12.2 — Stats Equipo B (perdedor) (esperado: 200 OK)
+# Verificar: points=1, matchesLost=1, goalsFor=0, goalsAgainst=1
+GET {{host}}/stats/teams/{{team_b_id}}
+
+###
+
+### §6.12.3 — Top goleadores del torneo (esperado: 200 OK)
+# Goleador esperado: Jugador A1 con 1 gol
+GET {{host}}/stats/tournaments/{{tournament_id}}/top-scorers
+
+###

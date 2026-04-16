@@ -1,0 +1,206 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  TechCup Fútbol — Autenticación (JWT nativo + Google OAuth2)           ║
+# ║  Entorno: seleccionar "local" en el selector de entorno de IntelliJ    ║
+# ║                                                                          ║
+# ║  PREREQUISITO: API corriendo en https://localhost:8443                  ║
+# ║  Ejecutar con "Run All Requests in File" (▶▶ en el margen izquierdo)   ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 1 · BÁSICO — Login exitoso de los tres actores del sistema
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [AUTH-01] ADMIN — Login exitoso (esperado: 200 OK + token)
+# Verifica que el sistema emite un JWT válido para el usuario ADMIN del seeder.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("adm_token", response.body.token);
+  client.log("✔ adm_token capturado: " + response.body.token.substring(0, 30) + "...");
+  client.log("  email en respuesta: " + response.body.email);
+%}
+
+###
+
+### [AUTH-02] ORGANIZADOR — Login exitoso (esperado: 200 OK + token)
+# Verifica que el sistema emite un JWT válido para el usuario ORGANIZADOR del seeder.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizador@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("org_token", response.body.token);
+  client.log("✔ org_token capturado: " + response.body.token.substring(0, 30) + "...");
+%}
+
+###
+
+### [AUTH-03] ÁRBITRO — Login exitoso (esperado: 200 OK + token)
+# Verifica que el sistema emite un JWT válido para el usuario ÁRBITRO del seeder.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "arbitro@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("arb_token", response.body.token);
+  client.log("✔ arb_token capturado: " + response.body.token.substring(0, 30) + "...");
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 2 · ERRORES DE VALIDACIÓN DE INPUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [AUTH-04] Login sin email (esperado: 400 Bad Request)
+# El campo email es obligatorio — la validación de Bean Validation debe fallar.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "password": "Admin123*"
+}
+
+###
+
+### [AUTH-05] Login sin password (esperado: 400 Bad Request)
+# El campo password es obligatorio — la validación de Bean Validation debe fallar.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co"
+}
+
+###
+
+### [AUTH-06] Login con ambos campos vacíos (esperado: 400 Bad Request)
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "",
+  "password": ""
+}
+
+###
+
+### [AUTH-07] Login con JSON malformado (esperado: 400 Bad Request)
+# HttpMessageNotReadableException — el body no es JSON válido.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ email: admin@techcup.edu.co, password: "Admin123*" }
+
+###
+
+### [AUTH-08] Google OAuth2 con idToken vacío (esperado: 400 / 401)
+# El token de Google no puede ser vacío ni nulo.
+POST {{host}}/auth/google
+Content-Type: application/json
+
+{
+  "idToken": ""
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 3 · ERRORES DE VALIDACIONES DE NEGOCIO
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [AUTH-09] Password incorrecto (esperado: 401 Unauthorized)
+# El email existe en la BD pero la contraseña no coincide con el hash BCrypt.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "ContraseñaIncorrecta123*"
+}
+
+###
+
+### [AUTH-10] Email no registrado (esperado: 401 Unauthorized)
+# El email no existe en la tabla users — CustomUserDetailsService lanza UsernameNotFoundException.
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "noexiste@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+###
+
+### [AUTH-11] Request protegido sin token (esperado: 403 Forbidden)
+# JwtAuthenticationFilter no encuentra el header Authorization — acceso denegado.
+GET {{host}}/players
+
+###
+
+### [AUTH-12] Request protegido con token malformado (esperado: 403 Forbidden)
+# isTokenValid() captura JwtException y retorna false — acceso denegado.
+GET {{host}}/players
+Authorization: Bearer esto.no.es.un.jwt.valido
+
+###
+
+### [AUTH-13] Request protegido con firma JWT inválida (esperado: 403 Forbidden)
+# Token con formato válido (3 partes Base64) pero firmado con clave diferente.
+GET {{host}}/players
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkB0ZWNoY3VwLmVkdS5jbyJ9.firma_invalida_aqui
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 4 · EVIDENCIA DE PERSISTENCIA CON LOGGING
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [AUTH-14] Verificar que adm_token es funcional — GET /players (esperado: 200 OK)
+# El JWT emitido en AUTH-01 debe permitir acceder a recursos protegidos.
+# Confirma que el usuario existe en BD y que CustomUserDetailsService lo carga correctamente.
+GET {{host}}/players
+Authorization: Bearer {{adm_token}}
+
+> {%
+  client.log("✔ adm_token válido — total jugadores en BD: " + response.body.length);
+%}
+
+###
+
+### [AUTH-15] Verificar que org_token es funcional — GET /tournaments (esperado: 200 OK)
+# El JWT del ORGANIZADOR debe permitir acceder a recursos públicos y protegidos.
+GET {{host}}/tournaments
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ org_token válido — total torneos en BD: " + response.body.length);
+%}
+
+###
+
+### [AUTH-16] Verificar que arb_token es funcional — GET /referees (esperado: 200 OK)
+# El JWT del ÁRBITRO debe ser válido para consultas de lectura.
+GET {{host}}/referees
+Authorization: Bearer {{arb_token}}
+
+> {%
+  client.log("✔ arb_token válido — total árbitros en BD: " + response.body.length);
+%}
+
+###

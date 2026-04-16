@@ -1,0 +1,867 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  TechCup Fútbol — Gestión de Equipos                                   ║
+# ║  Entorno: seleccionar "local" en el selector de entorno de IntelliJ    ║
+# ║                                                                          ║
+# ║  PREREQUISITO: API corriendo en https://localhost:8443                  ║
+# ║  Cubre: creación de equipo, invitaciones, respuesta a invitaciones,    ║
+# ║         configuración de alineación y eliminación de jugadores          ║
+# ║                                                                          ║
+# ║  Reglas clave:                                                           ║
+# ║    RN-03-4  >50% titulares deben ser de programas de ingeniería        ║
+# ║    RN-11-3  Aceptar invitación auto-rechaza las demás PENDING           ║
+# ║    Máximo 12 jugadores por equipo                                       ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP — Registrar jugadores y capturar tokens
+# 4 jugadores de ingeniería + 4 familiares (RELATIVE, sin programa)
+# + 1 jugador externo para probar error de alineación
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [SETUP-01] Login ADMIN
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("adm_token", response.body.token);
+  client.log("✔ adm_token capturado");
+%}
+
+###
+
+### [SETUP-02] Registrar CAPITÁN del Equipo A (CAPITAN, programa IA)
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Capitán Equipo A",
+  "identification": "2000200001",
+  "email": "capitan.equipoa@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "CAPITAN",
+  "position": "Volante",
+  "jerseyNumber": 10,
+  "gender": "M",
+  "age": 22,
+  "program": "IA"
+}
+
+###
+
+### [SETUP-03] Registrar jugador de ingeniería ENG-01 (SISTEMAS)
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Jugador Sistemas",
+  "identification": "2000200002",
+  "email": "jugador.sistemas@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Delantero",
+  "jerseyNumber": 9,
+  "gender": "M",
+  "age": 20,
+  "program": "SISTEMAS"
+}
+
+###
+
+### [SETUP-04] Registrar jugador de ingeniería ENG-02 (CIBERSEGURIDAD)
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Jugador Ciberseguridad",
+  "identification": "2000200003",
+  "email": "jugador.ciber@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Defensa",
+  "jerseyNumber": 4,
+  "gender": "F",
+  "age": 21,
+  "program": "CIBERSEGURIDAD"
+}
+
+###
+
+### [SETUP-05] Registrar jugador de ingeniería ENG-03 (ESTADISTICA)
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Jugador Estadistica",
+  "identification": "2000200004",
+  "email": "jugador.estadistica@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero",
+  "jerseyNumber": 1,
+  "gender": "M",
+  "age": 20,
+  "program": "ESTADISTICA"
+}
+
+###
+
+### [SETUP-06] Registrar familiar REL-01 (RELATIVE, sin programa de ingeniería)
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Familiar Uno",
+  "identification": "2000200005",
+  "email": "familiar.uno@gmail.com",
+  "password": "Techcup123*",
+  "userType": "RELATIVE",
+  "position": "Defensa",
+  "jerseyNumber": 5,
+  "gender": "M",
+  "age": 25
+}
+
+###
+
+### [SETUP-07] Registrar familiar REL-02
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Familiar Dos",
+  "identification": "2000200006",
+  "email": "familiar.dos@gmail.com",
+  "password": "Techcup123*",
+  "userType": "RELATIVE",
+  "position": "Defensa",
+  "jerseyNumber": 6,
+  "gender": "F",
+  "age": 26
+}
+
+###
+
+### [SETUP-08] Registrar familiar REL-03
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Familiar Tres",
+  "identification": "2000200007",
+  "email": "familiar.tres@gmail.com",
+  "password": "Techcup123*",
+  "userType": "RELATIVE",
+  "position": "Volante",
+  "jerseyNumber": 7,
+  "gender": "M",
+  "age": 27
+}
+
+###
+
+### [SETUP-09] Registrar familiar REL-04
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Familiar Cuatro",
+  "identification": "2000200008",
+  "email": "familiar.cuatro@gmail.com",
+  "password": "Techcup123*",
+  "userType": "RELATIVE",
+  "position": "Volante",
+  "jerseyNumber": 8,
+  "gender": "F",
+  "age": 28
+}
+
+###
+
+### [SETUP-10] Registrar jugador EXTERNO (no será invitado al equipo)
+# Usado para probar error: jugador fuera de la plantilla en la alineación
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Jugador Externo",
+  "identification": "2000200009",
+  "email": "jugador.externo@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Delantero",
+  "jerseyNumber": 11,
+  "gender": "M",
+  "age": 22,
+  "program": "SISTEMAS"
+}
+
+###
+
+### [SETUP-11] Login CAPITÁN para operaciones del equipo
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "capitan.equipoa@mail.escuelaing.edu.co",
+  "password": "Techcup123*"
+}
+
+> {%
+  client.global.set("cap_a_token", response.body.token);
+  client.log("✔ cap_a_token capturado");
+%}
+
+###
+
+### [SETUP-12] GET /players — capturar IDs de los jugadores del setup
+GET {{host}}/players
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var players = response.body;
+  var emailMap = {
+    "capitan.equipoa@mail.escuelaing.edu.co":    "cap_a_id",
+    "jugador.sistemas@mail.escuelaing.edu.co":   "eng_01_id",
+    "jugador.ciber@mail.escuelaing.edu.co":      "eng_02_id",
+    "jugador.estadistica@mail.escuelaing.edu.co":"eng_03_id",
+    "familiar.uno@gmail.com":                    "rel_01_id",
+    "familiar.dos@gmail.com":                    "rel_02_id",
+    "familiar.tres@gmail.com":                   "rel_03_id",
+    "familiar.cuatro@gmail.com":                 "rel_04_id",
+    "jugador.externo@mail.escuelaing.edu.co":    "ext_id"
+  };
+  for (var i = 0; i < players.length; i++) {
+    var email = players[i].email;
+    if (emailMap.hasOwnProperty(email)) {
+      client.global.set(emailMap[email], players[i].id.toString());
+      client.log("✔ " + emailMap[email] + " = " + players[i].id);
+    }
+  }
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 1 · BÁSICO — Crear equipo, enviar invitaciones y configurar alineación
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [EQ-01] Crear Equipo A (esperado: 201 Created)
+# data devuelve un String ("Equipo creado correctamente"), no el objeto — el ID se captura en EQ-02
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "name": "Equipo A",
+  "colors": "Azul y Blanco"
+}
+
+###
+
+### [EQ-02] GET /teams — confirmar creación y capturar team_a_id (esperado: 200 OK)
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  client.log("✔ Total equipos en BD: " + teams.length);
+  for (var i = 0; i < teams.length; i++) {
+    if (teams[i].name === "Equipo A") {
+      client.global.set("team_a_id", teams[i].id.toString());
+      client.log("✔ team_a_id = " + teams[i].id);
+    }
+  }
+%}
+
+###
+
+### [EQ-03] Invitar CAPITÁN al equipo (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{cap_a_id}}
+}
+
+###
+
+### [EQ-04] Invitar ENG-01 al equipo (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{eng_01_id}}
+}
+
+###
+
+### [EQ-05] Invitar ENG-02 al equipo (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{eng_02_id}}
+}
+
+###
+
+### [EQ-06] Invitar ENG-03 al equipo (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{eng_03_id}}
+}
+
+###
+
+### [EQ-07] Invitar REL-01 al equipo (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{rel_01_id}}
+}
+
+###
+
+### [EQ-08] Invitar REL-02 al equipo (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{rel_02_id}}
+}
+
+###
+
+### [EQ-09] Invitar REL-03 al equipo (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{rel_03_id}}
+}
+
+###
+
+### [EQ-10] Invitar REL-04 al equipo (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{rel_04_id}}
+}
+
+###
+
+### [EQ-11] CAPITÁN acepta invitación (esperado: 200 OK)
+# Usa endpoint con playerId + teamId — no requiere capturar invitationId
+PATCH {{host}}/players/{{cap_a_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "action": "ACCEPTED"
+}
+
+###
+
+### [EQ-12] ENG-01 acepta invitación (esperado: 200 OK)
+PATCH {{host}}/players/{{eng_01_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "action": "ACCEPTED"
+}
+
+###
+
+### [EQ-13] ENG-02 acepta invitación (esperado: 200 OK)
+PATCH {{host}}/players/{{eng_02_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "action": "ACCEPTED"
+}
+
+###
+
+### [EQ-14] ENG-03 acepta invitación (esperado: 200 OK)
+PATCH {{host}}/players/{{eng_03_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "action": "ACCEPTED"
+}
+
+###
+
+### [EQ-15] REL-01 acepta invitación (esperado: 200 OK)
+PATCH {{host}}/players/{{rel_01_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "action": "ACCEPTED"
+}
+
+###
+
+### [EQ-16] REL-02 acepta invitación (esperado: 200 OK)
+PATCH {{host}}/players/{{rel_02_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "action": "ACCEPTED"
+}
+
+###
+
+### [EQ-17] REL-03 acepta invitación (esperado: 200 OK)
+PATCH {{host}}/players/{{rel_03_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "action": "ACCEPTED"
+}
+
+###
+
+### [EQ-18] REL-04 rechaza invitación (esperado: 200 OK)
+# Probar flujo de rechazo explícito — REL-04 no se une al equipo
+PATCH {{host}}/players/{{rel_04_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "action": "REJECTED"
+}
+
+###
+
+### [EQ-19] Configurar alineación válida — 7 titulares con >50% ingeniería (esperado: 200 OK)
+# Titulares: cap_a(IA) + eng_01(SISTEMAS) + eng_02(CIBERSEGURIDAD) + eng_03(ESTADISTICA)
+#            + rel_01 + rel_02 + rel_03 = 4 ingeniería / 7 = 57% ✓ (RN-03-4 OK)
+# Suplente: rel_04 rechazó invitación → no está en plantilla → usamos rel_03 como suplente
+# Nota: en este contexto probamos solo titulares para mantener el test simple
+PUT {{host}}/teams/{{team_a_id}}/lineup
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "startingPlayersIds": [
+    {{cap_a_id}},
+    {{eng_01_id}},
+    {{eng_02_id}},
+    {{eng_03_id}},
+    {{rel_01_id}},
+    {{rel_02_id}},
+    {{rel_03_id}}
+  ],
+  "formation": "4-2-1",
+  "reservePlayerIds": []
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 2 · ERRORES DE VALIDACIÓN DE INPUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [EQ-20] Crear equipo sin name (esperado: 400 Bad Request)
+# @NotBlank(message = "Ingrese nombre del equipo")
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "colors": "Rojo y Negro"
+}
+
+###
+
+### [EQ-21] Crear equipo sin colors (esperado: 400 Bad Request)
+# @NotBlank(message = "Se deben especificar los colores del equipo.")
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "name": "Equipo Sin Colores"
+}
+
+###
+
+### [EQ-22] Alineación con menos de 7 titulares (esperado: 400 Bad Request)
+# @Size(min=7) en startingPlayersIds — solo 4 titulares enviados
+PUT {{host}}/teams/{{team_a_id}}/lineup
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "startingPlayersIds": [
+    {{cap_a_id}},
+    {{eng_01_id}},
+    {{eng_02_id}},
+    {{eng_03_id}}
+  ],
+  "formation": "4-2-1",
+  "reservePlayerIds": []
+}
+
+###
+
+### [EQ-23] Alineación con más de 11 titulares (esperado: 400 Bad Request)
+# @Size(max=11) en startingPlayersIds
+PUT {{host}}/teams/{{team_a_id}}/lineup
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "startingPlayersIds": [
+    {{cap_a_id}},
+    {{eng_01_id}},
+    {{eng_02_id}},
+    {{eng_03_id}},
+    {{rel_01_id}},
+    {{rel_02_id}},
+    {{rel_03_id}},
+    {{cap_a_id}},
+    {{eng_01_id}},
+    {{eng_02_id}},
+    {{eng_03_id}},
+    {{rel_01_id}}
+  ],
+  "formation": "4-2-1",
+  "reservePlayerIds": []
+}
+
+###
+
+### [EQ-24] Alineación sin formation (esperado: 400 Bad Request)
+# @NotBlank en formation
+PUT {{host}}/teams/{{team_a_id}}/lineup
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "startingPlayersIds": [
+    {{cap_a_id}},
+    {{eng_01_id}},
+    {{eng_02_id}},
+    {{eng_03_id}},
+    {{rel_01_id}},
+    {{rel_02_id}},
+    {{rel_03_id}}
+  ],
+  "reservePlayerIds": []
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 3 · ERRORES DE VALIDACIONES DE NEGOCIO
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [EQ-25] Invitar a jugador que ya tiene equipo (esperado: 409 Conflict)
+# ENG-01 ya aceptó la invitación y tiene equipo → "El jugador ya pertenece a un equipo."
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{eng_01_id}}
+}
+
+###
+
+### [EQ-26] Invitar a jugador con invitación PENDING ya existente (esperado: 409 Conflict)
+# Enviar invitación duplicada al mismo jugador sin que haya respondido
+# Registrar un jugador nuevo y enviarle invitación dos veces
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Jugador Duplicado",
+  "identification": "2000200010",
+  "email": "jugador.duplicado@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero",
+  "age": 21,
+  "program": "SISTEMAS"
+}
+
+###
+
+### [EQ-26b] Capturar ID del jugador duplicado
+GET {{host}}/players
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var players = response.body;
+  for (var i = 0; i < players.length; i++) {
+    if (players[i].email === "jugador.duplicado@mail.escuelaing.edu.co") {
+      client.global.set("dup_id", players[i].id.toString());
+      client.log("✔ dup_id = " + players[i].id);
+    }
+  }
+%}
+
+###
+
+### [EQ-26c] Primera invitación al jugador duplicado (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{dup_id}}
+}
+
+###
+
+### [EQ-26d] Segunda invitación al mismo jugador PENDING (esperado: 409 Conflict)
+# "Ya existe una invitación pendiente para este jugador de este equipo."
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{dup_id}}
+}
+
+###
+
+### [EQ-27] Alineación con jugador fuera de la plantilla (esperado: 409 Conflict)
+# ext_id no fue invitado al equipo → "El jugador con ID X no pertenece a la plantilla de este equipo."
+PUT {{host}}/teams/{{team_a_id}}/lineup
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "startingPlayersIds": [
+    {{cap_a_id}},
+    {{eng_01_id}},
+    {{eng_02_id}},
+    {{eng_03_id}},
+    {{rel_01_id}},
+    {{rel_02_id}},
+    {{ext_id}}
+  ],
+  "formation": "4-2-1",
+  "reservePlayerIds": []
+}
+
+###
+
+### [EQ-28] Alineación que viola RN-03-4 — menos del 50% de ingeniería (esperado: 409 Conflict)
+# Titulares: cap_a(IA) + eng_01(SISTEMAS) + rel_01 + rel_02 + rel_03 + eng_02 + eng_03
+# Usando solo 2 de ingeniería y 5 no-ingeniería: 2/7 = 29% < 50% ✗
+# NOTA: requiere que rel_02 y rel_03 estén en la plantilla (ya aceptaron → sí están)
+PUT {{host}}/teams/{{team_a_id}}/lineup
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "startingPlayersIds": [
+    {{cap_a_id}},
+    {{eng_01_id}},
+    {{rel_01_id}},
+    {{rel_02_id}},
+    {{rel_03_id}},
+    {{rel_03_id}},
+    {{rel_02_id}}
+  ],
+  "formation": "4-2-1",
+  "reservePlayerIds": []
+}
+
+###
+
+### [EQ-29] Eliminar jugador inexistente del equipo (esperado: 404 Not Found)
+DELETE {{host}}/teams/{{team_a_id}}/players/999999
+Authorization: Bearer {{cap_a_token}}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RN-11-3 · EVIDENCIA: Aceptar invitación auto-rechaza las demás PENDING
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [EQ-30] Registrar jugador para probar RN-11-3
+# Este jugador recibirá invitaciones de dos equipos distintos
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Jugador Multi Invitacion",
+  "identification": "2000200011",
+  "email": "jugador.multi@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Delantero",
+  "age": 22,
+  "program": "SISTEMAS"
+}
+
+###
+
+### [EQ-31] Crear Equipo B para RN-11-3
+# data devuelve un String ("Equipo creado correctamente"), no el objeto — el ID se captura en EQ-31b
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo B",
+  "colors": "Rojo y Negro"
+}
+
+###
+
+### [EQ-31b] GET /teams — capturar team_b_id buscando por nombre (esperado: 200 OK)
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  for (var i = 0; i < teams.length; i++) {
+    if (teams[i].name === "Equipo B") {
+      client.global.set("team_b_id", teams[i].id.toString());
+      client.log("✔ team_b_id = " + teams[i].id);
+    }
+  }
+%}
+
+###
+
+### [EQ-32] Capturar ID del jugador multi-invitación
+GET {{host}}/players
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var players = response.body;
+  for (var i = 0; i < players.length; i++) {
+    if (players[i].email === "jugador.multi@mail.escuelaing.edu.co") {
+      client.global.set("multi_id", players[i].id.toString());
+      client.log("✔ multi_id = " + players[i].id);
+    }
+  }
+%}
+
+###
+
+### [EQ-33] Equipo A invita al jugador multi (esperado: 200 OK)
+POST {{host}}/teams/{{team_a_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{cap_a_token}}
+
+{
+  "playerId": {{multi_id}}
+}
+
+###
+
+### [EQ-34] Equipo B invita al mismo jugador multi (esperado: 200 OK)
+# Jugador tiene ahora 2 invitaciones PENDING (Equipo A y Equipo B)
+POST {{host}}/teams/{{team_b_id}}/invitations
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "playerId": {{multi_id}}
+}
+
+###
+
+### [EQ-35] Jugador acepta invitación del Equipo A (esperado: 200 OK)
+# RN-11-3: al aceptar esta invitación, la de Equipo B debe quedar REJECTED automáticamente
+PATCH {{host}}/players/{{multi_id}}/invitations/{{team_a_id}}
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "action": "ACCEPTED"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 4 · EVIDENCIA DE PERSISTENCIA CON LOGGING
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [EQ-36] GET /teams/{id} — verificar datos del equipo (esperado: 200 OK)
+GET {{host}}/teams/{{team_a_id}}
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var t = response.body;
+  client.log("✔ Equipo persistido:");
+  client.log("  id:     " + t.id);
+  client.log("  name:   " + t.name);
+  client.log("  colors: " + t.colors);
+%}
+
+###
+
+### [EQ-37] GET /teams/{id}/players — verificar jugadores que aceptaron (esperado: 200 OK)
+# Deben aparecer: cap_a, eng_01, eng_02, eng_03, rel_01, rel_02, rel_03, multi
+# NO deben aparecer: rel_04 (rechazó) ni ext (nunca fue invitado)
+GET {{host}}/teams/{{team_a_id}}/players
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var players = response.body;
+  client.log("✔ Jugadores en Equipo A: " + players.length + " (esperado: 8)");
+  for (var i = 0; i < players.length; i++) {
+    client.log("  - " + players[i].fullName + " (" + players[i].email + ")");
+  }
+%}
+
+###
+
+### [EQ-38] GET /teams/{id}/lineup — verificar alineación guardada (esperado: 200 OK)
+# Confirma que los 7 titulares y la formación quedaron persistidos
+GET {{host}}/teams/{{team_a_id}}/lineup
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var l = response.body.data;
+  client.log("✔ Alineación persistida:");
+  client.log("  formation:       " + l.formation);
+  client.log("  titulares:       " + (l.startingPlayersIds ? l.startingPlayersIds.length : 0));
+  client.log("  suplentes:       " + (l.reservePlayerIds ? l.reservePlayerIds.length : 0));
+%}
+
+###
+
+### [EQ-39] GET /players/available — jugadores sin equipo (esperado: 200 OK)
+# rel_04 (rechazó invitación) y ext (nunca invitado) deben aparecer aquí
+GET {{host}}/players/available
+Authorization: Bearer {{adm_token}}
+
+> {%
+  client.log("✔ Jugadores disponibles (sin equipo): " + response.body.length);
+%}
+
+###

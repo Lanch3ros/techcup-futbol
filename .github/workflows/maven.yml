@@ -2,9 +2,9 @@ name: CI – TechCup Fútbol
 
 on:
   push:
-    branches: [ "main", "feat/**" ]
+    branches: [ "main", "develop", "feat/**" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 jobs:
   build-and-test:
@@ -36,9 +36,41 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Ejecutar tests
+      - name: Ejecutar tests y generar reporte JaCoCo
         env:
           DB_URL: ${{ secrets.DB_URL }}
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        run: mvn clean test
+        run: mvn clean test jacoco:report
+
+      - name: Publicar reporte JaCoCo como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+          retention-days: 7
+
+  docker-build-push:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Login al Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build y push de imagen Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/techcup-backend:${{ github.sha }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/techcup-backend:latest

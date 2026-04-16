@@ -11,6 +11,31 @@ services:
     volumes:
       - techcup_data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - techcup-network
+
+  app:
+    build: .
+    container_name: techcup-app
+    depends_on:
+      - postgres
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/techcup
+      DB_USERNAME: ${DB_USERNAME:-techcup}
+      DB_PASSWORD: ${DB_PASSWORD:-techcup}
+      JWT_SECRET: ${JWT_SECRET:-dGVjaGN1cC1mdXRib2wtc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQ=}
+      SSL_KEY_STORE_PASSWORD: ${SSL_KEY_STORE_PASSWORD:-techcup123}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-dev-client-id}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-dev-client-secret}
+    ports:
+      - "8443:8443"
+    restart: unless-stopped
+    networks:
+      - techcup-network
+
+networks:
+  techcup-network:
+    driver: bridge
 
 volumes:
   techcup_data:

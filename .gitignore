@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Variables de entorno locales (NUNCA SUBIR AL REPO)
+.env
+
 # Maven
 target/
 

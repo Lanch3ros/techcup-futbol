@@ -29,9 +29,11 @@ jobs:
 
       - name: Health check PROD
         run: |
-          echo "Esperando 30s para que el servicio reinicie..."
-          sleep 30
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://techcup-backend-prod-1.azurewebsites.net/swagger-ui.html)
+          echo "Esperando 90s para que el servicio reinicie..."
+          sleep 90
+          STATUS=$(curl --retry 5 --retry-delay 15 --retry-connrefused \
+            -s -o /dev/null -w "%{http_code}" \
+            https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net/swagger-ui.html)
           echo "HTTP status: $STATUS"
           if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 500 ]; then
             echo "Health check fallido con status $STATUS"

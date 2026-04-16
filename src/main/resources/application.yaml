@@ -1,0 +1,55 @@
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: classpath:keystore.p12
+    key-store-password: ${SSL_KEY_STORE_PASSWORD:techcup123}
+    key-store-type: PKCS12
+    key-alias: techcup
+
+logging:
+  level:
+    root: INFO
+    com.example: DEBUG
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/techcup}
+    username: ${DB_USERNAME:techcup}
+    password: ${DB_PASSWORD:techcup}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dev-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dev-client-secret}
+            scope: openid, email, profile
+
+  jackson:
+    mapper:
+      accept-case-insensitive-enums: true
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+app:
+  uploads:
+    dir: uploads
+  jwt:
+    # Clave secreta en Base64 (≥256 bits). Sobreescribir con variable JWT_SECRET en producción.
+    secret: ${JWT_SECRET:dGVjaGN1cC1mdXRib2wtc2VjcmV0LWtleS1mb3ItZGV2ZWxvcG1lbnQ=}
+    expiration-ms: 3600000    # 1 hora

@@ -1,0 +1,15 @@
+package com.example.repository;
+
+import com.example.core.model.Payment;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+    Optional<Payment> findFirstByTeamId(Long teamId);
+
+    Optional<Payment> findFirstByTeamIdAndStatusIgnoreCase(Long teamId, String status);
+}

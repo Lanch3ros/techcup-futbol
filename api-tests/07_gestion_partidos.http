@@ -1,0 +1,658 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  TechCup Fútbol — Gestión de Partidos                                  ║
+# ║  Entorno: seleccionar "local" en el selector de entorno de IntelliJ    ║
+# ║                                                                          ║
+# ║  PREREQUISITO: API corriendo en https://localhost:8443                  ║
+# ║                                                                          ║
+# ║  Ciclo de vida del partido:                                             ║
+# ║    Programado → En Curso → Finalizado                                  ║
+# ║                                                                          ║
+# ║  Tipos de evento válidos: GOL | AMARILLA | ROJA  (mayúsculas exactas)  ║
+# ║                                                                          ║
+# ║  NOTA: MatchController captura todas las excepciones con catch genérico ║
+# ║  y devuelve 400 (no 409) incluso para errores de reglas de negocio.    ║
+# ║  Resultado solo registrable en estado "Finalizado" (RN-08-1).          ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP — Tokens + equipos + jugador + árbitro
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [SETUP-01] Login ORGANIZADOR
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizador@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("org_token", response.body.token);
+  client.log("✔ org_token capturado");
+%}
+
+###
+
+### [SETUP-02] Login ADMIN
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("adm_token", response.body.token);
+  client.log("✔ adm_token capturado");
+%}
+
+###
+
+### [SETUP-03] Registrar jugador de prueba (para usar como autor de eventos)
+# Si ya existe, el 409 es esperado — continuar al siguiente request
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Jugador Partidos Test",
+  "identification": "5000500001",
+  "email": "jugador.partidos@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Delantero",
+  "age": 21,
+  "program": "SISTEMAS"
+}
+
+###
+
+### [SETUP-04] Crear Equipo Partido A
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Partido A",
+  "colors": "Azul y Blanco"
+}
+
+###
+
+### [SETUP-05] Crear Equipo Partido B
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Partido B",
+  "colors": "Rojo y Negro"
+}
+
+###
+
+### [SETUP-06] GET /teams — capturar IDs de los equipos de partidos
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  for (var i = 0; i < teams.length; i++) {
+    if (teams[i].name === "Equipo Partido A") {
+      client.global.set("team_pa_id", teams[i].id.toString());
+      client.log("✔ team_pa_id = " + teams[i].id);
+    }
+    if (teams[i].name === "Equipo Partido B") {
+      client.global.set("team_pb_id", teams[i].id.toString());
+      client.log("✔ team_pb_id = " + teams[i].id);
+    }
+  }
+%}
+
+###
+
+### [SETUP-07] GET /players — capturar ID del jugador de prueba
+GET {{host}}/players
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var players = response.body;
+  for (var i = 0; i < players.length; i++) {
+    if (players[i].email === "jugador.partidos@mail.escuelaing.edu.co") {
+      client.global.set("player_match_id", players[i].id.toString());
+      client.log("✔ player_match_id = " + players[i].id);
+    }
+  }
+%}
+
+###
+
+### [SETUP-08] GET /referees — capturar ID del árbitro del seeder
+GET {{host}}/referees
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var referees = response.body;
+  for (var i = 0; i < referees.length; i++) {
+    if (referees[i].email === "arbitro@techcup.edu.co") {
+      client.global.set("referee_id", referees[i].id.toString());
+      client.log("✔ referee_id = " + referees[i].id);
+    }
+  }
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 1 · BÁSICO — Ciclo completo de un partido
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [MAT-01] POST /matches — crear partido (esperado: 201 Created)
+# data = objeto Match completo → response.body.data.id es el ID del partido
+# Estado inicial: "Programado"
+POST {{host}}/matches
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeTeamId": {{team_pa_id}},
+  "awayTeamId": {{team_pb_id}},
+  "matchDate": "2026-06-15T15:00:00",
+  "field": "Cancha Principal"
+}
+
+> {%
+  client.global.set("match_id", response.body.data.id.toString());
+  client.log("✔ match_id = " + response.body.data.id);
+  client.log("  status inicial: " + response.body.data.status + " (esperado: Programado)");
+  client.log("  field:          " + response.body.data.field);
+%}
+
+###
+
+### [MAT-02] GET /matches — confirmar partido en lista (esperado: 200 OK)
+# GET /matches devuelve List<Match> directamente (sin wrapper GenericResponse)
+GET {{host}}/matches
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Total partidos en BD: " + response.body.length);
+%}
+
+###
+
+### [MAT-03] GET /matches/{id} — verificar estado inicial (esperado: 200 OK)
+# Devuelve Match directamente (sin wrapper)
+GET {{host}}/matches/{{match_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var m = response.body;
+  client.log("✔ Partido encontrado:");
+  client.log("  id:         " + m.id);
+  client.log("  status:     " + m.status + " (esperado: Programado)");
+  client.log("  homeGoals:  " + m.homeGoals);
+  client.log("  awayGoals:  " + m.awayGoals);
+%}
+
+###
+
+### [MAT-04] PATCH /matches/{id}/referee — asignar árbitro (esperado: 200 OK)
+# Payload: { "refereeId": Long } — el árbitro debe existir en tabla referees
+PATCH {{host}}/matches/{{match_id}}/referee
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "refereeId": {{referee_id}}
+}
+
+###
+
+### [MAT-05] GET /matches/{id} — confirmar árbitro asignado (esperado: 200 OK)
+GET {{host}}/matches/{{match_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Árbitro del partido: " + response.body.referee);
+%}
+
+###
+
+### [MAT-06] PATCH /matches/{id}/status → "En Curso" (esperado: 200 OK)
+# Transición: Programado → En Curso
+# IMPORTANTE: el string exacto es "En Curso" (no "En progreso")
+PATCH {{host}}/matches/{{match_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": "En Curso"
+}
+
+###
+
+### [MAT-07] GET /matches/{id} — confirmar estado "En Curso" (esperado: 200 OK)
+GET {{host}}/matches/{{match_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Estado tras inicio: " + response.body.status + " (esperado: En Curso)");
+%}
+
+###
+
+### [MAT-08] POST /matches/{id}/events — registrar GOL (esperado: 201 Created)
+# data = objeto MatchEvent completo → response.body.data.id
+# Tipos válidos: GOL | AMARILLA | ROJA (mayúsculas exactas — patrón en MatchEventRequest)
+POST {{host}}/matches/{{match_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerId": {{player_match_id}},
+  "playerName": "Jugador Partidos Test",
+  "type": "GOL",
+  "minute": 23
+}
+
+> {%
+  client.global.set("event_gol_id", response.body.data.id.toString());
+  client.log("✔ event_gol_id = " + response.body.data.id);
+  client.log("  type:   " + response.body.data.type);
+  client.log("  minute: " + response.body.data.minute);
+%}
+
+###
+
+### [MAT-09] POST /matches/{id}/events — registrar AMARILLA (esperado: 201 Created)
+POST {{host}}/matches/{{match_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerId": {{player_match_id}},
+  "playerName": "Jugador Partidos Test",
+  "type": "AMARILLA",
+  "minute": 45
+}
+
+###
+
+### [MAT-10] POST /matches/{id}/events — registrar ROJA (esperado: 201 Created)
+POST {{host}}/matches/{{match_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerId": {{player_match_id}},
+  "playerName": "Jugador Partidos Test",
+  "type": "ROJA",
+  "minute": 67
+}
+
+###
+
+### [MAT-11] GET /matches/{id}/events — confirmar 3 eventos registrados (esperado: 200 OK)
+# Devuelve List<MatchEvent> directamente (sin wrapper)
+GET {{host}}/matches/{{match_id}}/events
+Authorization: Bearer {{org_token}}
+
+> {%
+  var events = response.body;
+  client.log("✔ Total eventos registrados: " + events.length + " (esperado: 3)");
+  for (var i = 0; i < events.length; i++) {
+    client.log("  [" + events[i].id + "] tipo=" + events[i].type + " min=" + events[i].minute + " jugadorId=" + events[i].playerId);
+  }
+%}
+
+###
+
+### [MAT-12] PATCH /matches/{id}/status → "Finalizado" (esperado: 200 OK)
+# Transición: En Curso → Finalizado
+PATCH {{host}}/matches/{{match_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": "Finalizado"
+}
+
+###
+
+### [MAT-13] GET /matches/{id} — confirmar estado "Finalizado" (esperado: 200 OK)
+GET {{host}}/matches/{{match_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Estado tras finalizar: " + response.body.status + " (esperado: Finalizado)");
+%}
+
+###
+
+### [MAT-14] PATCH /matches/{id}/result — registrar marcador (esperado: 200 OK)
+# RN-08-1: solo registrable cuando status == "Finalizado"
+# GAP-13: updateMatchStatus actualiza stats de ambos equipos (3/1/0 pts)
+PATCH {{host}}/matches/{{match_id}}/result
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeGoals": 2,
+  "awayGoals": 1
+}
+
+###
+
+### [MAT-15] GET /matches/{id} — confirmar marcador final (esperado: 200 OK)
+GET {{host}}/matches/{{match_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var m = response.body;
+  client.log("✔ Marcador final:");
+  client.log("  homeGoals: " + m.homeGoals + " (esperado: 2)");
+  client.log("  awayGoals: " + m.awayGoals + " (esperado: 1)");
+  client.log("  status:    " + m.status + " (esperado: Finalizado)");
+%}
+
+###
+
+### [MAT-16] GET /matches/{id}/lineups — consultar alineaciones (esperado: 200 OK)
+# Devuelve GenericResponse("Alineaciones", match.getLineups())
+# lineups es @Transient — estará vacío si no se configuró alineación en PUT /teams/{id}/lineup
+GET {{host}}/matches/{{match_id}}/lineups
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Alineaciones: " + JSON.stringify(response.body.data));
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 2 · ERRORES DE VALIDACIÓN DE INPUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [MAT-17] POST /matches sin homeTeamId (esperado: 400 Bad Request)
+# @NotNull(message = "El equipo local es obligatorio")
+POST {{host}}/matches
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "awayTeamId": {{team_pb_id}},
+  "matchDate": "2026-07-01T15:00:00",
+  "field": "Cancha B"
+}
+
+###
+
+### [MAT-18] POST /matches sin matchDate (esperado: 400 Bad Request)
+# @NotNull(message = "La fecha del partido es obligatoria")
+POST {{host}}/matches
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeTeamId": {{team_pa_id}},
+  "awayTeamId": {{team_pb_id}},
+  "field": "Cancha B"
+}
+
+###
+
+### [MAT-19] PATCH /matches/{id}/status con status vacío (esperado: 400 Bad Request)
+# El controller verifica null/blank antes de llamar al servicio
+PATCH {{host}}/matches/{{match_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": ""
+}
+
+###
+
+### [MAT-20] POST /matches/{id}/events sin playerId (esperado: 400 Bad Request)
+# @NotNull(message = "El ID del jugador es obligatorio")
+POST {{host}}/matches/{{match_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerName": "Test",
+  "type": "GOL",
+  "minute": 10
+}
+
+###
+
+### [MAT-21] POST /matches/{id}/events con type vacío (esperado: 400 Bad Request)
+# @NotBlank(message = "El tipo de evento es obligatorio")
+POST {{host}}/matches/{{match_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerId": {{player_match_id}},
+  "type": "",
+  "minute": 10
+}
+
+###
+
+### [MAT-22] POST /matches/{id}/events con type inválido (esperado: 400 Bad Request)
+# @Pattern(regexp = "^(GOL|AMARILLA|ROJA)$") — "Gol" en minúsculas falla
+POST {{host}}/matches/{{match_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerId": {{player_match_id}},
+  "type": "Gol",
+  "minute": 10
+}
+
+###
+
+### [MAT-23] PATCH /matches/{id}/result sin homeGoals (esperado: 400 Bad Request)
+# @NotNull(message = "Los goles del equipo local son obligatorios")
+PATCH {{host}}/matches/{{match_id}}/result
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "awayGoals": 1
+}
+
+###
+
+### [MAT-24] PATCH /matches/{id}/referee sin refereeId (esperado: 400 Bad Request)
+# El controller verifica null explícitamente antes de llamar al servicio
+PATCH {{host}}/matches/{{match_id}}/referee
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 3 · ERRORES DE VALIDACIONES DE NEGOCIO
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [MAT-25] Crear segundo partido para tests de errores de negocio (esperado: 201 Created)
+# Este partido permanece en "Programado" — sirve para validar RN-08-1
+POST {{host}}/matches
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeTeamId": {{team_pa_id}},
+  "awayTeamId": {{team_pb_id}},
+  "matchDate": "2026-07-20T16:00:00",
+  "field": "Cancha Error"
+}
+
+> {%
+  client.global.set("match_err_id", response.body.data.id.toString());
+  client.log("✔ match_err_id = " + response.body.data.id + " (status: Programado)");
+%}
+
+###
+
+### [MAT-26] PATCH /result en partido "Programado" (esperado: 400 Bad Request)
+# RN-08-1: registerResult() lanza BusinessRuleException si status ≠ "Finalizado"
+# El controller captura la excepción → 400
+PATCH {{host}}/matches/{{match_err_id}}/result
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeGoals": 3,
+  "awayGoals": 0
+}
+
+###
+
+### [MAT-27] PATCH /status con valor inválido "En progreso" (esperado: 400 Bad Request)
+# updateMatchStatus() valida contra List.of("Programado", "En Curso", "Finalizado")
+# "En progreso" no está en la lista → BusinessRuleException → controller → 400
+PATCH {{host}}/matches/{{match_err_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": "En progreso"
+}
+
+###
+
+### [MAT-28] POST /matches con homeTeamId == awayTeamId (esperado: 400 Bad Request)
+# createMatch() lanza BusinessRuleException "Un equipo no puede jugar contra sí mismo"
+# El controller lo captura → 400
+POST {{host}}/matches
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeTeamId": {{team_pa_id}},
+  "awayTeamId": {{team_pa_id}},
+  "matchDate": "2026-08-01T10:00:00",
+  "field": "Cancha X"
+}
+
+###
+
+### [MAT-29] PATCH /matches/{id}/referee con árbitro inexistente (esperado: 400 Bad Request)
+# assignReferee() lanza ResourceNotFoundException → controller captura → 400
+PATCH {{host}}/matches/{{match_err_id}}/referee
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "refereeId": 999999
+}
+
+###
+
+### [MAT-30] GET /matches/999999 — ID inexistente (esperado: 404 Not Found)
+# El controller captura la excepción y retorna notFound().build()
+GET {{host}}/matches/999999
+Authorization: Bearer {{org_token}}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 4 · EVIDENCIA DE PERSISTENCIA CON LOGGING
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [MAT-31] Verificar estado final del partido — GET /matches/{id} (esperado: 200 OK)
+# Confirma que el ciclo Programado → En Curso → Finalizado y el marcador quedaron guardados
+GET {{host}}/matches/{{match_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var m = response.body;
+  client.log("✔ Partido persistido correctamente:");
+  client.log("  id:         " + m.id);
+  client.log("  status:     " + m.status      + " (esperado: Finalizado)");
+  client.log("  homeGoals:  " + m.homeGoals   + " (esperado: 2)");
+  client.log("  awayGoals:  " + m.awayGoals   + " (esperado: 1)");
+  client.log("  referee:    " + m.referee);
+  client.log("  matchDate:  " + m.matchDate);
+  client.log("  field:      " + m.field);
+%}
+
+###
+
+### [MAT-32] Verificar eventos persistidos — GET /matches/{id}/events (esperado: 200 OK)
+# Confirma que los 3 eventos (GOL + AMARILLA + ROJA) quedaron guardados en match_events
+GET {{host}}/matches/{{match_id}}/events
+Authorization: Bearer {{org_token}}
+
+> {%
+  var events = response.body;
+  client.log("✔ Eventos persistidos: " + events.length + " (esperado: 3)");
+  for (var i = 0; i < events.length; i++) {
+    client.log("  [" + events[i].id + "] type=" + events[i].type
+      + " min=" + events[i].minute
+      + " matchId=" + events[i].matchId
+      + " playerId=" + events[i].playerId);
+  }
+%}
+
+###
+
+### [MAT-33] Verificar stats del equipo local tras resultado — GET /stats/teams/{id} (esperado: 200 OK)
+# GAP-13: registerResult() actualiza matchesPlayed, goalsFor, goalsAgainst, points
+# Equipo A ganó 2-1 → debería tener: points=3, matchesPlayed=1, goalsFor=2, goalsAgainst=1
+GET {{host}}/stats/teams/{{team_pa_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var s = response.body;
+  client.log("✔ Stats Equipo Partido A (ganó 2-1):");
+  client.log("  matchesPlayed: " + s.matchesPlayed + " (esperado: ≥1)");
+  client.log("  matchesWon:    " + s.matchesWon    + " (esperado: ≥1)");
+  client.log("  points:        " + s.points        + " (esperado: ≥3)");
+  client.log("  goalsFor:      " + s.goalsFor      + " (esperado: ≥2)");
+  client.log("  goalsAgainst:  " + s.goalsAgainst  + " (esperado: ≥1)");
+%}
+
+###
+
+### [MAT-34] Verificar stats del equipo visitante — GET /stats/teams/{id} (esperado: 200 OK)
+# Equipo B perdió 1-2 → points=0, matchesPlayed=1, goalsFor=1, goalsAgainst=2
+GET {{host}}/stats/teams/{{team_pb_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var s = response.body;
+  client.log("✔ Stats Equipo Partido B (perdió 1-2):");
+  client.log("  matchesPlayed: " + s.matchesPlayed + " (esperado: ≥1)");
+  client.log("  matchesLost:   " + s.matchesLost   + " (esperado: ≥1)");
+  client.log("  points:        " + s.points        + " (esperado: 0)");
+  client.log("  goalsFor:      " + s.goalsFor      + " (esperado: ≥1)");
+  client.log("  goalsAgainst:  " + s.goalsAgainst  + " (esperado: ≥2)");
+%}
+
+###
+
+### [MAT-35] Verificar listado global de partidos — GET /matches (esperado: 200 OK)
+# Confirma que ambos partidos (match_id y match_err_id) existen en BD
+GET {{host}}/matches
+Authorization: Bearer {{org_token}}
+
+> {%
+  var matches = response.body;
+  client.log("✔ Total partidos en BD: " + matches.length);
+  for (var i = 0; i < matches.length; i++) {
+    client.log("  [" + matches[i].id + "] status=" + matches[i].status
+      + " " + matches[i].homeGoals + "-" + matches[i].awayGoals);
+  }
+%}
+
+###

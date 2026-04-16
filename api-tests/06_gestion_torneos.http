@@ -1,0 +1,625 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  TechCup Fútbol — Gestión de Torneos                                   ║
+# ║  Entorno: seleccionar "local" en el selector de entorno de IntelliJ    ║
+# ║                                                                          ║
+# ║  PREREQUISITO: API corriendo en https://localhost:8443                  ║
+# ║                Archivo payment.jpg presente en api-tests/               ║
+# ║                                                                          ║
+# ║  Ciclo de vida del torneo:                                              ║
+# ║    Borrador → Activo → En progreso → Finalizado                        ║
+# ║                                                                          ║
+# ║  Reglas clave:                                                           ║
+# ║    Inscripción solo en estado "Activo"                                  ║
+# ║    Generación de partidos requiere "En progreso"                        ║
+# ║    Cuartos de final requieren ≥8 equipos registrados                   ║
+# ║    Brackets: 1v8, 2v7, 3v6, 4v5 por puntos → dif. goles → goles       ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP — Tokens + 2 equipos con pagos aprobados
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [SETUP-01] Login ORGANIZADOR
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizador@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("org_token", response.body.token);
+  client.log("✔ org_token capturado");
+%}
+
+###
+
+### [SETUP-02] Login ADMIN
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("adm_token", response.body.token);
+  client.log("✔ adm_token capturado");
+%}
+
+###
+
+### [SETUP-03] Registrar capitán del Equipo T1
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Capitán Torneo Uno",
+  "identification": "4000400001",
+  "email": "capitan.torneo1@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "CAPITAN",
+  "position": "Volante",
+  "age": 22,
+  "program": "SISTEMAS"
+}
+
+###
+
+### [SETUP-04] Registrar capitán del Equipo T2
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Capitán Torneo Dos",
+  "identification": "4000400002",
+  "email": "capitan.torneo2@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "CAPITAN",
+  "position": "Volante",
+  "age": 22,
+  "program": "IA"
+}
+
+###
+
+### [SETUP-05] Crear Equipo T1
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Torneo 1",
+  "colors": "Azul y Blanco"
+}
+
+###
+
+### [SETUP-06] Crear Equipo T2
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Torneo 2",
+  "colors": "Rojo y Negro"
+}
+
+###
+
+### [SETUP-07] Crear Equipo T3 — sin pago aprobado (para probar error de inscripción)
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Sin Pago Torneo",
+  "colors": "Gris y Blanco"
+}
+
+###
+
+### [SETUP-08] GET /teams — capturar IDs de los tres equipos
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  for (var i = 0; i < teams.length; i++) {
+    if (teams[i].name === "Equipo Torneo 1") {
+      client.global.set("team_t1_id", teams[i].id.toString());
+      client.log("✔ team_t1_id = " + teams[i].id);
+    }
+    if (teams[i].name === "Equipo Torneo 2") {
+      client.global.set("team_t2_id", teams[i].id.toString());
+      client.log("✔ team_t2_id = " + teams[i].id);
+    }
+    if (teams[i].name === "Equipo Sin Pago Torneo") {
+      client.global.set("team_t3_id", teams[i].id.toString());
+      client.log("✔ team_t3_id = " + teams[i].id);
+    }
+  }
+%}
+
+###
+
+### [SETUP-09] Registrar pago para Equipo T1 (JSON)
+POST {{host}}/payments
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "teamId": {{team_t1_id}},
+  "receiptUrl": "https://storage.example.com/torneo-t1.jpg"
+}
+
+> {%
+  client.global.set("pay_t1_id", response.body.data.id.toString());
+  client.log("✔ pay_t1_id = " + response.body.data.id);
+%}
+
+###
+
+### [SETUP-10] Enviar pago T1 a revisión
+PATCH {{host}}/payments/{{pay_t1_id}}/review
+Authorization: Bearer {{adm_token}}
+
+###
+
+### [SETUP-11] Aprobar pago T1
+PATCH {{host}}/payments/{{pay_t1_id}}/approve
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "approvedBy": "organizador@techcup.edu.co"
+}
+
+###
+
+### [SETUP-12] Registrar pago para Equipo T2
+POST {{host}}/payments
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "teamId": {{team_t2_id}},
+  "receiptUrl": "https://storage.example.com/torneo-t2.jpg"
+}
+
+> {%
+  client.global.set("pay_t2_id", response.body.data.id.toString());
+  client.log("✔ pay_t2_id = " + response.body.data.id);
+%}
+
+###
+
+### [SETUP-13] Enviar pago T2 a revisión
+PATCH {{host}}/payments/{{pay_t2_id}}/review
+Authorization: Bearer {{adm_token}}
+
+###
+
+### [SETUP-14] Aprobar pago T2
+PATCH {{host}}/payments/{{pay_t2_id}}/approve
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "approvedBy": "organizador@techcup.edu.co"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 1 · BÁSICO — Ciclo completo del torneo
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [TOR-01] Crear torneo (esperado: 201 Created)
+# data = String "Torneo creado correctamente en estado Borrador" — ID se captura en TOR-02
+POST {{host}}/tournaments
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "startDate": "2026-05-01",
+  "endDate": "2026-12-31",
+  "teamCost": 50000,
+  "numberOfTeams": 4,
+  "rules": "Torneo de prueba Sprint 5. Fase de grupos round-robin. Máximo 4 equipos."
+}
+
+###
+
+### [TOR-02] GET /tournaments — confirmar creación y capturar tournament_id (esperado: 200 OK)
+GET {{host}}/tournaments
+Authorization: Bearer {{org_token}}
+
+> {%
+  var tournaments = response.body;
+  client.log("✔ Total torneos en BD: " + tournaments.length);
+  for (var i = 0; i < tournaments.length; i++) {
+    if (tournaments[i].regulations && tournaments[i].regulations.indexOf("Sprint 5") !== -1) {
+      client.global.set("tournament_id", tournaments[i].id.toString());
+      client.log("✔ tournament_id = " + tournaments[i].id);
+      client.log("  status inicial: " + tournaments[i].status);
+    }
+  }
+%}
+
+###
+
+### [TOR-03] GET /tournaments/{id} — verificar datos del torneo (esperado: 200 OK)
+GET {{host}}/tournaments/{{tournament_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var t = response.body;
+  client.log("✔ Torneo encontrado:");
+  client.log("  id:            " + t.id);
+  client.log("  status:        " + t.status);
+  client.log("  maxTeams:      " + t.maxTeams);
+  client.log("  teamCost:      " + t.teamCost);
+%}
+
+###
+
+### [TOR-04] PATCH /tournaments/{id}/status → "Activo" (esperado: 200 OK)
+# El torneo se crea en "Borrador" — hay que activarlo antes de inscribir equipos
+PATCH {{host}}/tournaments/{{tournament_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": "Activo"
+}
+
+###
+
+### [TOR-05] Inscribir Equipo T1 al torneo (esperado: 200 OK)
+# T1 tiene pago aprobado — la inscripción debe ser exitosa
+POST {{host}}/tournaments/{{tournament_id}}/teams/{{team_t1_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-06] Inscribir Equipo T2 al torneo (esperado: 200 OK)
+POST {{host}}/tournaments/{{tournament_id}}/teams/{{team_t2_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-07] GET /tournaments/{id}/teams — verificar equipos inscritos (esperado: 200 OK)
+GET {{host}}/tournaments/{{tournament_id}}/teams
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Equipos inscritos: " + response.body.length + " (esperado: 2)");
+  for (var i = 0; i < response.body.length; i++) {
+    client.log("  - " + response.body[i].name);
+  }
+%}
+
+###
+
+### [TOR-08] POST /tournaments/{id}/start → "En progreso" (esperado: 200 OK)
+POST {{host}}/tournaments/{{tournament_id}}/start
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-09] GET /tournaments/{id} — confirmar estado "En progreso" (esperado: 200 OK)
+GET {{host}}/tournaments/{{tournament_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Estado tras start: " + response.body.status + " (esperado: En progreso)");
+%}
+
+###
+
+### [TOR-10] POST /tournaments/{id}/generate-matches — generar fixture (esperado: 200 OK)
+# Con 2 equipos: genera 1 partido round-robin
+POST {{host}}/tournaments/{{tournament_id}}/generate-matches
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Resultado generación: " + response.body.data);
+%}
+
+###
+
+### [TOR-11] GET /tournaments/{id}/standings — tabla de posiciones inicial (esperado: 200 OK)
+# Todos los equipos en 0 puntos al inicio
+GET {{host}}/tournaments/{{tournament_id}}/standings
+Authorization: Bearer {{org_token}}
+
+> {%
+  var standings = response.body;
+  client.log("✔ Tabla de posiciones (" + standings.length + " equipos):");
+  for (var i = 0; i < standings.length; i++) {
+    var s = standings[i];
+    client.log("  " + (i+1) + ". " + s.teamName + " — pts: " + s.points);
+  }
+%}
+
+###
+
+### [TOR-12] GET /tournaments/{id}/bracket — ver llaves (esperado: 200 OK)
+GET {{host}}/tournaments/{{tournament_id}}/bracket
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Partidos en bracket: " + (response.body.data ? response.body.data.length : 0));
+%}
+
+###
+
+### [TOR-13] GET /tournaments/{id}/rules — consultar reglamento (esperado: 200 OK)
+GET {{host}}/tournaments/{{tournament_id}}/rules
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Reglamento: " + response.body.data);
+%}
+
+###
+
+### [TOR-14] POST /tournaments/{id}/finish → "Finalizado" (esperado: 200 OK)
+POST {{host}}/tournaments/{{tournament_id}}/finish
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-15] GET /tournaments/{id} — confirmar estado "Finalizado" (esperado: 200 OK)
+GET {{host}}/tournaments/{{tournament_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Estado tras finish: " + response.body.status + " (esperado: Finalizado)");
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 2 · ERRORES DE VALIDACIÓN DE INPUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [TOR-16] Crear torneo sin startDate (esperado: 400 Bad Request)
+# @NotNull(message = "La fecha de inicio es obligatoria")
+POST {{host}}/tournaments
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "endDate": "2027-06-30",
+  "teamCost": 50000,
+  "numberOfTeams": 4,
+  "rules": "Test sin fecha inicio"
+}
+
+###
+
+### [TOR-17] Crear torneo sin rules (esperado: 400 Bad Request)
+# @NotBlank(message = "Rules cannot be empty")
+POST {{host}}/tournaments
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "startDate": "2026-05-01",
+  "endDate": "2027-06-30",
+  "teamCost": 50000,
+  "numberOfTeams": 4
+}
+
+###
+
+### [TOR-18] Crear torneo con numberOfTeams menor a 2 (esperado: 400 Bad Request)
+# @Min(value = 2, message = "Debe haber al menos 2 equipos para realizar un torneo")
+POST {{host}}/tournaments
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "startDate": "2026-05-01",
+  "endDate": "2027-06-30",
+  "teamCost": 50000,
+  "numberOfTeams": 1,
+  "rules": "Test con 1 equipo"
+}
+
+###
+
+### [TOR-19] PATCH /status con campo status vacío (esperado: 400 Bad Request)
+# El controller verifica null/blank explícitamente
+PATCH {{host}}/tournaments/{{tournament_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": ""
+}
+
+###
+
+### [TOR-20] Crear torneo con endDate en el pasado (esperado: 400 Bad Request)
+# @Future(message = "End date must be in the future")
+POST {{host}}/tournaments
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "startDate": "2026-05-01",
+  "endDate": "2020-01-01",
+  "teamCost": 50000,
+  "numberOfTeams": 4,
+  "rules": "Test fecha pasada"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 3 · ERRORES DE VALIDACIONES DE NEGOCIO
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [TOR-21] Inscribir equipo en torneo "Finalizado" (esperado: 400 Bad Request)
+# tournament_id está en estado "Finalizado" → solo acepta inscripciones en "Activo"
+POST {{host}}/tournaments/{{tournament_id}}/teams/{{team_t1_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-22] Inscribir equipo sin pago aprobado (esperado: 400 Bad Request)
+# Crear un segundo torneo activo para probar esta regla de negocio
+POST {{host}}/tournaments
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "startDate": "2026-06-01",
+  "endDate": "2026-12-31",
+  "teamCost": 50000,
+  "numberOfTeams": 4,
+  "rules": "Torneo para prueba de errores de negocio Sprint 5"
+}
+
+###
+
+### [TOR-22b] GET /tournaments — capturar ID del segundo torneo
+GET {{host}}/tournaments
+Authorization: Bearer {{org_token}}
+
+> {%
+  var tournaments = response.body;
+  for (var i = 0; i < tournaments.length; i++) {
+    if (tournaments[i].regulations && tournaments[i].regulations.indexOf("prueba de errores") !== -1) {
+      client.global.set("tournament_err_id", tournaments[i].id.toString());
+      client.log("✔ tournament_err_id = " + tournaments[i].id);
+    }
+  }
+%}
+
+###
+
+### [TOR-22c] Activar el segundo torneo
+PATCH {{host}}/tournaments/{{tournament_err_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": "Activo"
+}
+
+###
+
+### [TOR-22d] Intentar inscribir Equipo T3 (sin pago aprobado) (esperado: 400 Bad Request)
+# team_t3_id no tiene pago → TournamentService lanza BusinessRuleException
+POST {{host}}/tournaments/{{tournament_err_id}}/teams/{{team_t3_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-23] Inscribir el mismo equipo dos veces (esperado: 400 Bad Request)
+# Primero inscribir T1 correctamente
+POST {{host}}/tournaments/{{tournament_err_id}}/teams/{{team_t1_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-23b] Intentar inscribir T1 por segunda vez (esperado: 400 Bad Request)
+# "El equipo ya está registrado en este torneo"
+POST {{host}}/tournaments/{{tournament_err_id}}/teams/{{team_t1_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-24] Generar partidos sin iniciar el torneo (esperado: 400 Bad Request)
+# El torneo está en "Activo", no en "En progreso" → BusinessRuleException
+POST {{host}}/tournaments/{{tournament_err_id}}/generate-matches
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-25] Generar cuartos de final con menos de 8 equipos (esperado: 400 Bad Request)
+# Solo hay 1 equipo inscrito en tournament_err_id → mínimo 8 requeridos
+POST {{host}}/tournaments/{{tournament_err_id}}/generate-quarter-finals
+Authorization: Bearer {{org_token}}
+
+###
+
+### [TOR-26] GET /tournaments/{id} con ID inexistente (esperado: 404 Not Found)
+GET {{host}}/tournaments/999999
+Authorization: Bearer {{org_token}}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 4 · EVIDENCIA DE PERSISTENCIA CON LOGGING
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [TOR-27] Verificar estado final del torneo principal (esperado: 200 OK)
+# Confirma que el ciclo Borrador → Activo → En progreso → Finalizado quedó guardado
+GET {{host}}/tournaments/{{tournament_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var t = response.body;
+  client.log("✔ Torneo principal persistido:");
+  client.log("  id:         " + t.id);
+  client.log("  status:     " + t.status + " (esperado: Finalizado)");
+  client.log("  startDate:  " + t.startDate);
+  client.log("  endDate:    " + t.endDate);
+  client.log("  teamCost:   " + t.teamCost);
+%}
+
+###
+
+### [TOR-28] Verificar equipos inscritos persisten tras finalizar el torneo (esperado: 200 OK)
+GET {{host}}/tournaments/{{tournament_id}}/teams
+Authorization: Bearer {{org_token}}
+
+> {%
+  var teams = response.body;
+  client.log("✔ Equipos inscritos persistidos: " + teams.length + " (esperado: 2)");
+  for (var i = 0; i < teams.length; i++) {
+    client.log("  - " + teams[i].name);
+  }
+%}
+
+###
+
+### [TOR-29] Verificar tabla de posiciones final (esperado: 200 OK)
+# Sin partidos jugados: todos los equipos en 0 puntos
+GET {{host}}/tournaments/{{tournament_id}}/standings
+Authorization: Bearer {{org_token}}
+
+> {%
+  var s = response.body;
+  client.log("✔ Tabla de posiciones final:");
+  for (var i = 0; i < s.length; i++) {
+    client.log("  " + (i+1) + ". " + s[i].teamName
+      + " pts=" + s[i].points
+      + " PJ=" + s[i].matchesPlayed
+      + " GF=" + s[i].goalsFor
+      + " GC=" + s[i].goalsAgainst);
+  }
+%}
+
+###
+
+### [TOR-30] Verificar listado global de torneos (esperado: 200 OK)
+GET {{host}}/tournaments
+Authorization: Bearer {{org_token}}
+
+> {%
+  var tournaments = response.body;
+  client.log("✔ Total torneos en BD: " + tournaments.length);
+  for (var i = 0; i < tournaments.length; i++) {
+    client.log("  [" + tournaments[i].id + "] " + tournaments[i].status + " — equipos: " + tournaments[i].maxTeams);
+  }
+%}
+
+###

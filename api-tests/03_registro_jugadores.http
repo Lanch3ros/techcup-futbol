@@ -1,0 +1,521 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  TechCup Fútbol — Registro de Jugadores y Árbitros                     ║
+# ║  Entorno: seleccionar "local" en el selector de entorno de IntelliJ    ║
+# ║                                                                          ║
+# ║  PREREQUISITO: API corriendo en https://localhost:8443                  ║
+# ║  Tipos cubiertos: STUDENT, CAPTAIN, TEACHER, GRADUATE, RELATIVE        ║
+# ║  Dominios válidos:                                                       ║
+# ║    STUDENT / CAPTAIN  → @mail.escuelaing.edu.co                        ║
+# ║    TEACHER / STAFF    → @escuelaing.edu.co                             ║
+# ║    RELATIVE           → @gmail.com                                     ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP — Login para capturar tokens de administración
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [SETUP] Login ADMIN
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("adm_token", response.body.token);
+  client.log("✔ adm_token capturado");
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 1 · BÁSICO — Registro exitoso de cada tipo de usuario
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [REG-01] Registrar STUDENT (esperado: 201 Created)
+# Patrón Factory Method: PlayerFactory → StudentPlayerFactory
+# Email válido: @mail.escuelaing.edu.co
+# Program de ingeniería: SISTEMAS
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Carlos Estudiante",
+  "identification": "1000100001",
+  "email": "carlos.estudiante@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Delantero",
+  "jerseyNumber": 9,
+  "gender": "M",
+  "age": 21,
+  "semester": 6,
+  "program": "SISTEMAS"
+}
+
+###
+
+### [REG-02] Registrar CAPTAIN (esperado: 201 Created)
+# userType=CAPITAN → normaliza a STUDENT + securityRole=CAPITAN
+# El normalizador acepta también CAPTAIN y CAPTAN
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Ana Capitana",
+  "identification": "1000100002",
+  "email": "ana.capitana@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "CAPITAN",
+  "position": "Volante",
+  "jerseyNumber": 10,
+  "gender": "F",
+  "age": 22,
+  "semester": 7,
+  "program": "IA"
+}
+
+###
+
+### [REG-03] Registrar TEACHER (esperado: 201 Created)
+# Patrón Factory Method: PlayerFactory → TeacherPlayerFactory
+# Email válido: @escuelaing.edu.co (dominio de staff/docentes)
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Luis Profesor",
+  "identification": "1000100003",
+  "email": "luis.profesor@escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "TEACHER",
+  "position": "Defensa",
+  "jerseyNumber": 4,
+  "gender": "M",
+  "age": 35
+}
+
+###
+
+### [REG-04] Registrar GRADUATE (esperado: 201 Created)
+# Patrón Factory Method: PlayerFactory → GraduatePlayerFactory
+# Email válido: @mail.escuelaing.edu.co
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Sofía Egresada",
+  "identification": "1000100004",
+  "email": "sofia.egresada@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "GRADUATE",
+  "position": "Portero",
+  "jerseyNumber": 1,
+  "gender": "F",
+  "age": 28,
+  "program": "CIBERSEGURIDAD"
+}
+
+###
+
+### [REG-05] Registrar RELATIVE (esperado: 201 Created)
+# Patrón Factory Method: PlayerFactory → RelativePlayerFactory
+# Email válido: @gmail.com — el único tipo que usa GmailValidator
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Pedro Familiar",
+  "identification": "1000100005",
+  "email": "pedro.familiar@gmail.com",
+  "password": "Techcup123*",
+  "userType": "RELATIVE",
+  "position": "Defensa",
+  "jerseyNumber": 5,
+  "gender": "M",
+  "age": 30
+}
+
+###
+
+### [REG-06] Registrar usando firstName + lastName en lugar de name (esperado: 201 Created)
+# El normalizador deriva name = firstName + " " + lastName cuando name está ausente.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "firstName": "Miguel",
+  "lastName": "Volante",
+  "identification": "1000100006",
+  "email": "miguel.volante@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "volante",
+  "jerseyNumber": 8,
+  "gender": "M",
+  "age": 20,
+  "program": "ESTADISTICA"
+}
+
+###
+
+### [REG-07] Registrar sin jerseyNumber (esperado: 201 Created — default 10)
+# El normalizador asigna jerseyNumber=10 si viene null.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Laura Sin Dorsal",
+  "identification": "1000100007",
+  "email": "laura.sindorsal@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero",
+  "gender": "F",
+  "age": 19,
+  "program": "IA"
+}
+
+###
+
+### [REG-08] Registrar árbitro vía POST /referees (esperado: 201 Created)
+# Ruta independiente: no usa Factory ni EmailValidator.
+# Crea RefereeUser con role=ARBITRO y discriminador REFEREE.
+POST {{host}}/referees
+Content-Type: application/json
+
+{
+  "fullName": "Roberto Árbitro",
+  "email": "roberto.arbitro@gmail.com",
+  "password": "Techcup123*",
+  "licenseNumber": "LIC-REG-001",
+  "certificationLevel": "A",
+  "experienceYears": 5
+}
+
+###
+
+### [REG-09] GET /players — capturar IDs de todos los jugadores registrados
+# Response handler mapea email → variable global para uso en archivos posteriores.
+GET {{host}}/players
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var players = response.body;
+  client.log("Total jugadores en BD: " + players.length);
+  var emailMap = {
+    "carlos.estudiante@mail.escuelaing.edu.co": "student_id",
+    "ana.capitana@mail.escuelaing.edu.co":      "captain_id",
+    "luis.profesor@escuelaing.edu.co":          "teacher_id",
+    "sofia.egresada@mail.escuelaing.edu.co":    "graduate_id",
+    "pedro.familiar@gmail.com":                 "relative_id",
+    "miguel.volante@mail.escuelaing.edu.co":    "volante_id",
+    "laura.sindorsal@mail.escuelaing.edu.co":   "sindorsal_id"
+  };
+  for (var i = 0; i < players.length; i++) {
+    var email = players[i].email;
+    if (emailMap.hasOwnProperty(email)) {
+      client.global.set(emailMap[email], players[i].id.toString());
+      client.log("✔ " + emailMap[email] + " = " + players[i].id);
+    }
+  }
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 2 · ERRORES DE VALIDACIÓN DE INPUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [REG-10] Sin name ni firstName/lastName (esperado: 400 Bad Request)
+# @AssertTrue isNameProvided() falla: se requiere name O (firstName + lastName).
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "identification": "9000000001",
+  "email": "sinnombre@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero"
+}
+
+###
+
+### [REG-11] Email con formato inválido (esperado: 400 Bad Request)
+# @Email de Bean Validation rechaza el formato antes de llegar a EmailValidator.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Test Formato",
+  "identification": "9000000002",
+  "email": "no-es-un-email",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero"
+}
+
+###
+
+### [REG-12] Position con valor fuera del patrón (esperado: 400 Bad Request)
+# @Pattern(regexp="(?i)^(Portero|Defensa|Volante|Delantero)$") rechaza el valor.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Test Posicion",
+  "identification": "9000000003",
+  "email": "test.posicion@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Mediocampista"
+}
+
+###
+
+### [REG-13] Sin userType (esperado: 400 Bad Request)
+# @NotBlank en userType — el normalizador nunca llega a ejecutarse.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Test Sin Tipo",
+  "identification": "9000000004",
+  "email": "test.sintipo@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "position": "Portero"
+}
+
+###
+
+### [REG-14] Password menor a 8 caracteres (esperado: 400 Bad Request)
+# @Size(min=8) en password.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Test Password",
+  "identification": "9000000005",
+  "email": "test.password@mail.escuelaing.edu.co",
+  "password": "corta",
+  "userType": "STUDENT",
+  "position": "Portero"
+}
+
+###
+
+### [REG-15] Árbitro sin licenseNumber (esperado: 400 Bad Request)
+# @NotBlank en licenseNumber del RefereeRequest.
+POST {{host}}/referees
+Content-Type: application/json
+
+{
+  "fullName": "Árbitro Sin Licencia",
+  "email": "sinlicencia@gmail.com",
+  "password": "Techcup123*"
+}
+
+###
+
+### [REG-16] jerseyNumber fuera de rango (esperado: 400 Bad Request)
+# @Min(1) @Max(99) en jerseyNumber.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Test Dorsal",
+  "identification": "9000000006",
+  "email": "test.dorsal@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero",
+  "jerseyNumber": 150
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 3 · ERRORES DE VALIDACIONES DE NEGOCIO
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [REG-17] Email ya registrado (esperado: 409 Conflict)
+# existsByEmail() devuelve true → BusinessRuleException "El correo '...' ya está registrado."
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Duplicado Email",
+  "identification": "9000000010",
+  "email": "carlos.estudiante@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero"
+}
+
+###
+
+### [REG-18] Identificación ya registrada (esperado: 409 Conflict)
+# existsByIdentification() devuelve true → BusinessRuleException "La identificación '...' ya está registrada."
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Duplicado Cedula",
+  "identification": "1000100001",
+  "email": "nuevo.unico@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero"
+}
+
+###
+
+### [REG-19] STUDENT con email de dominio incorrecto (esperado: 400 Bad Request)
+# StudentEmailValidator requiere @mail.escuelaing.edu.co — Gmail no es válido.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Estudiante Gmail",
+  "identification": "9000000011",
+  "email": "estudiante.gmail@gmail.com",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero"
+}
+
+###
+
+### [REG-20] TEACHER con email de dominio de estudiante (esperado: 400 Bad Request)
+# StaffEmailValidator requiere @escuelaing.edu.co — @mail.escuelaing.edu.co no es válido.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Profesor Mail Incorrecto",
+  "identification": "9000000012",
+  "email": "profesor.mail@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "TEACHER",
+  "position": "Portero"
+}
+
+###
+
+### [REG-21] RELATIVE con email institucional (esperado: 400 Bad Request)
+# GmailValidator requiere @gmail.com — email institucional no es válido para familiares.
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Familiar Email Incorrecto",
+  "identification": "9000000013",
+  "email": "familiar.inst@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "RELATIVE",
+  "position": "Portero"
+}
+
+###
+
+### [REG-22] Árbitro con licencia duplicada (esperado: 409 Conflict)
+# existsByLicenseNumber() devuelve true → BusinessRuleException
+POST {{host}}/referees
+Content-Type: application/json
+
+{
+  "fullName": "Árbitro Licencia Duplicada",
+  "email": "arbitro.duplicado@gmail.com",
+  "password": "Techcup123*",
+  "licenseNumber": "LIC-REG-001"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 4 · EVIDENCIA DE PERSISTENCIA CON LOGGING
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [REG-23] Verificar perfil de STUDENT — GET /players/{id} (esperado: 200 OK)
+# Confirma que name, email, userType, position, jerseyNumber y program quedaron guardados.
+GET {{host}}/players/{{student_id}}
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ STUDENT persistido:");
+  client.log("  id:          " + p.id);
+  client.log("  fullName:    " + p.fullName);
+  client.log("  email:       " + p.email);
+  client.log("  userType:    " + p.userType);
+  client.log("  position:    " + p.position);
+  client.log("  jerseyNumber:" + p.jerseyNumber);
+  client.log("  program:     " + p.program);
+%}
+
+###
+
+### [REG-24] Verificar perfil de CAPTAIN — GET /players/{id} (esperado: 200 OK)
+# Confirma que userType=CAPITAN quedó como STUDENT con rol CAPITAN en BD.
+GET {{host}}/players/{{captain_id}}
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ CAPTAIN persistido:");
+  client.log("  id:       " + p.id);
+  client.log("  fullName: " + p.fullName);
+  client.log("  userType: " + p.userType);
+%}
+
+###
+
+### [REG-25] Verificar perfil de GRADUATE — GET /players/{id} (esperado: 200 OK)
+# Confirma que el egresado fue creado con programa CIBERSEGURIDAD.
+GET {{host}}/players/{{graduate_id}}
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ GRADUATE persistido — program: " + p.program);
+%}
+
+###
+
+### [REG-26] Verificar que jerseyNumber default es 10 — GET /players/{id} (esperado: 200 OK)
+# REG-07 no envió jerseyNumber → el normalizador debe haberlo guardado como 10.
+GET {{host}}/players/{{sindorsal_id}}
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ jerseyNumber default verificado: " + p.jerseyNumber + " (esperado: 10)");
+%}
+
+###
+
+### [REG-27] Verificar que position se normalizó a title-case — GET /players/{id} (esperado: 200 OK)
+# REG-06 envió position="volante" en minúsculas → debe haberse guardado como "Volante".
+GET {{host}}/players/{{volante_id}}
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ position normalizada: '" + p.position + "' (esperado: 'Volante')");
+%}
+
+###
+
+### [REG-28] Verificar jugadores disponibles — GET /players/available (esperado: 200 OK)
+# Los jugadores recién registrados no tienen equipo → deben aparecer en /available.
+GET {{host}}/players/available
+Authorization: Bearer {{adm_token}}
+
+> {%
+  client.log("✔ Jugadores sin equipo (disponibles): " + response.body.length);
+%}
+
+###

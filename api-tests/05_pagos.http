@@ -1,0 +1,497 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  TechCup Fútbol — Gestión de Pagos                                     ║
+# ║  Entorno: seleccionar "local" en el selector de entorno de IntelliJ    ║
+# ║                                                                          ║
+# ║  PREREQUISITO: API corriendo en https://localhost:8443                  ║
+# ║                Archivo payment.jpg presente en api-tests/               ║
+# ║                                                                          ║
+# ║  Estados del ciclo de pago:                                             ║
+# ║    Pendiente → En revisión → Aprobado                                  ║
+# ║    Pendiente → En revisión → Rechazado                                 ║
+# ║                                                                          ║
+# ║  NOTA: El PaymentController captura todas las excepciones internamente  ║
+# ║  y devuelve 400 (no 409) incluso para errores de reglas de negocio.    ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP — Tokens + equipo de prueba
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [SETUP-01] Login ORGANIZADOR — aprobará y rechazará pagos
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizador@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("org_token", response.body.token);
+  client.log("✔ org_token capturado");
+%}
+
+###
+
+### [SETUP-02] Login ADMIN
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("adm_token", response.body.token);
+  client.log("✔ adm_token capturado");
+%}
+
+###
+
+### [SETUP-03] Registrar capitán del equipo de pagos
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Capitán Pagos",
+  "identification": "3000300001",
+  "email": "capitan.pagos@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "CAPITAN",
+  "position": "Volante",
+  "age": 22,
+  "program": "SISTEMAS"
+}
+
+###
+
+### [SETUP-04] Login CAPITÁN
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "capitan.pagos@mail.escuelaing.edu.co",
+  "password": "Techcup123*"
+}
+
+> {%
+  client.global.set("cap_pay_token", response.body.token);
+  client.log("✔ cap_pay_token capturado");
+%}
+
+###
+
+### [SETUP-05] Crear Equipo Pagos A
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{cap_pay_token}}
+
+{
+  "name": "Equipo Pagos A",
+  "colors": "Verde y Blanco"
+}
+
+###
+
+### [SETUP-06] Crear Equipo Pagos B (para probar rechazo y error de pago duplicado)
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Pagos B",
+  "colors": "Naranja y Negro"
+}
+
+###
+
+### [SETUP-07] GET /teams — capturar IDs de los equipos de pagos
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  for (var i = 0; i < teams.length; i++) {
+    if (teams[i].name === "Equipo Pagos A") {
+      client.global.set("team_pay_a_id", teams[i].id.toString());
+      client.log("✔ team_pay_a_id = " + teams[i].id);
+    }
+    if (teams[i].name === "Equipo Pagos B") {
+      client.global.set("team_pay_b_id", teams[i].id.toString());
+      client.log("✔ team_pay_b_id = " + teams[i].id);
+    }
+  }
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 1 · BÁSICO — Ciclo completo: subida → revisión → aprobación
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [PAY-01] Subir comprobante de pago vía multipart — Equipo A (esperado: 201 Created)
+# data = objeto Payment completo → response.body.data.id es el ID del pago
+# El estado inicial es "Pendiente"
+POST {{host}}/payments/upload
+Content-Type: multipart/form-data; boundary=boundary
+Authorization: Bearer {{cap_pay_token}}
+
+--boundary
+Content-Disposition: form-data; name="teamId"
+
+{{team_pay_a_id}}
+--boundary
+Content-Disposition: form-data; name="file"; filename="payment.jpg"
+Content-Type: image/jpeg
+
+< ./payment.jpg
+--boundary--
+
+> {%
+  client.global.set("pay_a_id", response.body.data.id.toString());
+  client.log("✔ pay_a_id = " + response.body.data.id);
+  client.log("  status inicial: " + response.body.data.status);
+  client.log("  teamId:         " + response.body.data.teamId);
+%}
+
+###
+
+### [PAY-02] GET /payments/team/{teamId} — confirmar asociación equipo↔pago (esperado: 200 OK)
+# Payment se devuelve directamente, sin GenericResponse wrapper
+GET {{host}}/payments/team/{{team_pay_a_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ Pago asociado al equipo:");
+  client.log("  id:     " + p.id);
+  client.log("  status: " + p.status + " (esperado: Pendiente)");
+  client.log("  teamId: " + p.teamId);
+%}
+
+###
+
+### [PAY-03] PATCH /payments/{id}/review — enviar a revisión (esperado: 200 OK)
+# Transición: Pendiente → En revisión
+PATCH {{host}}/payments/{{pay_a_id}}/review
+Authorization: Bearer {{cap_pay_token}}
+
+###
+
+### [PAY-04] GET /payments/{id} — confirmar estado "En revisión" (esperado: 200 OK)
+GET {{host}}/payments/{{pay_a_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Estado tras review: " + response.body.status + " (esperado: En revisión)");
+%}
+
+###
+
+### [PAY-05] PATCH /payments/{id}/approve — aprobar pago (esperado: 200 OK)
+# Transición: En revisión → Aprobado
+# approvedBy tiene default "Organizador" si no se envía
+PATCH {{host}}/payments/{{pay_a_id}}/approve
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "approvedBy": "organizador@techcup.edu.co"
+}
+
+###
+
+### [PAY-06] GET /payments/{id} — confirmar estado "Aprobado" (esperado: 200 OK)
+GET {{host}}/payments/{{pay_a_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ Estado tras aprobación: " + p.status + " (esperado: Aprobado)");
+  client.log("  approvedBy:  " + p.approvedBy);
+  client.log("  reviewDate:  " + p.reviewDate);
+%}
+
+###
+
+### [PAY-07] Registrar comprobante vía JSON — Equipo B (esperado: 201 Created)
+# Alternativa a multipart: envía URL del comprobante en lugar de archivo binario
+POST {{host}}/payments
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "teamId": {{team_pay_b_id}},
+  "receiptUrl": "https://storage.example.com/comprobantes/equipo-b.jpg"
+}
+
+> {%
+  client.global.set("pay_b_id", response.body.data.id.toString());
+  client.log("✔ pay_b_id = " + response.body.data.id);
+  client.log("  status: " + response.body.data.status);
+%}
+
+###
+
+### [PAY-08] PATCH /payments/{id}/review — Equipo B a revisión (esperado: 200 OK)
+PATCH {{host}}/payments/{{pay_b_id}}/review
+Authorization: Bearer {{adm_token}}
+
+###
+
+### [PAY-09] PATCH /payments/{id}/reject — rechazar pago Equipo B (esperado: 200 OK)
+# Transición: En revisión → Rechazado
+PATCH {{host}}/payments/{{pay_b_id}}/reject
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "comments": "El comprobante no corresponde al monto indicado en las bases del torneo."
+}
+
+###
+
+### [PAY-10] GET /payments/{id} — confirmar estado "Rechazado" con comentario (esperado: 200 OK)
+GET {{host}}/payments/{{pay_b_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ Estado tras rechazo: " + p.status + " (esperado: Rechazado)");
+  client.log("  comments:   " + p.comments);
+  client.log("  reviewDate: " + p.reviewDate);
+%}
+
+###
+
+### [PAY-11] GET /payments — listar todos los pagos (esperado: 200 OK)
+GET {{host}}/payments
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Total pagos en BD: " + response.body.length);
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 2 · ERRORES DE VALIDACIÓN DE INPUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [PAY-12] POST /payments sin teamId (esperado: 400 Bad Request)
+# @NotNull(message = "El ID del equipo es obligatorio") en PaymentRequest
+POST {{host}}/payments
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "receiptUrl": "https://storage.example.com/sin-equipo.jpg"
+}
+
+###
+
+### [PAY-13] PATCH /payments/{id}/reject sin campo comments (esperado: 400 Bad Request)
+# El controller verifica comments == null || isBlank() y devuelve 400 explícitamente
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizador@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("org_token", response.body.token);
+%}
+
+###
+
+### [PAY-13b] Registrar un tercer pago para probar rechazo sin comments
+POST {{host}}/payments
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "teamId": {{team_pay_a_id}},
+  "receiptUrl": "https://storage.example.com/extra.jpg"
+}
+
+> {%
+  client.global.set("pay_c_id", response.body.data.id.toString());
+  client.log("✔ pay_c_id = " + response.body.data.id);
+%}
+
+###
+
+### [PAY-13c] Rechazar sin comments (esperado: 400 Bad Request)
+PATCH {{host}}/payments/{{pay_c_id}}/reject
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "comments": ""
+}
+
+###
+
+### [PAY-14] POST /payments/upload con tipo de archivo inválido (esperado: 400 Bad Request)
+# PaymentService valida content-type y extensión — .txt no es válido
+POST {{host}}/payments/upload
+Content-Type: multipart/form-data; boundary=boundary
+Authorization: Bearer {{cap_pay_token}}
+
+--boundary
+Content-Disposition: form-data; name="teamId"
+
+{{team_pay_a_id}}
+--boundary
+Content-Disposition: form-data; name="file"; filename="comprobante.txt"
+Content-Type: text/plain
+
+esto no es una imagen
+--boundary--
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 3 · ERRORES DE VALIDACIONES DE NEGOCIO
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [PAY-15] Aprobar un pago que ya está aprobado (esperado: 400 Bad Request)
+# pay_a_id ya fue aprobado en PAY-05 → BusinessRuleException dentro del controller → 400
+PATCH {{host}}/payments/{{pay_a_id}}/approve
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "approvedBy": "organizador@techcup.edu.co"
+}
+
+###
+
+### [PAY-16] Enviar a revisión un pago ya aprobado (esperado: 400 Bad Request)
+# pay_a_id tiene estado "Aprobado" → sendToReview() lanza BusinessRuleException
+# El controller lo captura → 400
+PATCH {{host}}/payments/{{pay_a_id}}/review
+Authorization: Bearer {{org_token}}
+
+###
+
+### [PAY-17] Rechazar un pago que ya está aprobado (esperado: 400 Bad Request)
+# pay_a_id tiene estado "Aprobado" → rejectPayment() lanza BusinessRuleException
+PATCH {{host}}/payments/{{pay_a_id}}/reject
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "comments": "Intentando rechazar un pago ya aprobado"
+}
+
+###
+
+### [PAY-18] GET /payments/{id} con ID inexistente (esperado: 404 Not Found)
+GET {{host}}/payments/999999
+Authorization: Bearer {{org_token}}
+
+###
+
+### [PAY-19] GET /payments/team/{teamId} con equipo sin pago (esperado: 404 Not Found)
+# Registrar un equipo nuevo sin pago asociado y consultar
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Sin Pago",
+  "colors": "Gris y Blanco"
+}
+
+###
+
+### [PAY-19b] Capturar ID del equipo sin pago
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  for (var i = 0; i < teams.length; i++) {
+    if (teams[i].name === "Equipo Sin Pago") {
+      client.global.set("team_sin_pago_id", teams[i].id.toString());
+      client.log("✔ team_sin_pago_id = " + teams[i].id);
+    }
+  }
+%}
+
+###
+
+### [PAY-19c] GET /payments/team/{teamId} sin pago asociado (esperado: 404 Not Found)
+GET {{host}}/payments/team/{{team_sin_pago_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [PAY-20] POST /payments con teamId de equipo inexistente (esperado: 400 Bad Request)
+# ResourceNotFoundException en PaymentService → capturada por controller → 400
+POST {{host}}/payments
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "teamId": 999999,
+  "receiptUrl": "https://storage.example.com/fantasma.jpg"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 4 · EVIDENCIA DE PERSISTENCIA CON LOGGING
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [PAY-21] Verificar estado final de pay_a — GET /payments/{id} (esperado: 200 OK)
+# Confirma que el ciclo completo Pendiente → En revisión → Aprobado quedó guardado en BD
+GET {{host}}/payments/{{pay_a_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ Ciclo de pago A persistido correctamente:");
+  client.log("  id:          " + p.id);
+  client.log("  teamId:      " + p.teamId);
+  client.log("  status:      " + p.status       + " (esperado: Aprobado)");
+  client.log("  approvedBy:  " + p.approvedBy);
+  client.log("  uploadDate:  " + p.uploadDate);
+  client.log("  reviewDate:  " + p.reviewDate);
+  client.log("  receiptUrl:  " + p.receiptUrl);
+%}
+
+###
+
+### [PAY-22] Verificar estado final de pay_b — GET /payments/{id} (esperado: 200 OK)
+# Confirma que el ciclo Pendiente → En revisión → Rechazado quedó guardado con comentario
+GET {{host}}/payments/{{pay_b_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var p = response.body;
+  client.log("✔ Ciclo de pago B persistido correctamente:");
+  client.log("  status:   " + p.status    + " (esperado: Rechazado)");
+  client.log("  comments: " + p.comments);
+%}
+
+###
+
+### [PAY-23] Verificar todos los pagos — GET /payments (esperado: 200 OK)
+# Confirma que todos los pagos creados en este archivo existen en la BD
+GET {{host}}/payments
+Authorization: Bearer {{org_token}}
+
+> {%
+  var payments = response.body;
+  client.log("✔ Total pagos en BD: " + payments.length);
+  for (var i = 0; i < payments.length; i++) {
+    client.log("  [" + payments[i].id + "] teamId=" + payments[i].teamId + " status=" + payments[i].status);
+  }
+%}
+
+###

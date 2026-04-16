@@ -269,11 +269,42 @@ When adding a dependency to a service constructor, update **all** test files tha
 
 ## CI/CD
 
-GitHub Actions workflow at `.github/workflows/maven.yml`:
-- Triggers on push to `main` / `feat/**` and PRs to `main`
-- Spins up `postgres:16` as a service container (port 5433), waits for health-check
-- Runs `mvn clean test` with secrets `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` injected as env vars
-- Required GitHub secret value for `DB_URL`: `jdbc:postgresql://localhost:5433/techcup`
+Three GitHub Actions workflows:
+
+### `.github/workflows/maven.yml` — CI (build & test)
+- Triggers on push to `main` / `develop` / `feat/**` and PRs to `main` / `develop`
+- Spins up `postgres:16` as a service container (port 5433) with **hardcoded** credentials (`techcup`/`techcup`) — do NOT use secrets for the CI test database; it's ephemeral and this was the fix for the `password authentication failed` error
+- Runs `mvn clean test jacoco:report` — secrets injected: `JWT_SECRET`, `SSL_KEY_STORE_PASSWORD`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- Uploads JaCoCo HTML report as artifact (7-day retention)
+- Runs SonarCloud analysis via `SonarSource/sonarcloud-github-action@master` — **note: free plan only analyzes `main`; `develop` shows "Not analyzed"**
+- On `develop` or `main`: builds and pushes Docker image to ACR tagged with `github.sha` and `latest`
+
+### `.github/workflows/deploy-qa.yml` — Deploy to QA
+- Triggers via `workflow_run` on CI completing successfully on `develop`
+- Deploys image `ACR/techcup-backend:${{ github.event.workflow_run.head_sha }}` to App Service `techcup-backend-qa-1`
+- Requires GitHub Secret: `AZURE_WEBAPP_PUBLISH_PROFILE_QA`
+- Runs health check against `https://techcup-backend-qa-1.azurewebsites.net/swagger-ui.html`
+
+### `.github/workflows/deploy-prod.yml` — Deploy to PROD
+- Triggers via `workflow_run` on CI completing successfully on `main`
+- Uses GitHub Environment `production` (branch protection on `main` enforces 3-reviewer PRs)
+- Deploys to App Service `techcup-backend-prod-1`
+- Requires GitHub Secret: `AZURE_WEBAPP_PUBLISH_PROFILE_PROD`
+- Runs health check against `https://techcup-backend-prod-1.azurewebsites.net/swagger-ui.html`
+
+### Azure infrastructure (Sprint 4)
+- ACR: `techcupacr.azurecr.io`
+- QA DB: `techcup-db-qa.postgres.database.azure.com` / user `techcup_qa`
+- PROD DB: `techcup-db-prod.postgres.database.azure.com` / user `techcup_prod`
+- QA App Service: `techcup-backend-qa-1` → `https://techcup-backend-qa-1.azurewebsites.net`
+- PROD App Service: `techcup-backend-prod-1` → `https://techcup-backend-prod-1.azurewebsites.net`
+
+### Docker local run
+```bash
+docker compose up -d postgres          # only the DB (for Maven dev)
+docker compose up --build              # full stack: postgres + app on port 8443
+cp .env.example .env                   # fill in local values before running full stack
+```
 
 ## Error Handling
 

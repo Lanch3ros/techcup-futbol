@@ -1,0 +1,440 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  TechCup Fútbol — Gestión de Árbitros                                  ║
+# ║  Entorno: seleccionar "local" en el selector de entorno de IntelliJ    ║
+# ║                                                                          ║
+# ║  PREREQUISITO: API corriendo en https://localhost:8443                  ║
+# ║                                                                          ║
+# ║  Campos del árbitro (RefereeUser):                                      ║
+# ║    fullName, email, password, licenseNumber, certificationLevel         ║
+# ║    experienceYears (opcional)                                            ║
+# ║                                                                          ║
+# ║  NOTA: RefereeController captura todas las excepciones con catch        ║
+# ║  genérico y devuelve 400. Duplicados de email/licencia → 400 (no 409). ║
+# ║                                                                          ║
+# ║  assignReferee() actualiza tanto match.referee (String con nombre)      ║
+# ║  como referee.assignedMatchIds → GET /referees/{id}/matches funciona.   ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP — Tokens + equipos + partido de prueba
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [SETUP-01] Login ADMIN
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("adm_token", response.body.token);
+  client.log("✔ adm_token capturado");
+%}
+
+###
+
+### [SETUP-02] Login ORGANIZADOR
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizador@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("org_token", response.body.token);
+  client.log("✔ org_token capturado");
+%}
+
+###
+
+### [SETUP-03] Crear Equipo Árbitro A (para el partido de prueba)
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Árbitro A",
+  "colors": "Verde y Blanco"
+}
+
+###
+
+### [SETUP-04] Crear Equipo Árbitro B
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Árbitro B",
+  "colors": "Naranja y Negro"
+}
+
+###
+
+### [SETUP-05] GET /teams — capturar IDs de los equipos
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  for (var i = 0; i < teams.length; i++) {
+    if (teams[i].name === "Equipo Árbitro A") {
+      client.global.set("team_arb_a_id", teams[i].id.toString());
+      client.log("✔ team_arb_a_id = " + teams[i].id);
+    }
+    if (teams[i].name === "Equipo Árbitro B") {
+      client.global.set("team_arb_b_id", teams[i].id.toString());
+      client.log("✔ team_arb_b_id = " + teams[i].id);
+    }
+  }
+%}
+
+###
+
+### [SETUP-06] Crear partido de prueba (para asignarle el árbitro)
+POST {{host}}/matches
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeTeamId": {{team_arb_a_id}},
+  "awayTeamId": {{team_arb_b_id}},
+  "matchDate": "2026-09-01T10:00:00",
+  "field": "Cancha Árbitros"
+}
+
+> {%
+  client.global.set("match_arb_id", response.body.data.id.toString());
+  client.log("✔ match_arb_id = " + response.body.data.id);
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 1 · BÁSICO — Registro y asignación de árbitro
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ARB-01] POST /referees — registrar árbitro principal (esperado: 201 Created)
+# data = objeto RefereeUser completo → response.body.data.id es el ID del árbitro
+# El árbitro del seeder (arbitro@techcup.edu.co) ya existe — usamos email diferente
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "fullName": "Carlos Mendoza Árbitro",
+  "email": "carlos.arbitro@techcup.edu.co",
+  "password": "Arbitro123*",
+  "licenseNumber": "LIC-2026-001",
+  "certificationLevel": "FIFA",
+  "experienceYears": 8
+}
+
+> {%
+  client.global.set("referee_new_id", response.body.data.id.toString());
+  client.log("✔ referee_new_id = " + response.body.data.id);
+  client.log("  fullName:          " + response.body.data.fullName);
+  client.log("  licenseNumber:     " + response.body.data.licenseNumber);
+  client.log("  certificationLevel:" + response.body.data.certificationLevel);
+%}
+
+###
+
+### [ARB-02] GET /referees — confirmar árbitro en lista (esperado: 200 OK)
+# Devuelve List<RefereeUser> directamente (sin wrapper GenericResponse)
+GET {{host}}/referees
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var referees = response.body;
+  client.log("✔ Total árbitros en BD: " + referees.length + " (mínimo 2: seeder + nuevo)");
+  for (var i = 0; i < referees.length; i++) {
+    client.log("  [" + referees[i].id + "] " + referees[i].fullName + " — licencia: " + referees[i].licenseNumber);
+  }
+%}
+
+###
+
+### [ARB-03] GET /referees/{id} — verificar perfil completo (esperado: 200 OK)
+# Devuelve RefereeUser directamente (sin wrapper)
+GET {{host}}/referees/{{referee_new_id}}
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var r = response.body;
+  client.log("✔ Perfil del árbitro:");
+  client.log("  id:                " + r.id);
+  client.log("  fullName:          " + r.fullName);
+  client.log("  email:             " + r.email);
+  client.log("  licenseNumber:     " + r.licenseNumber);
+  client.log("  certificationLevel:" + r.certificationLevel);
+  client.log("  assignedMatchIds:  " + JSON.stringify(r.assignedMatchIds));
+%}
+
+###
+
+### [ARB-04] POST /referees — registrar segundo árbitro (para prueba de asignación múltiple)
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "fullName": "Ana Torres Árbitro",
+  "email": "ana.arbitro@techcup.edu.co",
+  "password": "Arbitro123*",
+  "licenseNumber": "LIC-2026-002",
+  "certificationLevel": "Nacional"
+}
+
+> {%
+  client.global.set("referee_new2_id", response.body.data.id.toString());
+  client.log("✔ referee_new2_id = " + response.body.data.id);
+%}
+
+###
+
+### [ARB-05] PATCH /matches/{id}/referee — asignar árbitro al partido (esperado: 200 OK)
+# assignReferee(): actualiza match.referee (String nombre) y referee.assignedMatchIds (List<Long>)
+PATCH {{host}}/matches/{{match_arb_id}}/referee
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "refereeId": {{referee_new_id}}
+}
+
+###
+
+### [ARB-06] GET /referees/{id}/matches — confirmar partido asignado (esperado: 200 OK)
+# Devuelve List<Match> directamente
+# Confirma que referee.assignedMatchIds fue actualizado en ARB-05
+GET {{host}}/referees/{{referee_new_id}}/matches
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var matches = response.body;
+  client.log("✔ Partidos asignados al árbitro: " + matches.length + " (esperado: 1)");
+  for (var i = 0; i < matches.length; i++) {
+    client.log("  [" + matches[i].id + "] status=" + matches[i].status
+      + " referee=" + matches[i].referee);
+  }
+%}
+
+###
+
+### [ARB-07] GET /matches/{id} — confirmar nombre del árbitro en el partido (esperado: 200 OK)
+# match.referee es String con el fullName del árbitro (no el ID)
+GET {{host}}/matches/{{match_arb_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Árbitro asignado al partido: " + response.body.referee
+    + " (esperado: Carlos Mendoza Árbitro)");
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 2 · ERRORES DE VALIDACIÓN DE INPUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ARB-08] POST /referees sin fullName (esperado: 400 Bad Request)
+# @NotBlank(message = "El nombre es obligatorio")
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "email": "sin.nombre@techcup.edu.co",
+  "password": "Arbitro123*",
+  "licenseNumber": "LIC-ERROR-001"
+}
+
+###
+
+### [ARB-09] POST /referees sin email (esperado: 400 Bad Request)
+# @NotBlank(message = "El correo es obligatorio")
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "fullName": "Sin Email Test",
+  "password": "Arbitro123*",
+  "licenseNumber": "LIC-ERROR-002"
+}
+
+###
+
+### [ARB-10] POST /referees con email con formato inválido (esperado: 400 Bad Request)
+# @Email(message = "Formato de correo inválido")
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "fullName": "Email Inválido Test",
+  "email": "no-es-un-email",
+  "password": "Arbitro123*",
+  "licenseNumber": "LIC-ERROR-003"
+}
+
+###
+
+### [ARB-11] POST /referees sin licenseNumber (esperado: 400 Bad Request)
+# @NotBlank(message = "El número de licencia es obligatorio")
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "fullName": "Sin Licencia Test",
+  "email": "sin.licencia@techcup.edu.co",
+  "password": "Arbitro123*"
+}
+
+###
+
+### [ARB-12] POST /referees con password muy corta (esperado: 400 Bad Request)
+# @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "fullName": "Password Corta Test",
+  "email": "pass.corta@techcup.edu.co",
+  "password": "123",
+  "licenseNumber": "LIC-ERROR-004"
+}
+
+###
+
+### [ARB-13] POST /referees con experienceYears negativo (esperado: 400 Bad Request)
+# @Min(value = 0, message = "Los años de experiencia no pueden ser negativos")
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "fullName": "Experiencia Negativa Test",
+  "email": "exp.negativa@techcup.edu.co",
+  "password": "Arbitro123*",
+  "licenseNumber": "LIC-ERROR-005",
+  "experienceYears": -5
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 3 · ERRORES DE VALIDACIONES DE NEGOCIO
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ARB-14] POST /referees con email ya registrado (esperado: 400 Bad Request)
+# DataIntegrityViolationException (constraint unique en users.email)
+# El controller catch(Exception) devuelve 400 (no 409)
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "fullName": "Duplicado Email Test",
+  "email": "carlos.arbitro@techcup.edu.co",
+  "password": "Arbitro123*",
+  "licenseNumber": "LIC-2026-999"
+}
+
+###
+
+### [ARB-15] POST /referees con licenseNumber ya registrado (esperado: 400 Bad Request)
+# DataIntegrityViolationException (constraint unique en users.licenseNumber)
+# El controller catch(Exception) devuelve 400 (no 409)
+POST {{host}}/referees
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "fullName": "Duplicado Licencia Test",
+  "email": "duplicado.licencia@techcup.edu.co",
+  "password": "Arbitro123*",
+  "licenseNumber": "LIC-2026-001"
+}
+
+###
+
+### [ARB-16] GET /referees/{id} con ID inexistente (esperado: 404 Not Found)
+# El controller captura la excepción y retorna notFound().build()
+GET {{host}}/referees/999999
+Authorization: Bearer {{adm_token}}
+
+###
+
+### [ARB-17] GET /referees/{id}/matches con ID inexistente (esperado: 400 Bad Request)
+# getRefereeMatches() llama a getRefereeById() que lanza ResourceNotFoundException
+# El controller lo captura con catch(Exception) → badRequest().build()
+GET {{host}}/referees/999999/matches
+Authorization: Bearer {{adm_token}}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 4 · EVIDENCIA DE PERSISTENCIA CON LOGGING
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [ARB-18] Verificar perfil final del árbitro principal (esperado: 200 OK)
+# Confirma que todos los campos quedaron guardados en BD
+GET {{host}}/referees/{{referee_new_id}}
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var r = response.body;
+  client.log("✔ Perfil persistido correctamente:");
+  client.log("  id:                " + r.id);
+  client.log("  fullName:          " + r.fullName           + " (esperado: Carlos Mendoza Árbitro)");
+  client.log("  email:             " + r.email              + " (esperado: carlos.arbitro@techcup.edu.co)");
+  client.log("  licenseNumber:     " + r.licenseNumber      + " (esperado: LIC-2026-001)");
+  client.log("  certificationLevel:" + r.certificationLevel + " (esperado: FIFA)");
+  client.log("  assignedMatchIds:  " + JSON.stringify(r.assignedMatchIds)
+    + " (esperado: [" + client.global.get("match_arb_id") + "])");
+%}
+
+###
+
+### [ARB-19] Verificar partidos asignados al árbitro (esperado: 200 OK)
+# Confirma que la relación árbitro↔partido persiste tras la asignación
+GET {{host}}/referees/{{referee_new_id}}/matches
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var matches = response.body;
+  client.log("✔ Partidos asignados persistidos: " + matches.length + " (esperado: 1)");
+  if (matches.length > 0) {
+    client.log("  partido id:   " + matches[0].id);
+    client.log("  partido field:" + matches[0].field);
+    client.log("  árbitro:      " + matches[0].referee + " (esperado: Carlos Mendoza Árbitro)");
+  }
+%}
+
+###
+
+### [ARB-20] Verificar listado global de árbitros (esperado: 200 OK)
+# Confirma que ambos árbitros nuevos + el del seeder existen en BD
+GET {{host}}/referees
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var referees = response.body;
+  client.log("✔ Total árbitros en BD: " + referees.length + " (mínimo 3: seeder + 2 nuevos)");
+  for (var i = 0; i < referees.length; i++) {
+    client.log("  [" + referees[i].id + "] "
+      + referees[i].fullName
+      + " — licencia: " + referees[i].licenseNumber
+      + " — partidos: " + (referees[i].assignedMatchIds ? referees[i].assignedMatchIds.length : 0));
+  }
+%}
+
+###

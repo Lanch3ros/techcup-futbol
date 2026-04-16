@@ -31,7 +31,7 @@ jobs:
         run: |
           echo "Esperando 90s para que el servicio reinicie..."
           sleep 90
-          STATUS=$(curl --retry 5 --retry-delay 15 --retry-connrefused \
+          STATUS=$(curl --retry 5 --retry-delay 15 --retry-connrefused -L \
             -s -o /dev/null -w "%{http_code}" \
             https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net/swagger-ui.html)
           echo "HTTP status: $STATUS"

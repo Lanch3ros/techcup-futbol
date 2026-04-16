@@ -50,6 +50,12 @@ jobs:
           path: target/site/jacoco/
           retention-days: 7
 
+      - name: Análisis estático con SonarCloud
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   docker-build-push:
     runs-on: ubuntu-latest
     needs: build-and-test

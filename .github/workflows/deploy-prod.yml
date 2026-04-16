@@ -1,0 +1,40 @@
+name: Deploy PROD – TechCup Fútbol
+
+on:
+  workflow_run:
+    workflows: ["CI – TechCup Fútbol"]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: production
+
+    steps:
+      - name: Login al Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Deploy a Azure App Service PROD
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: techcup-backend-prod-1
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_PROD }}
+          images: ${{ secrets.ACR_LOGIN_SERVER }}/techcup-backend:${{ github.event.workflow_run.head_sha }}
+
+      - name: Health check PROD
+        run: |
+          echo "Esperando 30s para que el servicio reinicie..."
+          sleep 30
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://techcup-backend-prod-1.azurewebsites.net/swagger-ui.html)
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 500 ]; then
+            echo "Health check fallido con status $STATUS"
+            exit 1
+          fi
+          echo "Health check exitoso"

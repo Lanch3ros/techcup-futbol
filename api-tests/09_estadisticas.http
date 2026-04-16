@@ -1,0 +1,671 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  TechCup Fútbol — Estadísticas                                         ║
+# ║  Entorno: seleccionar "local" en el selector de entorno de IntelliJ    ║
+# ║                                                                          ║
+# ║  PREREQUISITO: API corriendo en https://localhost:8443                  ║
+# ║                                                                          ║
+# ║  Endpoints (todos GET — sin wrapper GenericResponse):                   ║
+# ║    GET /stats/top-scorers           → List<PlayerStats>                ║
+# ║    GET /stats/tournaments/{id}/top-scorers → List<PlayerStats>         ║
+# ║    GET /stats/players/{id}          → PlayerStats                      ║
+# ║    GET /stats/teams/{id}            → StandingDTO                      ║
+# ║    GET /tournaments/{id}/standings  → List<StandingDTO>                ║
+# ║                                                                          ║
+# ║  PlayerStats: playerId, playerName, teamName, goals,                   ║
+# ║               yellowCards, redCards, matchesPlayed                     ║
+# ║                                                                          ║
+# ║  StandingDTO: teamId, teamName, matchesPlayed, matchesWon,             ║
+# ║               matchesDrawn, matchesLost, goalsFor, goalsAgainst,       ║
+# ║               goalDifference, points (incluye FairPlay RN-09-2)        ║
+# ║                                                                          ║
+# ║  Reglas:                                                                ║
+# ║    GAP-14: standings solo incluye equipos inscritos en el torneo       ║
+# ║    GAP-15: top-scorers por torneo solo cuenta eventos de sus partidos  ║
+# ║    GAP-16: matchesPlayed = partidos Finalizado con ≥1 evento           ║
+# ║    RN-09-2: +1 FairPlay por partido Finalizado sin tarjetas del equipo ║
+# ║                                                                          ║
+# ║  NOTA sobre top-scorers por torneo: GET /stats/tournaments/{id}/...    ║
+# ║  solo cuenta eventos de partidos con tournament_id = {id} en BD.       ║
+# ║  Los partidos creados con POST /matches (sin generate-matches) no       ║
+# ║  quedan asociados al torneo → endpoint devuelve lista vacía.           ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP — Tokens + jugadores + equipos + pagos + torneo + partido completo
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [SETUP-01] Login ORGANIZADOR
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "organizador@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("org_token", response.body.token);
+  client.log("✔ org_token capturado");
+%}
+
+###
+
+### [SETUP-02] Login ADMIN
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@techcup.edu.co",
+  "password": "Admin123*"
+}
+
+> {%
+  client.global.set("adm_token", response.body.token);
+  client.log("✔ adm_token capturado");
+%}
+
+###
+
+### [SETUP-03] Registrar Jugador Stats A (goleador — marcará 2 GOL)
+# Si ya existe (409), continuar — los IDs se capturan en SETUP-08
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Jugador Stats A",
+  "identification": "6000600001",
+  "email": "jugador.stats.a@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Delantero",
+  "age": 21,
+  "program": "SISTEMAS"
+}
+
+###
+
+### [SETUP-04] Registrar Jugador Stats B (recibirá AMARILLA y ROJA)
+POST {{host}}/players/register
+Content-Type: application/json
+
+{
+  "name": "Jugador Stats B",
+  "identification": "6000600002",
+  "email": "jugador.stats.b@mail.escuelaing.edu.co",
+  "password": "Techcup123*",
+  "userType": "STUDENT",
+  "position": "Portero",
+  "age": 23,
+  "program": "IA"
+}
+
+###
+
+### [SETUP-05] Crear Equipo Stats A (equipo local — ganará 2-0)
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Stats A",
+  "colors": "Azul y Dorado"
+}
+
+###
+
+### [SETUP-06] Crear Equipo Stats B (equipo visitante — perderá 0-2)
+POST {{host}}/teams
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "name": "Equipo Stats B",
+  "colors": "Rojo y Plata"
+}
+
+###
+
+### [SETUP-07] GET /teams — capturar IDs de los equipos de stats
+GET {{host}}/teams
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var teams = response.body;
+  for (var i = 0; i < teams.length; i++) {
+    if (teams[i].name === "Equipo Stats A") {
+      client.global.set("team_stats_a_id", teams[i].id.toString());
+      client.log("✔ team_stats_a_id = " + teams[i].id);
+    }
+    if (teams[i].name === "Equipo Stats B") {
+      client.global.set("team_stats_b_id", teams[i].id.toString());
+      client.log("✔ team_stats_b_id = " + teams[i].id);
+    }
+  }
+%}
+
+###
+
+### [SETUP-08] GET /players — capturar IDs de los jugadores de stats
+GET {{host}}/players
+Authorization: Bearer {{adm_token}}
+
+> {%
+  var players = response.body;
+  for (var i = 0; i < players.length; i++) {
+    if (players[i].email === "jugador.stats.a@mail.escuelaing.edu.co") {
+      client.global.set("player_stats_a_id", players[i].id.toString());
+      client.log("✔ player_stats_a_id = " + players[i].id);
+    }
+    if (players[i].email === "jugador.stats.b@mail.escuelaing.edu.co") {
+      client.global.set("player_stats_b_id", players[i].id.toString());
+      client.log("✔ player_stats_b_id = " + players[i].id);
+    }
+  }
+%}
+
+###
+
+### [SETUP-09] Registrar pago Equipo Stats A
+POST {{host}}/payments
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "teamId": {{team_stats_a_id}},
+  "receiptUrl": "https://storage.example.com/stats-a.jpg"
+}
+
+> {%
+  client.global.set("pay_stats_a_id", response.body.data.id.toString());
+  client.log("✔ pay_stats_a_id = " + response.body.data.id);
+%}
+
+###
+
+### [SETUP-10] Enviar pago Equipo Stats A a revisión
+PATCH {{host}}/payments/{{pay_stats_a_id}}/review
+Authorization: Bearer {{adm_token}}
+
+###
+
+### [SETUP-11] Aprobar pago Equipo Stats A
+PATCH {{host}}/payments/{{pay_stats_a_id}}/approve
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "approvedBy": "organizador@techcup.edu.co"
+}
+
+###
+
+### [SETUP-12] Registrar pago Equipo Stats B
+POST {{host}}/payments
+Content-Type: application/json
+Authorization: Bearer {{adm_token}}
+
+{
+  "teamId": {{team_stats_b_id}},
+  "receiptUrl": "https://storage.example.com/stats-b.jpg"
+}
+
+> {%
+  client.global.set("pay_stats_b_id", response.body.data.id.toString());
+  client.log("✔ pay_stats_b_id = " + response.body.data.id);
+%}
+
+###
+
+### [SETUP-13] Enviar pago Equipo Stats B a revisión
+PATCH {{host}}/payments/{{pay_stats_b_id}}/review
+Authorization: Bearer {{adm_token}}
+
+###
+
+### [SETUP-14] Aprobar pago Equipo Stats B
+PATCH {{host}}/payments/{{pay_stats_b_id}}/approve
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "approvedBy": "organizador@techcup.edu.co"
+}
+
+###
+
+### [SETUP-15] Crear torneo de stats (Borrador → Activo → inscripción de equipos)
+POST {{host}}/tournaments
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "startDate": "2026-07-01",
+  "endDate": "2026-12-31",
+  "teamCost": 50000,
+  "numberOfTeams": 4,
+  "rules": "Torneo estadísticas Sprint 5. Fase de grupos round-robin."
+}
+
+###
+
+### [SETUP-16] GET /tournaments — capturar tournament_stats_id
+GET {{host}}/tournaments
+Authorization: Bearer {{org_token}}
+
+> {%
+  var tournaments = response.body;
+  for (var i = 0; i < tournaments.length; i++) {
+    if (tournaments[i].regulations
+        && tournaments[i].regulations.indexOf("estadísticas Sprint 5") !== -1) {
+      client.global.set("tournament_stats_id", tournaments[i].id.toString());
+      client.log("✔ tournament_stats_id = " + tournaments[i].id);
+    }
+  }
+%}
+
+###
+
+### [SETUP-17] Activar torneo de stats
+PATCH {{host}}/tournaments/{{tournament_stats_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": "Activo"
+}
+
+###
+
+### [SETUP-18] Inscribir Equipo Stats A al torneo
+POST {{host}}/tournaments/{{tournament_stats_id}}/teams/{{team_stats_a_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [SETUP-19] Inscribir Equipo Stats B al torneo
+POST {{host}}/tournaments/{{tournament_stats_id}}/teams/{{team_stats_b_id}}
+Authorization: Bearer {{org_token}}
+
+###
+
+### [SETUP-20] Crear partido: Equipo Stats A (local) vs Equipo Stats B (visitante)
+# Partido creado directamente con POST /matches — team_stats_a es homeTeam
+# homeGoals=2, awayGoals=0 → Equipo Stats A gana → points=3 (+1 FairPlay = 4)
+POST {{host}}/matches
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeTeamId": {{team_stats_a_id}},
+  "awayTeamId": {{team_stats_b_id}},
+  "matchDate": "2026-07-15T16:00:00",
+  "field": "Cancha Stats"
+}
+
+> {%
+  client.global.set("match_stats_id", response.body.data.id.toString());
+  client.log("✔ match_stats_id = " + response.body.data.id);
+%}
+
+###
+
+### [SETUP-21] Iniciar partido → "En Curso"
+PATCH {{host}}/matches/{{match_stats_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": "En Curso"
+}
+
+###
+
+### [SETUP-22] Registrar GOL #1 — Jugador Stats A, minuto 15
+POST {{host}}/matches/{{match_stats_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerId": {{player_stats_a_id}},
+  "playerName": "Jugador Stats A",
+  "type": "GOL",
+  "minute": 15
+}
+
+###
+
+### [SETUP-23] Registrar GOL #2 — Jugador Stats A, minuto 42
+POST {{host}}/matches/{{match_stats_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerId": {{player_stats_a_id}},
+  "playerName": "Jugador Stats A",
+  "type": "GOL",
+  "minute": 42
+}
+
+###
+
+### [SETUP-24] Registrar AMARILLA — Jugador Stats B, minuto 60
+POST {{host}}/matches/{{match_stats_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerId": {{player_stats_b_id}},
+  "playerName": "Jugador Stats B",
+  "type": "AMARILLA",
+  "minute": 60
+}
+
+###
+
+### [SETUP-25] Registrar ROJA — Jugador Stats B, minuto 80
+POST {{host}}/matches/{{match_stats_id}}/events
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "playerId": {{player_stats_b_id}},
+  "playerName": "Jugador Stats B",
+  "type": "ROJA",
+  "minute": 80
+}
+
+###
+
+### [SETUP-26] Finalizar partido → "Finalizado"
+PATCH {{host}}/matches/{{match_stats_id}}/status
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "status": "Finalizado"
+}
+
+###
+
+### [SETUP-27] Registrar resultado — Equipo Stats A 2 : 0 Equipo Stats B
+# GAP-13: registerResult() actualiza stats de ambos equipos en BD
+PATCH {{host}}/matches/{{match_stats_id}}/result
+Content-Type: application/json
+Authorization: Bearer {{org_token}}
+
+{
+  "homeGoals": 2,
+  "awayGoals": 0
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 1 · BÁSICO — Consulta de todas las estadísticas
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [STATS-01] GET /stats/top-scorers — goleadores globales (esperado: 200 OK)
+# Devuelve List<PlayerStats> — incluye a Jugador Stats A con ≥2 goles
+# Puede incluir goles de otras sesiones de prueba registrados en BD
+GET {{host}}/stats/top-scorers
+Authorization: Bearer {{org_token}}
+
+> {%
+  var scorers = response.body;
+  client.log("✔ Goleadores globales: " + scorers.length + " jugadores");
+  for (var i = 0; i < scorers.length; i++) {
+    client.log("  " + (i+1) + ". " + scorers[i].playerName
+      + " — GOL=" + scorers[i].goals
+      + " AM=" + scorers[i].yellowCards
+      + " RJ=" + scorers[i].redCards
+      + " PJ=" + scorers[i].matchesPlayed);
+  }
+%}
+
+###
+
+### [STATS-02] GET /stats/tournaments/{id}/top-scorers — goleadores del torneo (esperado: 200 OK)
+# GAP-15: filtra solo eventos de partidos con tournament_id={id} en BD
+# El partido del SETUP fue creado con POST /matches (no generate-matches)
+# → no tiene tournament_id seteado → lista vacía (comportamiento esperado y correcto)
+GET {{host}}/stats/tournaments/{{tournament_stats_id}}/top-scorers
+Authorization: Bearer {{org_token}}
+
+> {%
+  var scorers = response.body;
+  client.log("✔ Goleadores del torneo " + client.global.get("tournament_stats_id")
+    + ": " + scorers.length + " jugadores");
+  client.log("  (vacío porque POST /matches no asocia el partido al torneo)");
+%}
+
+###
+
+### [STATS-03] GET /stats/players/{id} — stats de Jugador Stats A (esperado: 200 OK)
+# GAP-16: matchesPlayed = partidos "Finalizado" donde el jugador tuvo ≥1 evento
+# Jugador Stats A: 2 GOL en partido FINALIZADO → goals=2, matchesPlayed=1
+GET {{host}}/stats/players/{{player_stats_a_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var s = response.body;
+  client.log("✔ Stats Jugador Stats A:");
+  client.log("  playerId:     " + s.playerId);
+  client.log("  playerName:   " + s.playerName);
+  client.log("  goals:        " + s.goals        + " (esperado: ≥2)");
+  client.log("  yellowCards:  " + s.yellowCards   + " (esperado: 0)");
+  client.log("  redCards:     " + s.redCards      + " (esperado: 0)");
+  client.log("  matchesPlayed:" + s.matchesPlayed + " (esperado: ≥1)");
+  client.log("  teamName:     " + s.teamName);
+%}
+
+###
+
+### [STATS-04] GET /stats/players/{id} — stats de Jugador Stats B (esperado: 200 OK)
+# Jugador Stats B: AMARILLA + ROJA en partido FINALIZADO → yellowCards=1, redCards=1, matchesPlayed=1
+GET {{host}}/stats/players/{{player_stats_b_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var s = response.body;
+  client.log("✔ Stats Jugador Stats B:");
+  client.log("  goals:        " + s.goals        + " (esperado: 0)");
+  client.log("  yellowCards:  " + s.yellowCards   + " (esperado: ≥1)");
+  client.log("  redCards:     " + s.redCards      + " (esperado: ≥1)");
+  client.log("  matchesPlayed:" + s.matchesPlayed + " (esperado: ≥1)");
+%}
+
+###
+
+### [STATS-05] GET /stats/teams/{id} — stats Equipo Stats A (esperado: 200 OK)
+# GAP-13: registerResult() actualizó: matchesPlayed=1, matchesWon=1, points=3, goalsFor=2
+# RN-09-2: FairPlay +1 si el equipo no tuvo tarjetas en partidos finalizados
+#           (players sin teamId asignado → sus tarjetas no cuentan para ningún equipo)
+# → Equipo Stats A: points=3 (victoria) + 1 (FairPlay, sin tarjetas) = 4
+GET {{host}}/stats/teams/{{team_stats_a_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var s = response.body;
+  client.log("✔ Stats Equipo Stats A (ganó 2-0):");
+  client.log("  teamName:      " + s.teamName);
+  client.log("  matchesPlayed: " + s.matchesPlayed + " (esperado: ≥1)");
+  client.log("  matchesWon:    " + s.matchesWon    + " (esperado: ≥1)");
+  client.log("  matchesDrawn:  " + s.matchesDrawn);
+  client.log("  matchesLost:   " + s.matchesLost);
+  client.log("  goalsFor:      " + s.goalsFor      + " (esperado: ≥2)");
+  client.log("  goalsAgainst:  " + s.goalsAgainst  + " (esperado: 0)");
+  client.log("  goalDifference:" + s.goalDifference + " (esperado: ≥2)");
+  client.log("  points:        " + s.points        + " (esperado: ≥3, incluye FairPlay)");
+%}
+
+###
+
+### [STATS-06] GET /stats/teams/{id} — stats Equipo Stats B (esperado: 200 OK)
+# GAP-13: matchesPlayed=1, matchesLost=1, points=0, goalsFor=0, goalsAgainst=2
+# RN-09-2: +1 FairPlay si el equipo no tuvo tarjetas
+#           (player_stats_b sin teamId → tarjetas no cuentan para equipo B → +1 FairPlay)
+# → Equipo Stats B: points=0 + 1 (FairPlay) = 1
+GET {{host}}/stats/teams/{{team_stats_b_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var s = response.body;
+  client.log("✔ Stats Equipo Stats B (perdió 0-2):");
+  client.log("  matchesPlayed: " + s.matchesPlayed + " (esperado: ≥1)");
+  client.log("  matchesWon:    " + s.matchesWon    + " (esperado: 0)");
+  client.log("  matchesLost:   " + s.matchesLost   + " (esperado: ≥1)");
+  client.log("  goalsFor:      " + s.goalsFor      + " (esperado: 0)");
+  client.log("  goalsAgainst:  " + s.goalsAgainst  + " (esperado: ≥2)");
+  client.log("  goalDifference:" + s.goalDifference + " (esperado: ≤-2)");
+  client.log("  points:        " + s.points        + " (esperado: ≥0, incluye FairPlay)");
+%}
+
+###
+
+### [STATS-07] GET /tournaments/{id}/standings — tabla de posiciones (esperado: 200 OK)
+# GAP-14: solo equipos inscritos en el torneo (Equipo Stats A y B)
+# Orden: puntos → diferencia de goles → goles anotados
+# Devuelve List<StandingDTO> directamente (sin wrapper — en TournamentController)
+GET {{host}}/tournaments/{{tournament_stats_id}}/standings
+Authorization: Bearer {{org_token}}
+
+> {%
+  var standings = response.body;
+  client.log("✔ Tabla de posiciones del torneo " + client.global.get("tournament_stats_id")
+    + ": " + standings.length + " equipos (esperado: 2)");
+  for (var i = 0; i < standings.length; i++) {
+    var s = standings[i];
+    client.log("  " + (i+1) + ". " + s.teamName
+      + " | pts=" + s.points
+      + " PJ=" + s.matchesPlayed
+      + " PG=" + s.matchesWon
+      + " PP=" + s.matchesLost
+      + " GF=" + s.goalsFor
+      + " GC=" + s.goalsAgainst
+      + " DG=" + s.goalDifference);
+  }
+%}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 2 · ERRORES DE VALIDACIONES DE NEGOCIO
+# (Todos son GETs — no hay validación de input; errores son por ID inexistente)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [STATS-08] GET /stats/players/999999 — jugador inexistente (esperado: 404 Not Found)
+# statsService.getPlayerStats() lanza ResourceNotFoundException → controller → notFound()
+GET {{host}}/stats/players/999999
+Authorization: Bearer {{org_token}}
+
+###
+
+### [STATS-09] GET /stats/teams/999999 — equipo inexistente (esperado: 404 Not Found)
+# statsService.getTeamStats() lanza ResourceNotFoundException → controller → notFound()
+GET {{host}}/stats/teams/999999
+Authorization: Bearer {{org_token}}
+
+###
+
+### [STATS-10] GET /stats/tournaments/999999/top-scorers — torneo inexistente (esperado: 200 OK con lista vacía)
+# IMPORTANTE: getTopScorersByTournament() usa orElse(null) y devuelve lista vacía (no lanza excepción)
+# → el controller devuelve 200 OK con [] — no es un 404
+GET {{host}}/stats/tournaments/999999/top-scorers
+Authorization: Bearer {{org_token}}
+
+> {%
+  client.log("✔ Goleadores torneo inexistente: " + response.body.length
+    + " (esperado: 0 — no lanza 404)");
+%}
+
+###
+
+### [STATS-11] GET /tournaments/999999/standings — torneo inexistente (esperado: 400 Bad Request)
+# getTournamentStandings() lanza ResourceNotFoundException
+# TournamentController captura con catch(Exception) → badRequest().build()
+GET {{host}}/tournaments/999999/standings
+Authorization: Bearer {{org_token}}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLUJO 3 · EVIDENCIA DE PERSISTENCIA CON LOGGING
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [STATS-12] Verificar que Jugador Stats A aparece en top-scorers globales (esperado: 200 OK)
+# Confirma que los GOL del SETUP fueron persistidos y el motor los computa
+GET {{host}}/stats/top-scorers
+Authorization: Bearer {{org_token}}
+
+> {%
+  var scorers = response.body;
+  var found = false;
+  for (var i = 0; i < scorers.length; i++) {
+    if (scorers[i].playerName === "Jugador Stats A") {
+      found = true;
+      client.log("✔ Jugador Stats A en top-scorers globales:");
+      client.log("  posición:    " + (i+1));
+      client.log("  goals:       " + scorers[i].goals + " (esperado: ≥2)");
+      client.log("  matchesPlayed:" + scorers[i].matchesPlayed);
+    }
+  }
+  if (!found) client.log("✗ Jugador Stats A NO encontrado en top-scorers");
+%}
+
+###
+
+### [STATS-13] Verificar stats persistidas de Jugador Stats A — GET /stats/players/{id}
+GET {{host}}/stats/players/{{player_stats_a_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var s = response.body;
+  client.log("✔ Stats persistidas de Jugador Stats A:");
+  client.log("  goals:        " + s.goals        + " (esperado: ≥2)");
+  client.log("  yellowCards:  " + s.yellowCards   + " (esperado: 0)");
+  client.log("  redCards:     " + s.redCards      + " (esperado: 0)");
+  client.log("  matchesPlayed:" + s.matchesPlayed + " (esperado: ≥1)");
+%}
+
+###
+
+### [STATS-14] Verificar puntos de Equipo Stats A tras resultado — GET /stats/teams/{id}
+# Confirma que GAP-13 actualizó correctamente las stats del equipo ganador
+GET {{host}}/stats/teams/{{team_stats_a_id}}
+Authorization: Bearer {{org_token}}
+
+> {%
+  var s = response.body;
+  client.log("✔ Stats persistidas de Equipo Stats A:");
+  client.log("  matchesPlayed: " + s.matchesPlayed + " (esperado: ≥1)");
+  client.log("  matchesWon:    " + s.matchesWon    + " (esperado: ≥1)");
+  client.log("  goalsFor:      " + s.goalsFor      + " (esperado: ≥2)");
+  client.log("  goalsAgainst:  " + s.goalsAgainst  + " (esperado: 0)");
+  client.log("  points:        " + s.points        + " (esperado: ≥3 — victoria + FairPlay si aplica)");
+%}
+
+###
+
+### [STATS-15] Verificar tabla de posiciones final del torneo — GET /tournaments/{id}/standings
+# Confirma que GAP-14 filtra correctamente los equipos inscritos
+# y que el orden por puntos → diferencia de goles es correcto
+GET {{host}}/tournaments/{{tournament_stats_id}}/standings
+Authorization: Bearer {{org_token}}
+
+> {%
+  var standings = response.body;
+  client.log("✔ Tabla de posiciones final persistida:");
+  client.log("  Total equipos: " + standings.length + " (esperado: 2 — GAP-14)");
+  if (standings.length >= 2) {
+    client.log("  Líder:    " + standings[0].teamName
+      + " pts=" + standings[0].points
+      + " DG=" + standings[0].goalDifference);
+    client.log("  Segundo:  " + standings[1].teamName
+      + " pts=" + standings[1].points
+      + " DG=" + standings[1].goalDifference);
+    client.log("  Orden correcto (lider tiene más pts): "
+      + (standings[0].points >= standings[1].points));
+  }
+%}
+
+###

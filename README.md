@@ -21,14 +21,15 @@ Plataforma backend para la gestión integral del torneo semestral de fútbol de 
 * Maven 3.8+
 * Docker (para levantar PostgreSQL 16)
 
-### Pasos para ejecutar localmente
+### Opción A — Ejecución directa con Maven
+
 1. Clonar el repositorio:
    `git clone https://github.com/Lanch3ros/techcup-futbol.git`
 2. Navegar a la carpeta del proyecto:
    `cd techcup-futbol`
 3. Levantar la base de datos PostgreSQL:
-   `docker compose up -d`
-4. Ejecutar la suite de pruebas (verificación de integridad con 498 tests):
+   `docker compose up -d postgres`
+4. Ejecutar la suite de pruebas (verificación de integridad con 509 tests):
    `mvn clean test jacoco:report`
 5. Ejecutar la aplicación Spring Boot:
    `mvn spring-boot:run -Dmaven.test.skip=true`
@@ -36,7 +37,21 @@ Plataforma backend para la gestión integral del torneo semestral de fútbol de 
 7. Para visualizar la documentación interactiva (Swagger / OpenAPI 3.1), ingresa a:
    `https://localhost:8443/swagger-ui.html`
 
-> **Nota:** La aplicación requiere un keystore PKCS12 en `src/main/resources/keystore.p12` para habilitar HTTPS. La contraseña del keystore se configura mediante la variable de entorno `SSL_KEY_STORE_PASSWORD` (valor por defecto: `techcup`).
+### Opción B — Ejecución completa con Docker Compose
+
+1. Clonar el repositorio:
+   `git clone https://github.com/Lanch3ros/techcup-futbol.git`
+2. Navegar a la carpeta del proyecto:
+   `cd techcup-futbol`
+3. Copiar el archivo de variables de entorno y completar los valores:
+   `cp .env.example .env`
+4. Levantar PostgreSQL y la aplicación:
+   `docker compose up --build`
+5. La aplicación estará disponible en `https://localhost:8443`
+6. Para visualizar la documentación interactiva (Swagger / OpenAPI 3.1), ingresa a:
+   `https://localhost:8443/swagger-ui.html`
+
+> **Nota:** La aplicación requiere un keystore PKCS12 en `src/main/resources/keystore.p12` para habilitar HTTPS. La contraseña del keystore se configura mediante la variable de entorno `SSL_KEY_STORE_PASSWORD` (valor por defecto: `techcup123`).
 
 ---
 
@@ -45,6 +60,20 @@ Plataforma backend para la gestión integral del torneo semestral de fútbol de 
 * **Sprint 1:** [Enlace a Canva](https://www.canva.com/design/DAHDIhwNdzU/ynjiJ__QOQWReNaZfXhO7Q/edit?utm_content=DAHDIhwNdzU&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
 * **Sprint 2:** [Enlace a Canva](https://www.canva.com/design/DAHEoyICPoE/jg6A0KOsso8ERnJbRn0hRw/edit?utm_content=DAHEoyICPoE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
 * **Sprint 3:** [Enlace a Canva](https://www.canva.com/design/DAHFSF0epuE/R3Pq2PrtoQJfLQqHlH7F8Q/edit?utm_content=DAHFSF0epuE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+* **Sprint 4:** _Próximamente_
+
+---
+
+## Despliegues
+
+| Ambiente | URL API | Swagger |
+|----------|---------|---------|
+| **QA** | `https://techcup-backend-qa-1.azurewebsites.net` | [Swagger QA](https://techcup-backend-qa-1.azurewebsites.net/swagger-ui.html) |
+| **PROD** | `https://techcup-backend-prod-1.azurewebsites.net` | [Swagger PROD](https://techcup-backend-prod-1.azurewebsites.net/swagger-ui.html) |
+
+El despliegue es automático vía GitHub Actions:
+- Cada push a `develop` → deploy automático a **QA** (tras pasar el CI)
+- Cada merge a `main` → deploy automático a **PROD** (tras pasar el CI)
 
 ---
 
@@ -203,13 +232,13 @@ Para garantizar el control de la deuda técnica, el proyecto cuenta con un entor
 
 #### 4.1 Pruebas Unitarias y Cobertura
 
-* **498 tests** ejecutados con JUnit 5 y Mockito — todos en verde.
+* **509 tests** ejecutados con JUnit 5 y Mockito — todos en verde.
 * **Estrategia por capa:**
   * *Service*: Mockito puro, inyección manual por constructor, sin contexto Spring.
   * *Controller*: Instanciación directa `new Controller(mockService)`, aserciones sobre `ResponseEntity`.
   * *Config*: `@SpringBootTest(webEnvironment = NONE)` para beans reales sin servidor HTTP.
   * *Model*: Instanciación directa + reflexión Java para métodos `@PrePersist` privados.
-* **Cobertura (JaCoCo):** **97.7%** en instrucciones, líneas, métodos y clases. Las 3 ramas no cubiertas son falsos negativos estructurales aceptados (paths imposibles en `TeamService#isValidProgram`, `TeamService#isMasterProgram` y `JwtService#isTokenValid`).
+* **Cobertura (JaCoCo):** **100%** en instrucciones, líneas, métodos y clases — **99.2% en ramas**. Las 3 ramas no cubiertas son falsos negativos estructurales aceptados (paths imposibles en `TeamService#isValidProgram`, `TeamService#isMasterProgram` y `JwtService#isTokenValid`).
 
 ![JacocoCoverage.png](docs/jacoco/JacocoCoverage.png)
 

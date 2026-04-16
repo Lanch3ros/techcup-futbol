@@ -68,8 +68,8 @@ Plataforma backend para la gestión integral del torneo semestral de fútbol de 
 
 | Ambiente | URL API | Swagger |
 |----------|---------|---------|
-| **QA** | `https://techcup-backend-qa-1.azurewebsites.net` | [Swagger QA](https://techcup-backend-qa-1.azurewebsites.net/swagger-ui.html) |
-| **PROD** | `https://techcup-backend-prod-1.azurewebsites.net` | [Swagger PROD](https://techcup-backend-prod-1.azurewebsites.net/swagger-ui.html) |
+| **QA** | `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net` | [Swagger QA](https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net/swagger-ui/index.html) |
+| **PROD** | `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net` | [Swagger PROD](https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net/swagger-ui/index.html) |
 
 El despliegue es automático vía GitHub Actions:
 - Cada push a `develop` → deploy automático a **QA** (tras pasar el CI)

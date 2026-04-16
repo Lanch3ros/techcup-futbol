@@ -283,21 +283,21 @@ Three GitHub Actions workflows:
 - Triggers via `workflow_run` on CI completing successfully on `develop`
 - Deploys image `ACR/techcup-backend:${{ github.event.workflow_run.head_sha }}` to App Service `techcup-backend-qa-1`
 - Requires GitHub Secret: `AZURE_WEBAPP_PUBLISH_PROFILE_QA`
-- Runs health check against `https://techcup-backend-qa-1.azurewebsites.net/swagger-ui.html`
+- Runs health check against `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net/swagger-ui.html`
 
 ### `.github/workflows/deploy-prod.yml` — Deploy to PROD
 - Triggers via `workflow_run` on CI completing successfully on `main`
 - Uses GitHub Environment `production` (branch protection on `main` enforces 3-reviewer PRs)
 - Deploys to App Service `techcup-backend-prod-1`
 - Requires GitHub Secret: `AZURE_WEBAPP_PUBLISH_PROFILE_PROD`
-- Runs health check against `https://techcup-backend-prod-1.azurewebsites.net/swagger-ui.html`
+- Runs health check against `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net/swagger-ui.html`
 
 ### Azure infrastructure (Sprint 4)
 - ACR: `techcupacr.azurecr.io`
 - QA DB: `techcup-db-qa.postgres.database.azure.com` / user `techcup_qa`
 - PROD DB: `techcup-db-prod.postgres.database.azure.com` / user `techcup_prod`
-- QA App Service: `techcup-backend-qa-1` → `https://techcup-backend-qa-1.azurewebsites.net`
-- PROD App Service: `techcup-backend-prod-1` → `https://techcup-backend-prod-1.azurewebsites.net`
+- QA App Service: `techcup-backend-qa-1` → `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net`
+- PROD App Service: `techcup-backend-prod-1` → `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net`
 
 ### Docker local run
 ```bash

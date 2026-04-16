@@ -73,8 +73,8 @@ feat/** ──► develop ──► main
 | Ambiente | URL | Swagger |
 |----------|-----|---------|
 | Local | `https://localhost:8443` | `https://localhost:8443/swagger-ui.html` |
-| QA | `https://techcup-backend-qa-1.azurewebsites.net` | `https://techcup-backend-qa-1.azurewebsites.net/swagger-ui.html` |
-| PROD | `https://techcup-backend-prod-1.azurewebsites.net` | `https://techcup-backend-prod-1.azurewebsites.net/swagger-ui.html` |
+| QA | `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net` | `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net/swagger-ui.html` |
+| PROD | `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net` | `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net/swagger-ui.html` |
 
 ### Apagar/encender servidores Azure (para ahorrar costos)
 Cuando no estés trabajando activamente en QA o PROD, puedes pausar los App Services desde el portal:

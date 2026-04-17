@@ -1,0 +1,1408 @@
+================================================================================
+      TECHCUP FÚTBOL — DOCUMENTO TÉCNICO EXHAUSTIVO DEL BACKEND
+      Escuela Colombiana de Ingeniería Julio Garavito — DOSW 2026-I
+      Sprint 5 — Presentación Final — 17 de abril de 2026
+================================================================================
+
+TABLA DE CONTENIDO
+──────────────────
+  1.  Contexto del Proyecto
+  2.  Stack Tecnológico
+  3.  Arquitectura del Sistema
+  4.  Modelo de Dominio y Persistencia
+  5.  Sistema de Seguridad (JWT + OAuth2 + HTTPS + CORS)
+  6.  Endpoints REST — Catálogo Completo
+  7.  Lógica de Negocio — Servicios
+  8.  Reglas de Negocio Implementadas (RN-XX)
+  9.  GAPs Identificados y Resueltos (GAP-XX)
+  10. Patrones de Diseño Utilizados
+  11. Manejo de Errores
+  12. Motor de Estadísticas
+  13. Suite de Pruebas
+  14. CI/CD y Despliegue en Azure
+  15. Docker y Configuración de Entorno
+  16. Pruebas Funcionales HTTP (Sprint 5)
+  17. Evolución Sprint a Sprint
+  18. Decisiones Arquitectónicas Clave
+
+
+================================================================================
+1. CONTEXTO DEL PROYECTO
+================================================================================
+
+TechCup Fútbol es una plataforma web que centraliza la gestión del torneo
+semestral de fútbol de los programas de Ingeniería de Sistemas, IA,
+Ciberseguridad y Estadística de la Escuela Colombiana de Ingeniería.
+
+PROBLEMA QUE RESUELVE:
+- Inscripción de equipos/jugadores actualmente manual (WhatsApp, Google Forms)
+- Verificación de pagos manual
+- Resultados y tabla de posiciones en hojas de cálculo
+- Llaves eliminatorias organizadas a mano
+- Sin historial ni estadísticas del torneo
+
+ALCANCE DEL MVP:
+- Registro de jugadores (5 tipos: Estudiante, Profesor, Graduado, Familiar,
+  Personal Administrativo)
+- Creación y gestión de equipos con capitanes
+- Sistema de invitaciones a equipos
+- Verificación de pagos con comprobantes
+- Gestión de torneos con estados (Borrador → Activo → En progreso → Finalizado)
+- Registro de partidos, eventos (goles, tarjetas), resultados
+- Tabla de posiciones con FairPlay
+- Generación automática de partidos y cuartos de final
+- Asignación de árbitros
+- Alineaciones (titulares + suplentes + formación)
+- Estadísticas: goleadores, tarjetas, desempeño por equipo y jugador
+
+ACTORES DEL SISTEMA:
+┌───────────────────┬──────────────────────────────────────────────────────┐
+│ Actor             │ Función                                              │
+├───────────────────┼──────────────────────────────────────────────────────┤
+│ Estudiante        │ Se registra como jugador, puede ser capitán          │
+│ Graduado          │ Se registra como jugador, puede ser capitán          │
+│ Profesor          │ Se registra como jugador, puede ser capitán          │
+│ Personal Admin.   │ Se registra como jugador, puede ser capitán          │
+│ Familiar          │ Se registra como jugador, puede ser capitán          │
+│ Capitán           │ Crea y administra un equipo                          │
+│ Organizador       │ Administra torneos, aprueba pagos                    │
+│ Árbitro           │ Registra eventos y resultados de partidos            │
+│ Administrador     │ Control total del sistema                            │
+└───────────────────┴──────────────────────────────────────────────────────┘
+
+
+================================================================================
+2. STACK TECNOLÓGICO
+================================================================================
+
+BACKEND:
+- Java 21 (LTS)
+- Spring Boot 4.0.3
+  - spring-boot-starter-web (REST API)
+  - spring-boot-starter-validation (Bean Validation / Jakarta)
+  - spring-boot-starter-data-jpa (ORM con Hibernate)
+  - spring-boot-starter-security (Spring Security 6.x)
+  - spring-boot-starter-oauth2-client (Google OAuth2)
+  - spring-boot-starter-logging (SLF4J + Logback)
+- Lombok (reducción de boilerplate: @Data, @Slf4j)
+- JJWT 0.11.5 (jjwt-api, jjwt-impl, jjwt-jackson) — tokens JWT HS256
+- springdoc-openapi 3.0.0 — Swagger UI
+- PostgreSQL 16 (driver runtime)
+- Jackson 3.x (serialización JSON — Spring Boot 4.x)
+
+BUILD:
+- Maven 3.8+ con maven-compiler-plugin (Lombok annotation processor)
+- JaCoCo 0.8.11 (cobertura de código)
+- SonarCloud (análisis estático)
+
+INFRAESTRUCTURA:
+- Docker + Docker Compose
+- Azure Container Registry (ACR): techcupacr.azurecr.io
+- Azure App Service (QA y PROD)
+- Azure Database for PostgreSQL (QA y PROD)
+- GitHub Actions (CI/CD)
+
+
+================================================================================
+3. ARQUITECTURA DEL SISTEMA
+================================================================================
+
+PATRÓN ARQUITECTÓNICO: Layered Architecture (Controller → Service → Repository)
+
+src/main/java/com/example/
+├── TechcupFutbolApplication.java          ← Punto de entrada Spring Boot
+├── config/                                ← Configuración transversal
+│   ├── SecurityConfig.java                  Cadena de filtros Spring Security
+│   ├── JwtAuthenticationFilter.java         Filtro JWT (OncePerRequestFilter)
+│   ├── SwaggerConfig.java                   Configuración OpenAPI/Swagger
+│   ├── DatabaseSeeder.java                  Seed de usuarios sistema (admin, org, árbitro)
+│   └── CorsConfig.java                     Configuración CORS
+├── controller/                            ← Capa de presentación REST
+│   ├── AuthController.java                  POST /auth/login
+│   ├── OAuth2Controller.java                POST /auth/google
+│   ├── PlayerController.java                Registro, búsqueda, perfil jugadores
+│   ├── TeamController.java                  CRUD equipos, invitaciones, alineaciones
+│   ├── TournamentController.java            CRUD torneos, inscripción, generación partidos
+│   ├── MatchController.java                 CRUD partidos, eventos, resultados, árbitro
+│   ├── PaymentController.java               Upload/review pagos
+│   ├── RefereeController.java               CRUD árbitros
+│   ├── StatsController.java                 Estadísticas y tabla de posiciones
+│   ├── advice/
+│   │   └── GlobalExceptionHandler.java      @ControllerAdvice — mapeo de excepciones a HTTP
+│   ├── dto/
+│   │   ├── request/                         DTOs de entrada con validaciones Jakarta
+│   │   │   ├── GoogleAuthRequest.java
+│   │   │   ├── LineupRequest.java
+│   │   │   ├── LoginRequest.java
+│   │   │   ├── MatchCreationRequest.java
+│   │   │   ├── MatchEventRequest.java
+│   │   │   ├── MatchResultRequest.java
+│   │   │   ├── PaymentRequest.java
+│   │   │   ├── PlayerRegistrationRequest.java
+│   │   │   ├── RefereeRequest.java
+│   │   │   ├── TeamCreationRequest.java
+│   │   │   └── TournamentCreationRequest.java
+│   │   └── response/                        DTOs de salida
+│   │       ├── AuthResponse.java            { token, type:"Bearer", email }
+│   │       ├── ErrorResponse.java           { status, error, message, path, timestamp }
+│   │       ├── GenericResponse.java         { message, data }
+│   │       ├── ProfileDTO.java              Record con id, fullName, email, etc.
+│   │       └── StandingDTO.java             Estadísticas de equipo
+│   └── mapper/
+│       ├── LineupMapper.java
+│       ├── PlayerMapper.java                User → ProfileDTO
+│       ├── TeamMapper.java                  TeamCreationRequest → Team
+│       └── TournamentMapper.java            TournamentCreationRequest → Tournament
+├── core/                                  ← Capa de dominio
+│   ├── service/                             Lógica de negocio
+│   │   ├── PlayerService.java               Registro jugadores + normalización + invitaciones
+│   │   ├── TeamService.java                 Equipos, alineaciones, composición, roster frozen
+│   │   ├── TournamentService.java           Torneos, inscripción, generación partidos, QF
+│   │   ├── MatchService.java                Partidos, eventos, resultados, asignación árbitro
+│   │   ├── PaymentService.java              Upload comprobantes, aprobación, rechazo
+│   │   ├── StatsService.java                Goleadores, estadísticas, FairPlay, standings
+│   │   ├── RefereeService.java              CRUD árbitros (vía endpoint dedicado)
+│   │   ├── JwtService.java                  Generación y validación de tokens JWT
+│   │   ├── CustomUserDetailsService.java    UserDetailsService para Spring Security
+│   │   └── GoogleTokenVerifierService.java  Verificación de Google ID tokens
+│   ├── model/                               Entidades JPA
+│   │   ├── User.java                        @Entity @Inheritance(SINGLE_TABLE) — abstracta
+│   │   ├── Player.java                      @MappedSuperclass — abstracta
+│   │   ├── StudentPlayer.java               @DiscriminatorValue("STUDENT")
+│   │   ├── TeacherPlayer.java               @DiscriminatorValue("TEACHER")
+│   │   ├── GraduatePlayer.java              @DiscriminatorValue("GRADUATE")
+│   │   ├── RelativePlayer.java              @DiscriminatorValue("RELATIVE")
+│   │   ├── StaffPlayer.java                 @DiscriminatorValue("STAFF")
+│   │   ├── AdminUser.java                   @DiscriminatorValue("ADMIN")
+│   │   ├── OrganizerUser.java               @DiscriminatorValue("ORGANIZER")
+│   │   ├── RefereeUser.java                 @DiscriminatorValue("REFEREE")
+│   │   ├── Team.java                        Equipo con estadísticas integradas
+│   │   ├── Tournament.java                  Torneo con equipos y partidos
+│   │   ├── Match.java                       Partido con equipos, árbitro, resultado
+│   │   ├── MatchEvent.java                  Evento de partido (GOL, AMARILLA, ROJA)
+│   │   ├── Invitation.java                  Invitación equipo→jugador
+│   │   ├── Payment.java                     Comprobante de pago
+│   │   ├── PlayerStats.java                 Estadísticas de jugador (no-entidad)
+│   │   └── Program.java                     Enum: programas académicos
+│   ├── factory/                             Patrón Factory Method
+│   │   ├── PlayerFactory.java               Interfaz base
+│   │   ├── StudentFactory.java
+│   │   ├── TeacherFactory.java
+│   │   ├── GraduateFactory.java
+│   │   ├── RelativeFactory.java
+│   │   └── StaffFactory.java
+│   ├── validator/                           Patrón Strategy
+│   │   ├── EmailValidator.java              Interfaz base
+│   │   ├── StudentEmailValidator.java       Valida @mail.escuelaing.edu.co
+│   │   ├── StaffEmailValidator.java         Valida @escuelaing.edu.co
+│   │   └── GmailValidator.java              Valida @gmail.com (familiares)
+│   └── exception/
+│       ├── ResourceNotFoundException.java   → HTTP 404
+│       └── BusinessRuleException.java       → HTTP 409
+└── repository/                            ← Capa de acceso a datos (Spring Data JPA)
+    ├── UserRepository.java                  JpaRepository<User, Long>
+    ├── TeamRepository.java                  JpaRepository<Team, Long>
+    ├── TournamentRepository.java            JpaRepository<Tournament, Long>
+    ├── MatchRepository.java                 JpaRepository<Match, Long>
+    ├── MatchEventRepository.java            JpaRepository<MatchEvent, Long>
+    ├── InvitationRepository.java            JpaRepository<Invitation, Long>
+    ├── PaymentRepository.java               JpaRepository<Payment, Long>
+    └── RefereeRepository.java               JpaRepository<RefereeUser, Long>
+
+
+================================================================================
+4. MODELO DE DOMINIO Y PERSISTENCIA
+================================================================================
+
+4.1 ESTRATEGIA DE HERENCIA: SINGLE_TABLE
+─────────────────────────────────────────
+Toda la jerarquía de usuarios se almacena en UNA sola tabla `users` con un
+discriminador `user_type` (columna STRING). Esta decisión fue tomada porque:
+- Simplifica las consultas (no necesita JOINs)
+- Spring Security puede cargar cualquier tipo de usuario con una sola query
+- Las columnas no aplicables a un subtipo quedan NULL (trade-off aceptable)
+
+Tabla: users
+┌──────────────────────┬──────────────┬─────────────────────────────────────┐
+│ Columna              │ Tipo         │ Restricciones                       │
+├──────────────────────┼──────────────┼─────────────────────────────────────┤
+│ id                   │ BIGSERIAL    │ PK, auto-generado                   │
+│ user_type            │ VARCHAR      │ Discriminador (STUDENT, TEACHER,    │
+│                      │              │ GRADUATE, RELATIVE, STAFF, ADMIN,   │
+│                      │              │ ORGANIZER, REFEREE)                 │
+│ email                │ VARCHAR      │ UNIQUE, NOT NULL                    │
+│ password             │ VARCHAR      │ BCrypt-encoded, nunca en respuestas │
+│ full_name            │ VARCHAR      │                                     │
+│ identification       │ VARCHAR      │ UNIQUE (nullable para admin/org)    │
+│ role                 │ VARCHAR      │ ADMIN, ORGANIZADOR, ARBITRO,        │
+│                      │              │ CAPITAN, JUGADOR                    │
+│ profile_photo        │ VARCHAR      │ URL foto de perfil                  │
+│ jersey_number        │ INTEGER      │ Número dorsal (nullable)            │
+│ position             │ VARCHAR      │ Portero/Defensa/Volante/Delantero   │
+│ available            │ BOOLEAN      │ default TRUE                        │
+│ team_id              │ BIGINT       │ FK lógica a teams                   │
+│ program              │ VARCHAR      │ Enum: SISTEMAS, IA, etc.            │
+│ department           │ VARCHAR      │ Para STUDENT, TEACHER               │
+│ relationship         │ VARCHAR      │ Para RELATIVE                       │
+│ birth_date           │ DATE         │                                     │
+│ gender               │ VARCHAR      │                                     │
+│ license_number       │ VARCHAR      │ UNIQUE (para REFEREE)               │
+│ certification_level  │ VARCHAR      │ Para REFEREE                        │
+└──────────────────────┴──────────────┴─────────────────────────────────────┘
+
+Jerarquía de clases:
+
+  User (abstracta, @Entity @Table("users") @Inheritance(SINGLE_TABLE))
+  ├── Player (abstracta, @MappedSuperclass — NO genera tabla propia)
+  │   ├── StudentPlayer  (@DiscriminatorValue("STUDENT"))
+  │   ├── TeacherPlayer  (@DiscriminatorValue("TEACHER"))
+  │   ├── GraduatePlayer (@DiscriminatorValue("GRADUATE"))
+  │   ├── RelativePlayer (@DiscriminatorValue("RELATIVE"))
+  │   └── StaffPlayer    (@DiscriminatorValue("STAFF"))
+  ├── AdminUser          (@DiscriminatorValue("ADMIN"))
+  ├── OrganizerUser      (@DiscriminatorValue("ORGANIZER"))
+  └── RefereeUser        (@DiscriminatorValue("REFEREE"))
+
+NOTA IMPORTANTE: La columna `password` tiene @JsonProperty(access = WRITE_ONLY)
+→ se deserializa del JSON de entrada, pero NUNCA se incluye en respuestas.
+
+
+4.2 ENTIDAD: Team (Tabla: teams)
+────────────────────────────────
+┌──────────────────────┬──────────────┬─────────────────────────────────────┐
+│ Columna              │ Tipo         │ Notas                               │
+├──────────────────────┼──────────────┼─────────────────────────────────────┤
+│ id                   │ BIGSERIAL    │ PK                                  │
+│ name                 │ VARCHAR      │                                     │
+│ colors               │ VARCHAR      │ Colores del uniforme                │
+│ payment_status       │ VARCHAR      │                                     │
+│ shield_url           │ VARCHAR      │ URL del escudo                      │
+│ captain_id           │ BIGINT       │ FK → users (ManyToOne LAZY)         │
+│ tournament_id        │ BIGINT       │ FK lógica a tournaments             │
+│ matches_played       │ INT          │ Estadísticas inline                 │
+│ matches_won          │ INT          │                                     │
+│ matches_drawn        │ INT          │                                     │
+│ matches_lost         │ INT          │                                     │
+│ goals_for            │ INT          │                                     │
+│ goals_against        │ INT          │                                     │
+│ goal_difference      │ INT          │                                     │
+│ points               │ INT          │ 3=victoria, 1=empate, 0=derrota     │
+│ formation            │ VARCHAR      │ Formación (e.g. "4-3-3")            │
+└──────────────────────┴──────────────┴─────────────────────────────────────┘
+
+Tablas auxiliares:
+- team_starting_players(team_id, player_id) — @ElementCollection
+- team_reserve_players(team_id, player_id)  — @ElementCollection
+
+DECISIÓN CLAVE: `Team.players` es @Transient — NO mapeado por JPA.
+Los jugadores siempre se cargan via UserRepository.findByTeamId(teamId).
+Esto evita problemas de lazy loading y serialización circular.
+
+
+4.3 ENTIDAD: Tournament (Tabla: tournaments)
+─────────────────────────────────────────────
+┌──────────────────────┬──────────────┬─────────────────────────────────────┐
+│ Columna              │ Tipo         │ Notas                               │
+├──────────────────────┼──────────────┼─────────────────────────────────────┤
+│ id                   │ BIGSERIAL    │ PK                                  │
+│ name                 │ VARCHAR      │                                     │
+│ start_date           │ DATE         │                                     │
+│ end_date             │ DATE         │                                     │
+│ team_cost            │ DOUBLE       │ Costo por equipo                    │
+│ status               │ VARCHAR      │ Borrador/Activo/En progreso/        │
+│                      │              │ Finalizado                          │
+│ regulations          │ TEXT         │ Reglamento                          │
+│ max_teams            │ INT          │ Máximo de equipos permitidos        │
+└──────────────────────┴──────────────┴─────────────────────────────────────┘
+
+Tablas auxiliares:
+- tournament_fields(tournament_id, field) — @ElementCollection (canchas)
+- tournament_teams(tournament_id, team_id) — @ManyToMany @JoinTable
+
+Relación clave: tournament.matches → @OneToMany @JoinColumn("tournament_id")
+
+NOTA: El DTO de creación usa `rules` y `numberOfTeams` → TournamentMapper los
+transforma a `regulations` y `maxTeams` en la entidad.
+
+
+4.4 ENTIDAD: Match (Tabla: matches)
+────────────────────────────────────
+┌──────────────────────┬──────────────┬─────────────────────────────────────┐
+│ Columna              │ Tipo         │ Notas                               │
+├──────────────────────┼──────────────┼─────────────────────────────────────┤
+│ id                   │ BIGSERIAL    │ PK                                  │
+│ match_date           │ TIMESTAMP    │ LocalDateTime                       │
+│ field                │ VARCHAR      │ Cancha                              │
+│ phase                │ VARCHAR      │ null o "Cuartos de Final"           │
+│ home_team_id         │ BIGINT       │ FK → teams (ManyToOne LAZY)         │
+│ away_team_id         │ BIGINT       │ FK → teams (ManyToOne LAZY)         │
+│ home_goals           │ INT          │                                     │
+│ away_goals           │ INT          │                                     │
+│ status               │ VARCHAR      │ Programado/En Curso/Finalizado      │
+│ referee              │ VARCHAR      │ fullName del árbitro (String!)       │
+│ tournament_id        │ BIGINT       │ FK → tournaments (si generado)      │
+└──────────────────────┴──────────────┴─────────────────────────────────────┘
+
+NOTA: `events` y `lineups` son @Transient — se cargan por separado.
+`referee` es un String con el nombre, NO una FK al árbitro.
+
+
+4.5 ENTIDAD: MatchEvent (Tabla: match_events)
+──────────────────────────────────────────────
+┌──────────────────────┬──────────────┬─────────────────────────────────────┐
+│ Columna              │ Tipo         │ Notas                               │
+├──────────────────────┼──────────────┼─────────────────────────────────────┤
+│ id                   │ BIGSERIAL    │ PK                                  │
+│ match_id             │ BIGINT       │ FK lógica a matches                 │
+│ player_id            │ BIGINT       │ FK lógica a users                   │
+│ player_name          │ VARCHAR      │ Nombre del jugador (redundante)     │
+│ type                 │ VARCHAR      │ GOL, AMARILLA, ROJA (MAYÚSCULAS)    │
+│ minute               │ INT          │ Minuto del evento (>= 0)            │
+└──────────────────────┴──────────────┴─────────────────────────────────────┘
+
+
+4.6 ENTIDAD: Invitation (Tabla: invitations)
+─────────────────────────────────────────────
+┌──────────────────────┬──────────────┬─────────────────────────────────────┐
+│ Columna              │ Tipo         │ Notas                               │
+├──────────────────────┼──────────────┼─────────────────────────────────────┤
+│ id                   │ BIGSERIAL    │ PK                                  │
+│ player_id            │ BIGINT       │ FK lógica a users                   │
+│ team_id              │ BIGINT       │ FK lógica a teams                   │
+│ status               │ VARCHAR      │ PENDING, ACCEPTED, REJECTED         │
+│ sent_date            │ DATE         │ @PrePersist LocalDate.now()         │
+└──────────────────────┴──────────────┴─────────────────────────────────────┘
+
+
+4.7 ENTIDAD: Payment (Tabla: payments)
+──────────────────────────────────────
+┌──────────────────────┬──────────────┬─────────────────────────────────────┐
+│ Columna              │ Tipo         │ Notas                               │
+├──────────────────────┼──────────────┼─────────────────────────────────────┤
+│ id                   │ BIGSERIAL    │ PK                                  │
+│ team_id              │ BIGINT       │ FK lógica a teams                   │
+│ status               │ VARCHAR      │ Pendiente/En revisión/Aprobado/     │
+│                      │              │ Rechazado                           │
+│ upload_date          │ DATE         │                                     │
+│ review_date          │ DATE         │                                     │
+│ approved_by          │ VARCHAR      │ Nombre del organizador              │
+│ receipt_url          │ VARCHAR      │ Ruta al archivo del comprobante     │
+│ comments             │ VARCHAR      │ Motivo de rechazo                   │
+└──────────────────────┴──────────────┴─────────────────────────────────────┘
+
+
+4.8 ENTIDAD: RefereeUser — Tabla auxiliar: referee_matches
+──────────────────────────────────────────────────────────
+RefereeUser extiende User con @DiscriminatorValue("REFEREE").
+Campo adicional: assignedMatchIds → @ElementCollection @CollectionTable("referee_matches")
+Almacena List<Long> con IDs de partidos asignados al árbitro.
+
+
+4.9 ENUM: Program
+──────────────────
+Pregrados:       SISTEMAS, IA, CIBERSEGURIDAD, ESTADISTICA
+Maestrías:       MAESTRIA_GESTION_INFORMACION, MAESTRIA_INFORMATICA, MAESTRIA_CIENCIA_DATOS
+
+Los pregrados cuentan para la regla del >50% de ingeniería (RN-03-4).
+Las maestrías son programas válidos pero NO cuentan como ingeniería.
+
+
+4.10 DATABASE SEEDER
+────────────────────
+DatabaseSeeder (CommandLineRunner) se ejecuta al iniciar la aplicación.
+Es idempotente: verifica si admin@techcup.edu.co ya existe antes de insertar.
+
+Usuarios seed:
+┌──────────────────────────────┬─────────────────┬──────────────────────────┐
+│ Email                        │ Tipo            │ Rol                      │
+├──────────────────────────────┼─────────────────┼──────────────────────────┤
+│ admin@techcup.edu.co         │ AdminUser       │ ADMIN                    │
+│ organizador@techcup.edu.co   │ OrganizerUser   │ ORGANIZADOR              │
+│ arbitro@techcup.edu.co       │ RefereeUser     │ ARBITRO                  │
+└──────────────────────────────┴─────────────────┴──────────────────────────┘
+
+Password para todos: Admin123* (BCrypt-encoded)
+
+
+================================================================================
+5. SISTEMA DE SEGURIDAD
+================================================================================
+
+5.1 HTTPS (INTEGRIDAD)
+──────────────────────
+- Servidor corre exclusivamente en puerto 8443 con TLS
+- Keystore PKCS12 en src/main/resources/keystore.p12
+- Password: techcup123 (variable SSL_KEY_STORE_PASSWORD)
+- En desarrollo se usa certificado self-signed (curl -k)
+
+5.2 JWT (AUTENTICACIÓN)
+────────────────────────
+Algoritmo: HS256 (HMAC-SHA256)
+Expiración: 1 hora (3600000 ms, configurable via app.jwt.expiration-ms)
+Claim personalizado: "roles" (lista de roles del usuario)
+
+Flujo de autenticación:
+1. POST /api/v1/auth/login con { email, password }
+2. AuthController → AuthenticationManager (DaoAuthenticationProvider + BCrypt)
+3. JwtService.generateToken(userDetails) → genera JWT con claims
+4. Respuesta: { token: "eyJ...", type: "Bearer", email: "..." }
+5. Cada request subsiguiente: header Authorization: Bearer <token>
+6. JwtAuthenticationFilter (OncePerRequestFilter):
+   a. Extrae token del header
+   b. JwtService.isTokenValid() — valida firma y expiración
+   c. CustomUserDetailsService.loadUserByUsername(email)
+   d. Crea UsernamePasswordAuthenticationToken
+   e. Lo pone en SecurityContextHolder
+
+JwtService métodos:
+- generateToken(UserDetails) → String
+- extractUsername(token) → String
+- isTokenValid(token, UserDetails) → boolean
+- isTokenExpired(token) → boolean
+
+NOTA: isTokenValid() captura JwtException y retorna false (NO propaga).
+
+5.3 GOOGLE OAUTH2 (AUTENTICACIÓN EXTERNA)
+──────────────────────────────────────────
+- POST /api/v1/auth/google — recibe Google ID Token
+- GoogleTokenVerifierService verifica el token contra Google
+- Si el usuario existe en BD → genera JWT TechCup
+- Configurado via spring.security.oauth2.client.registration.google
+
+5.4 CORS
+────────
+CorsConfig permite:
+- Origins: http(s)://localhost:*, http(s)://127.0.0.1:*
+- Métodos: GET, POST, PUT, PATCH, DELETE, OPTIONS
+- Headers: * (todos)
+- Credentials: permitidos
+
+5.5 AUTORIZACIÓN (RBAC)
+────────────────────────
+Configurado en SecurityConfig.securityFilterChain():
+
+ENDPOINTS PÚBLICOS (sin autenticación):
+- Swagger UI (/swagger-ui/**, /v3/api-docs/**)
+- POST /api/v1/auth/login
+- POST /api/v1/auth/google
+- POST /api/v1/players/register
+- POST /api/v1/referees
+- GET /api/v1/tournaments/**
+- GET /api/v1/matches/**
+- GET /api/v1/stats/**
+
+RBAC POR ROL:
+┌────────────────┬──────────────────────────────────────────────────────────┐
+│ Rol            │ Permisos                                                 │
+├────────────────┼──────────────────────────────────────────────────────────┤
+│ ADMIN          │ Todo (incluido en todos los hasAnyRole)                  │
+│ ORGANIZADOR    │ Crear/iniciar/finalizar torneos, generar partidos,       │
+│                │ generar cuartos de final, aprobar/rechazar pagos,        │
+│                │ asignar árbitros, cambiar estado partido/resultado       │
+│ ARBITRO        │ Cambiar estado de partido, registrar resultado,          │
+│                │ registrar eventos de partido                             │
+│ CAPITAN        │ Crear equipos, configurar alineación, enviar             │
+│                │ invitaciones, subir comprobante de pago, inscribir       │
+│                │ equipo en torneo                                         │
+│ JUGADOR        │ Acceso autenticado de lectura (anyRequest.authenticated) │
+└────────────────┴──────────────────────────────────────────────────────────┘
+
+5.6 CustomUserDetailsService
+────────────────────────────
+- Busca usuario por email en UserRepository
+- Resuelve rol: user.getRole() si no es blank; sino por tipo:
+  - AdminUser → ROLE_ADMIN
+  - OrganizerUser → ROLE_ORGANIZADOR
+  - RefereeUser → ROLE_ARBITRO
+  - Otros → ROLE_JUGADOR
+
+
+================================================================================
+6. ENDPOINTS REST — CATÁLOGO COMPLETO
+================================================================================
+
+Base path: /api/v1
+Servidor: https://localhost:8443
+
+6.1 AUTENTICACIÓN
+─────────────────
+POST   /auth/login             → AuthResponse { token, type, email }         [Público]
+POST   /auth/google            → AuthResponse                                [Público]
+
+6.2 JUGADORES
+──────────────
+POST   /players/register       → ProfileDTO (201 Created)                    [Público]
+GET    /players                → List<ProfileDTO>                            [Autenticado]
+GET    /players/{id}           → ProfileDTO                                  [Autenticado]
+GET    /players/available      → List<ProfileDTO>                            [Autenticado]
+GET    /players/search?pos&name → List<ProfileDTO>                           [Autenticado]
+PATCH  /players/{id}/position  → 200 OK                                     [Autenticado]
+PATCH  /players/{id}/availability → 200 OK                                  [Autenticado]
+PATCH  /players/{id}/jersey    → 200 OK                                     [Autenticado]
+POST   /players/{id}/invitations/{invId}/respond?action=ACCEPT|REJECT       [Autenticado]
+
+6.3 EQUIPOS
+────────────
+POST   /teams                  → GenericResponse("Éxito", Team) (201)       [CAPITAN/ADMIN]
+GET    /teams                  → List<Team>                                  [Autenticado]
+GET    /teams/{id}             → Team                                        [Autenticado]
+GET    /teams/{id}/players     → List<Player>                                [Autenticado]
+DELETE /teams/{id}/players/{pId} → 200 OK                                   [Autenticado]
+POST   /teams/{id}/invitations → 200 OK                                     [CAPITAN/ADMIN]
+POST   /teams/{id}/lineup      → GenericResponse("Éxito", "Alineación...")  [CAPITAN/ADMIN]
+GET    /teams/{id}/lineup      → LineupRequest (o null)                      [Autenticado]
+
+6.4 TORNEOS
+────────────
+POST   /tournaments            → GenericResponse("Éxito", Tournament) (201) [ORG/ADMIN]
+GET    /tournaments            → List<Tournament>                            [Público]
+GET    /tournaments/{id}       → Tournament                                  [Público]
+GET    /tournaments/{id}/teams → List<Team>                                  [Público]
+PATCH  /tournaments/{id}/status → 200 OK (body: { "status": "..." })        [ORG/ADMIN]
+POST   /tournaments/{id}/start → GenericResponse (Activo → En progreso)     [ORG/ADMIN]
+POST   /tournaments/{id}/finish → GenericResponse (En progreso → Finalizado)[ORG/ADMIN]
+POST   /tournaments/{id}/teams/{teamId} → 200 OK (inscribir equipo)         [CAPITAN/ORG/ADMIN]
+POST   /tournaments/{id}/generate-matches → List<Match>                     [ORG/ADMIN]
+POST   /tournaments/{id}/generate-quarter-finals → List<Match>              [ORG/ADMIN]
+
+6.5 PARTIDOS
+─────────────
+POST   /matches                → GenericResponse("Éxito", Match) (201)      [ORG/ADMIN]
+GET    /matches                → List<Match>                                 [Público]
+GET    /matches/{id}           → Match                                       [Público]
+PATCH  /matches/{id}/status    → 200 OK (body: { "status": "..." })         [ARB/ORG/ADMIN]
+PATCH  /matches/{id}/result    → GenericResponse("Éxito", "Resultado...")    [ARB/ORG/ADMIN]
+POST   /matches/{id}/events    → GenericResponse("Éxito", MatchEvent) (201) [ARB/ORG/ADMIN]
+GET    /matches/{id}/events    → List<MatchEvent>                            [Público]
+GET    /matches/{id}/lineups   → GenericResponse("Alineaciones", lineups)    [Público]
+PATCH  /matches/{id}/referee   → 200 OK (body: { "refereeId": N })          [ORG/ADMIN]
+
+6.6 PAGOS
+──────────
+POST   /payments/upload        → GenericResponse("Éxito", Payment)          [CAPITAN/ADMIN]
+POST   /payments               → GenericResponse("Éxito", Payment) (201)    [Autenticado]
+GET    /payments               → List<Payment>                               [Autenticado]
+GET    /payments/{id}          → Payment                                     [Autenticado]
+GET    /payments/team/{teamId} → Payment                                     [Autenticado]
+PATCH  /payments/{id}/review   → 200 OK                                     [Autenticado]
+PATCH  /payments/{id}/approve  → 200 OK                                     [ORG/ADMIN]
+PATCH  /payments/{id}/reject   → 200 OK (body: { "comments": "..." })       [ORG/ADMIN]
+
+6.7 ÁRBITROS
+─────────────
+POST   /referees               → GenericResponse("Éxito", RefereeUser) (201)[Público]
+GET    /referees               → List<RefereeUser>                           [Autenticado]
+GET    /referees/{id}          → RefereeUser                                 [Autenticado]
+GET    /referees/{id}/matches  → List<Match>                                 [Autenticado]
+
+6.8 ESTADÍSTICAS
+─────────────────
+GET    /stats/top-scorers                    → List<PlayerStats>             [Público]
+GET    /stats/tournaments/{id}/top-scorers   → List<PlayerStats>             [Público]
+GET    /stats/players/{id}                   → PlayerStats                   [Público]
+GET    /stats/teams/{id}                     → StandingDTO                   [Público]
+GET    /stats/tournaments/{id}/standings     → List<StandingDTO>             [Público]
+
+
+================================================================================
+7. LÓGICA DE NEGOCIO — SERVICIOS
+================================================================================
+
+7.1 PlayerService
+─────────────────
+Constructor: (UserRepository, PasswordEncoder, InvitationRepository)
+
+Métodos principales:
+• registerPlayer(PlayerRegistrationRequest) → User
+  1. normalizeIncomingRegistration(): alinea payload del frontend
+     - CAPTAIN/CAPITAN/CAPTAN → userType=STUDENT + securityRole=CAPITAN
+     - REFEREE/ARBITRO → userType=REFEREE (ruta especial)
+     - PLAYER/JUGADOR → userType=STUDENT
+     - Deriva name de firstName+lastName si name es blank
+     - Normaliza position a title-case (delantero → Delantero)
+     - Convierte age a birthDate
+     - Default jerseyNumber=10 si null/fuera de rango
+     - Default position=Delantero si null
+  2. Si REFEREE → registerRefereeUser() (ruta separada)
+  3. getFactoryByRole() → obtiene factory correcta
+  4. factory.registerPlayerData(data) → crea entidad
+  5. Verifica duplicados: existsByEmail, existsByIdentification → 409
+  6. Establece securityRole si aplica
+  7. passwordEncoder.encode() DESPUÉS de la factory
+  8. userRepository.save()
+
+• registerRefereeUser(data) — ruta dedicada para árbitros via /players/register
+  - Valida email, identification, licenseNumber no duplicados
+  - Crea RefereeUser directamente (sin factory)
+  - Encoda password, setRole("ARBITRO")
+
+• processInvitationResponse(invitationId, action) — RN-11-3
+  - Si ACCEPT: vincula jugador al equipo, marca no-disponible
+  - Rechaza automáticamente TODAS las demás invitaciones pendientes
+  - Si REJECT: solo marca la invitación como REJECTED
+
+• searchPlayers(position, name) — filtro en memoria
+• getAllPlayers(), getAvailablePlayers()
+• updatePosition(), updateAvailability(), updateJerseyNumber()
+
+7.2 TeamService
+───────────────
+Constructor: (TeamRepository, UserRepository, InvitationRepository, TournamentRepository)
+
+Métodos principales:
+• createTeam(Team) → save directo
+• getTeamPlayers(teamId) → userRepository.findByTeamId() + filter instanceof Player
+• removePlayer(teamId, playerId)
+  - Verifica roster no congelado (validateRosterNotFrozen)
+  - player.setAvailable(true), player.setTeamId(null)
+• sendInvitation(teamId, playerId)
+  - Verifica roster no congelado
+  - GAP-07: jugador no debe tener equipo (teamId != null → error)
+  - Máximo 12 jugadores por equipo
+  - No duplicar invitación pendiente
+• configureLineup(teamId, LineupRequest)
+  - Mínimo 7 jugadores en plantilla
+  - Todos los titulares y suplentes deben pertenecer al equipo
+  - GAP-10: valida suplentes también
+  - validateEngineeringProgramComposition() — RN-03-4
+  - Persiste startingPlayerIds, reservePlayerIds, formation (GAP-10/11)
+• validateEngineeringProgramComposition() — RN-03-4
+  - >50% deben ser de programas de ingeniería
+  - Todos deben tener programa válido (ingeniería o maestría)
+• validateRosterNotFrozen() — plantilla congelada si torneo "En progreso"
+• updateShieldUrl(teamId, url) — actualiza escudo del equipo
+
+7.3 TournamentService
+─────────────────────
+Constructor: (TournamentRepository, TeamRepository, MatchRepository, PaymentRepository)
+
+Métodos principales:
+• createTournament(Tournament)
+  - Valida endDate >= startDate
+• startTournament(id) — GAP-02
+  - Solo si estado == "Activo" → cambia a "En progreso"
+• finishTournament(id) — GAP-02
+  - Solo si estado == "En progreso" → cambia a "Finalizado"
+• updateTournamentStatus(id, newStatus)
+  - Valida contra lista: Borrador, Activo, En progreso, Finalizado
+• registerTeamToTournament(tournamentId, teamId)
+  - Torneo debe estar "Activo"
+  - Equipo no debe estar ya inscrito
+  - No superar maxTeams
+  - GAP-09: equipo debe tener pago aprobado
+• generateMatches(tournamentId)
+  - Mínimo 2 equipos
+  - Shuffle aleatorio, empareja i con i+1
+  - Crea partidos con status "Programado"
+  - Los asocia al torneo (tournament.matches.addAll)
+• generateQuarterFinals(tournamentId) — Sección 6.11
+  - Torneo debe estar "En progreso"
+  - No deben existir ya partidos de "Cuartos de Final"
+  - Mínimo 8 equipos inscritos
+  - Ranking: puntos DESC → diferencia goles DESC → goles a favor DESC
+  - Seeding clásico: 1v8, 2v7, 3v6, 4v5
+  - Crea 4 partidos con phase="Cuartos de Final"
+
+7.4 MatchService
+────────────────
+Constructor: (MatchRepository, MatchEventRepository, TeamRepository, RefereeRepository)
+
+Métodos principales:
+• createMatch(MatchCreationRequest)
+  - Valida ambos equipos existen
+  - Valida homeTeamId != awayTeamId (no puede jugar contra sí mismo)
+  - Status inicial: "Programado"
+  - NOTA: NO establece tournament_id
+• updateMatchStatus(matchId, newStatus)
+  - Valida contra: Programado, En Curso, Finalizado
+  - NO valida transiciones (puede saltar de Programado a Finalizado)
+• registerResult(matchId, MatchResultRequest) — RN-08-1 + GAP-13
+  - SOLO si match.status == "Finalizado"
+  - Guarda homeGoals, awayGoals
+  - Actualiza estadísticas de AMBOS equipos:
+    - matchesPlayed +1
+    - goalsFor, goalsAgainst, goalDifference
+    - Victoria: +3 pts ganador, matchesWon/Lost
+    - Empate: +1 pts cada uno, matchesDrawn
+• registerEvent(matchId, MatchEventRequest)
+  - Solo valida que el partido existe
+  - NO valida que el jugador exista
+  - Crea MatchEvent con matchId, playerId, playerName, type, minute
+• getMatchEvents(matchId) → matchEventRepository.findByMatchId()
+• assignReferee(matchId, refereeId)
+  - match.referee = referee.getFullName() (String, no FK)
+  - referee.assignedMatchIds.add(matchId)
+  - Guarda ambos
+
+7.5 PaymentService
+──────────────────
+Constructor: (PaymentRepository, TeamRepository)
+
+Métodos:
+• uploadReceipt(teamId, MultipartFile) — upload real de archivo
+  - Valida equipo existe, archivo no vacío
+  - Valida content-type: image/jpeg, image/png, application/pdf
+  - Valida extensión: .jpg, .jpeg, .png, .pdf
+  - Guarda en filesystem: uploads/payments/{teamId}_{timestamp}{ext}
+  - Status: "Pendiente"
+• createPayment(PaymentRequest) — registro por URL (sin upload)
+  - Status: "Pendiente"
+• sendPaymentToReview(id) — GAP-08
+  - Solo si status == "Pendiente" → "En revisión"
+• approvePayment(id, approvedBy)
+  - Si ya aprobado → error
+  - Payment.approve(): status="Aprobado", approvedBy, reviewDate
+• rejectPayment(id, comments)
+  - Payment.reject(): status="Rechazado", comments, reviewDate
+• getPaymentByTeam(teamId) — busca primer pago del equipo
+
+7.6 StatsService (Motor de Estadísticas)
+─────────────────────────────────────────
+Constructor: (MatchEventRepository, MatchRepository, TeamRepository, UserRepository, TournamentRepository)
+
+Métodos:
+• getTopScorers() → tabla global de goleadores
+  - Lee TODOS los eventos, agrupa por playerId
+  - Cuenta GOL, AMARILLA, ROJA por jugador
+  - Ordena por goles DESC
+• getTopScorersByTournament(tournamentId) — GAP-15
+  - Solo eventos de partidos vinculados al torneo
+  - tournament.getMatches() → matchIds
+  - matchEventRepository.findByMatchIdIn(matchIds)
+  - Filtra solo GOL
+• getPlayerStats(playerId) — GAP-16
+  - matchesPlayed = partidos Finalizados con al menos un evento del jugador
+  - teamName via teamRepository.findById(player.getTeamId())
+• getTeamStats(teamId)
+  - Base: team.points (de registerResult)
+  - +calculateFairPlayPoints(teamId) — RN-09-2
+• getTournamentStandings(tournamentId) — GAP-14
+  - Solo equipos de tournament.getRegisteredTeams()
+  - Incluye FairPlay por equipo
+  - Ordena por puntos DESC
+• calculateFairPlayPoints(teamId) — RN-09-2 (privado)
+  - Para cada partido Finalizado donde participó el equipo:
+    - Si ningún evento AMARILLA/ROJA fue de un jugador del equipo → +1 punto
+  - Verifica teamId del jugador via userRepository.findById(event.playerId)
+
+7.7 RefereeService
+───────────────────
+Constructor: (RefereeRepository, MatchRepository)
+
+Métodos:
+• createReferee(RefereeRequest) → RefereeUser
+  - NOTA: NO codifica password, NO valida duplicados explícitamente
+  - Solo setea fullName, email, licenseNumber, certificationLevel
+• getAllReferees() → List<RefereeUser>
+• getRefereeById(id) → RefereeUser
+• getRefereeMatches(id) → List<Match>
+  - Obtiene referee.assignedMatchIds
+  - Stream → matchRepository.findById() → collect
+
+7.8 JwtService
+───────────────
+- generateToken(UserDetails) → JWT con subject=username, roles claim, 1h expiry
+- extractUsername(token) → username del subject
+- isTokenValid(token, UserDetails) → firma válida + no expirado + username match
+- isTokenExpired(token) → compara expiration con now
+- Usa HS256 con clave de @Value("${app.jwt.secret}")
+
+
+================================================================================
+8. REGLAS DE NEGOCIO IMPLEMENTADAS (RN-XX)
+================================================================================
+
+RN-03-4: COMPOSICIÓN DE PROGRAMAS DE INGENIERÍA
+  Más del 50% de los jugadores de un equipo deben pertenecer a un programa de
+  ingeniería (SISTEMAS, IA, CIBERSEGURIDAD, ESTADISTICA). Los programas de
+  maestría son válidos pero NO cuentan como ingeniería.
+  → Implementado en: TeamService.validateEngineeringProgramComposition()
+  → Se ejecuta en: configureLineup()
+
+RN-08-1: REGISTRO DE RESULTADO SOLO EN FINALIZADO
+  El resultado de un partido solo puede registrarse cuando su estado es
+  "Finalizado". De lo contrario → BusinessRuleException.
+  → Implementado en: MatchService.registerResult()
+
+RN-09-2: FAIR PLAY — PUNTOS EXTRA
+  Por cada partido finalizado en el que un equipo NO recibió tarjetas
+  (ni amarilla ni roja), se otorga +1 punto de FairPlay.
+  → Implementado en: StatsService.calculateFairPlayPoints()
+  → Se incluye en: getTeamStats(), getTournamentStandings()
+
+RN-11-3: AUTO-RECHAZO DE INVITACIONES AL ACEPTAR UNA
+  Cuando un jugador acepta una invitación, TODAS sus demás invitaciones
+  pendientes se rechazan automáticamente.
+  → Implementado en: PlayerService.processInvitationResponse()
+
+PLANTILLA CONGELADA (no codificada como RN pero regla implementada):
+  No se puede modificar la plantilla de un equipo (sendInvitation, removePlayer)
+  si el equipo está inscrito en un torneo con estado "En progreso".
+  → Implementado en: TeamService.validateRosterNotFrozen()
+
+EQUIPO NO PUEDE JUGAR CONTRA SÍ MISMO:
+  homeTeamId != awayTeamId al crear un partido.
+  → Implementado en: MatchService.createMatch()
+
+MÁXIMO 12 JUGADORES POR EQUIPO:
+  Verificado al enviar invitación.
+  → Implementado en: TeamService.sendInvitation()
+
+JUGADOR NO PUEDE PERTENECER A DOS EQUIPOS:
+  GAP-07: player.teamId debe ser null para recibir invitación.
+  → Implementado en: TeamService.sendInvitation()
+
+MÍNIMO 7 JUGADORES PARA ALINEACIÓN:
+  Verificado al configurar lineup.
+  → Implementado en: TeamService.configureLineup()
+  → También: LineupRequest @Size(min=7, max=11) para startingPlayersIds
+
+
+================================================================================
+9. GAPs IDENTIFICADOS Y RESUELTOS
+================================================================================
+
+GAP-02: TRANSICIONES DE ESTADO DE TORNEO
+  startTournament(): solo Activo → En progreso
+  finishTournament(): solo En progreso → Finalizado
+  → TournamentService.startTournament(), finishTournament()
+
+GAP-06: VALIDACIÓN DE PROGRAMAS EN COMPOSICIÓN
+  Todos los jugadores deben tener programa válido (ingeniería o maestría).
+  → TeamService.validateEngineeringProgramComposition()
+
+GAP-07: JUGADOR YA EN EQUIPO NO PUEDE RECIBIR INVITACIÓN
+  → TeamService.sendInvitation()
+
+GAP-08: TRANSICIÓN PAGO Pendiente → En revisión
+  → PaymentService.sendPaymentToReview()
+
+GAP-09: PAGO APROBADO REQUERIDO PARA INSCRIPCIÓN AL TORNEO
+  El equipo debe tener un pago en estado "Aprobado" antes de inscribirse.
+  → TournamentService.registerTeamToTournament()
+
+GAP-10: VALIDACIÓN DE SUPLENTES EN ALINEACIÓN
+  Los suplentes también deben pertenecer a la plantilla del equipo.
+  → TeamService.configureLineup()
+
+GAP-11: PERSISTENCIA DE ALINEACIONES
+  La alineación se persiste en Team (startingPlayerIds, reservePlayerIds,
+  formation) via @ElementCollection. Se puede consultar con getTeamLineup().
+  → TeamService.configureLineup(), getTeamLineup()
+
+GAP-12: PLANTILLA CONGELADA EN TORNEO EN PROGRESO
+  → TeamService.validateRosterNotFrozen()
+
+GAP-13: ACTUALIZACIÓN DE ESTADÍSTICAS AL REGISTRAR RESULTADO
+  Al registrar resultado, se actualizan ambos equipos:
+  matchesPlayed, matchesWon/Lost/Drawn, goalsFor/Against, goalDifference, points
+  → MatchService.registerResult()
+
+GAP-14: STANDINGS FILTRADOS POR TORNEO
+  getTournamentStandings() solo incluye equipos de tournament.registeredTeams.
+  → StatsService.getTournamentStandings()
+
+GAP-15: GOLEADORES FILTRADOS POR TORNEO
+  getTopScorersByTournament() solo cuenta eventos de partidos del torneo.
+  → StatsService.getTopScorersByTournament()
+
+GAP-16: ESTADÍSTICAS DE JUGADOR
+  matchesPlayed = partidos Finalizados donde tuvo al menos un evento.
+  teamName resuelto via teamRepository.findById(player.teamId).
+  → StatsService.getPlayerStats()
+
+
+================================================================================
+10. PATRONES DE DISEÑO UTILIZADOS
+================================================================================
+
+10.1 FACTORY METHOD — Registro de Jugadores
+────────────────────────────────────────────
+Interfaz: PlayerFactory
+Implementaciones concretas:
+- StudentFactory  → crea StudentPlayer
+- TeacherFactory  → crea TeacherPlayer
+- GraduateFactory → crea GraduatePlayer
+- RelativeFactory → crea RelativePlayer
+- StaffFactory    → crea StaffPlayer
+
+Cada factory:
+1. Valida el email con el validador correspondiente (Strategy)
+2. Crea la instancia del subtipo correcto
+3. Establece campos específicos del tipo
+
+Selección de factory: PlayerService.getFactoryByRole() usa switch expression:
+  STUDENT/PLAYER → StudentFactory
+  GRADUATE → GraduateFactory
+  TEACHER → TeacherFactory
+  RELATIVE → RelativeFactory
+  STAFF → StaffFactory
+
+10.2 STRATEGY — Validación de Email
+────────────────────────────────────
+Interfaz: EmailValidator (validate(email) → boolean)
+Implementaciones:
+- StudentEmailValidator → @mail.escuelaing.edu.co (estudiantes, graduados)
+- StaffEmailValidator   → @escuelaing.edu.co (profesores, personal)
+- GmailValidator        → @gmail.com (familiares)
+
+Cada factory usa el validador apropiado para su tipo de usuario.
+
+10.3 SINGLE_TABLE INHERITANCE — Jerarquía de Usuarios
+──────────────────────────────────────────────────────
+JPA @Inheritance(strategy = InheritanceType.SINGLE_TABLE) con discriminador
+user_type. Permite polimorfismo en queries y resolución de roles en seguridad.
+
+10.4 TEMPLATE METHOD — Flujo de Registro
+─────────────────────────────────────────
+El flujo normalize → factory → validate → encode → save sigue un patrón
+template donde cada paso puede variar según el tipo de usuario.
+
+10.5 DTO PATTERN — Separación Request/Response
+───────────────────────────────────────────────
+DTOs separados para entrada (request/) y salida (response/) con Mappers
+dedicados que transforman entre capas.
+
+
+================================================================================
+11. MANEJO DE ERRORES
+================================================================================
+
+GlobalExceptionHandler (@ControllerAdvice) mapea excepciones a respuestas HTTP:
+
+┌─────────────────────────────────────────────┬──────┬──────────────────────────┐
+│ Excepción                                   │ HTTP │ Notas                    │
+├─────────────────────────────────────────────┼──────┼──────────────────────────┤
+│ ResourceNotFoundException                   │ 404  │ Recurso no existe        │
+│ BusinessRuleException                       │ 409  │ Violación regla negocio  │
+│ DataIntegrityViolationException             │ 409  │ Constraint BD (safety)   │
+│ MethodArgumentNotValidException             │ 400  │ Validación Jakarta       │
+│ MultipartException / MissingServletReqPart  │ 400  │ Error en upload          │
+│ HttpMediaTypeNotSupportedException          │ 415  │ Content-Type incorrecto  │
+│ HttpMessageNotReadableException             │ 400  │ JSON malformado          │
+│ Exception (catch-all)                       │ 500  │ Error interno            │
+└─────────────────────────────────────────────┴──────┴──────────────────────────┘
+
+Formato de respuesta de error:
+{
+  "status": 409,
+  "error": "Conflict",
+  "message": "El correo 'x@y.com' ya está registrado.",
+  "path": "/api/v1/players/register",
+  "timestamp": "2026-04-16T10:30:00"
+}
+
+NOTA IMPORTANTE: MatchController, RefereeController y otros controllers capturan
+TODAS las excepciones con catch(Exception) genérico y devuelven 400 Bad Request.
+Esto significa que BusinessRuleException en esos controllers → 400 (NO 409).
+Solo PlayerController deja que las excepciones propaguen al GlobalExceptionHandler.
+
+
+================================================================================
+12. MOTOR DE ESTADÍSTICAS
+================================================================================
+
+El motor de estadísticas tiene dos fuentes de datos:
+
+1. ESTADÍSTICAS DE EQUIPO (inline en Team):
+   - Actualizadas en MatchService.registerResult() (GAP-13)
+   - matchesPlayed, matchesWon, matchesDrawn, matchesLost
+   - goalsFor, goalsAgainst, goalDifference
+   - points (3 victoria, 1 empate, 0 derrota)
+
+2. EVENTOS DE PARTIDO (MatchEvent):
+   - GOL → contabilizado para goleadores
+   - AMARILLA → tarjeta amarilla
+   - ROJA → tarjeta roja
+
+FLUJO COMPLETO DE UN PARTIDO:
+1. POST /matches → crear partido (status: "Programado")
+2. PATCH /matches/{id}/referee → asignar árbitro
+3. PATCH /matches/{id}/status → "En Curso"
+4. POST /matches/{id}/events → registrar GOL, AMARILLA, ROJA
+5. PATCH /matches/{id}/status → "Finalizado"
+6. PATCH /matches/{id}/result → registrar marcador → actualiza stats de equipos
+
+FAIR PLAY (RN-09-2):
+- StatsService recorre TODOS los partidos finalizados
+- Para cada partido donde participó el equipo:
+  - Busca eventos AMARILLA/ROJA de ese partido
+  - Si NINGÚN jugador del equipo tiene tarjeta → +1 punto FairPlay
+- Se suma a los puntos base del equipo en getTeamStats() y standings
+
+EJEMPLO (del test_full_match_simulation.sh — 52/52 tests):
+  Equipo A gana 2-0 → 3 pts victoria + 1 pt FairPlay = 4 pts
+  Equipo B pierde 0-2 → 0 pts derrota + 1 pt FairPlay = 1 pt
+  (Ambos equipos obtienen FairPlay porque los jugadores registrados
+   no tienen teamId asignado → las tarjetas no se atribuyen a ningún equipo)
+
+
+================================================================================
+13. SUITE DE PRUEBAS
+================================================================================
+
+RESUMEN: 509 tests, todos verdes.
+
+COBERTURA JACOCO:
+- 100% instrucciones
+- 100% líneas
+- 100% métodos
+- 100% clases
+- 99.2% ramas (3 branches imposibles aceptados)
+
+Ramas imposibles (false negatives estructurales):
+┌──────────────────────────────┬──────────────────────────────────────────────┐
+│ Clase                        │ Razón                                        │
+├──────────────────────────────┼──────────────────────────────────────────────┤
+│ JwtService#isTokenValid      │ JJWT lanza ExpiredJwtException antes de que  │
+│                              │ isTokenExpired() retorne true                │
+│ TeamService#isValidProgram   │ No existe enum Program que sea non-null,     │
+│                              │ non-engineering y non-master                 │
+│ TeamService#isMasterProgram  │ Misma razón                                  │
+└──────────────────────────────┴──────────────────────────────────────────────┘
+
+ESTRATEGIA DE TESTING POR CAPA:
+
+1. SERVICE LAYER — Mockito puro, sin contexto Spring
+   - Mock de repositorios con mock(SomeRepository.class)
+   - Inyección manual via constructor: new SomeService(mockRepo, ...)
+   - when(repo.findById(1L)).thenReturn(Optional.of(entity))
+   - Servicios multi-dependencia:
+     - PlayerService(UserRepository, PasswordEncoder, InvitationRepository)
+     - TeamService(TeamRepository, UserRepository, InvitationRepository, TournamentRepository)
+     - StatsService(TeamRepository, MatchRepository, MatchEventRepository, UserRepository, TournamentRepository)
+
+2. CONTROLLER LAYER — Mockito puro, SIN @WebMvcTest
+   - new SomeController(mockService)
+   - Llama métodos del controller directamente
+   - Aserta ResponseEntity status/body
+
+3. CONFIG LAYER — Mixto
+   - JwtAuthenticationFilter: Mockito + MockHttpServletRequest/Response
+   - SwaggerConfig: instanciación directa, aserta estructura OpenAPI
+   - SecurityConfig: @SpringBootTest(webEnvironment=NONE) @ActiveProfiles("test")
+
+4. MODEL LAYER — Instanciación directa
+   - Métodos @PrePersist privados invocados via reflection
+   - Métodos default de interfaces via implementaciones anónimas
+
+5. APPLICATION — Smoke test
+   - @SpringBootTest(webEnvironment=NONE) para contextLoads()
+   - mockStatic(SpringApplication.class) para cubrir main()
+
+CONVENCIONES:
+- @Value fields se inyectan via ReflectionTestUtils.setField()
+- Mockito boolean methods retornan false por defecto → tests de happy path
+  no necesitan stubs para existsBy*()
+- Solo agregar when(repo.existsByEmail(...)).thenReturn(true) para tests
+  de rechazo por duplicados
+
+
+================================================================================
+14. CI/CD Y DESPLIEGUE EN AZURE
+================================================================================
+
+14.1 PIPELINE CI — .github/workflows/maven.yml
+───────────────────────────────────────────────
+Triggers: push a main/develop/feat/**, PRs a main/develop
+
+Job 1: build-and-test
+  - PostgreSQL 16 como service container (puerto 5433)
+  - Credenciales HARDCODEADAS: techcup/techcup (NO usar secrets para CI DB)
+  - mvn clean test jacoco:report
+  - Secrets inyectados: JWT_SECRET, SSL_KEY_STORE_PASSWORD, GOOGLE_CLIENT_ID/SECRET
+  - Upload artefacto JaCoCo (7 días retención)
+  - SonarCloud analysis (solo main analizado en plan free)
+
+Job 2: docker-build-push (solo develop/main)
+  - Login a Azure Container Registry
+  - Build y push: techcupacr.azurecr.io/techcup-backend:{sha} + :latest
+
+14.2 PIPELINE QA — .github/workflows/deploy-qa.yml
+───────────────────────────────────────────────────
+Trigger: workflow_run de CI completado en develop
+  - Despliega imagen con SHA del commit a App Service techcup-backend-qa-1
+  - Health check contra Swagger UI
+
+14.3 PIPELINE PROD — .github/workflows/deploy-prod.yml
+──────────────────────────────────────────────────────
+Trigger: workflow_run de CI completado en main
+  - Usa GitHub Environment "production" (branch protection: 3 reviewers en main)
+  - Despliega a App Service techcup-backend-prod-1
+  - Health check contra Swagger UI
+
+14.4 INFRAESTRUCTURA AZURE
+──────────────────────────
+┌─────────────────────┬──────────────────────────────────────────────────────┐
+│ Recurso             │ Detalle                                              │
+├─────────────────────┼──────────────────────────────────────────────────────┤
+│ ACR                 │ techcupacr.azurecr.io                                │
+│ QA DB               │ techcup-db-qa.postgres.database.azure.com            │
+│ QA App Service      │ techcup-backend-qa-1                                 │
+│ QA URL              │ https://techcup-backend-qa-1-gva9hqf...azurewebsites │
+│ PROD DB             │ techcup-db-prod.postgres.database.azure.com          │
+│ PROD App Service    │ techcup-backend-prod-1                               │
+│ PROD URL            │ https://techcup-backend-prod-1-awag...azurewebsites  │
+└─────────────────────┴──────────────────────────────────────────────────────┘
+
+
+================================================================================
+15. DOCKER Y CONFIGURACIÓN DE ENTORNO
+================================================================================
+
+docker-compose.yml proporciona:
+- Servicio postgres: PostgreSQL 16 en puerto 5433, BD: techcup, user: techcup
+- Servicio app: construye desde Dockerfile, puerto 8443, depende de postgres
+
+Variables de entorno (con defaults en application.yaml):
+- DB_URL → jdbc:postgresql://localhost:5433/techcup
+- DB_USERNAME → techcup
+- DB_PASSWORD → techcup
+- JWT_SECRET → clave Base64 256-bit
+- SSL_KEY_STORE_PASSWORD → techcup123
+- GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET → dev-client-id (placeholder)
+- app.uploads.dir → uploads (directorio para comprobantes de pago)
+
+application.yaml configuración clave:
+- server.port: 8443
+- server.ssl.key-store: classpath:keystore.p12
+- spring.jpa.hibernate.ddl-auto: update (auto-crea/actualiza tablas)
+- spring.jackson.mapper.accept-case-insensitive-enums: true
+- app.jwt.expiration-ms: 3600000 (1 hora)
+
+Comandos:
+  docker compose up -d postgres          # Solo BD (para desarrollo Maven)
+  docker compose up --build              # Stack completo: postgres + app
+  cp .env.example .env                   # Configurar variables locales
+
+
+================================================================================
+16. PRUEBAS FUNCIONALES HTTP (Sprint 5)
+================================================================================
+
+Directorio: api-tests/
+
+Configuración de entorno: http-client.env.json
+- Entorno "local": host = https://localhost:8443/api/v1
+
+Archivos de pruebas creados en Sprint 5:
+
+16.1 01_flujo_torneo_completo.http — 59 requests
+  Cubre secciones 6.1 a 6.12 del enunciado end-to-end:
+  - Login admin/organizador
+  - Registro 14 jugadores (7 por equipo)
+  - Creación 2 equipos + invitaciones + aceptaciones
+  - Upload y aprobación de pagos
+  - Creación torneo + activación + inscripción equipos
+  - Configuración alineaciones
+  - Generación partidos + ciclo completo de partido
+  - Registro eventos y resultado
+  - Verificación estadísticas y tabla de posiciones
+
+16.2 02_autenticacion.http
+  Tests de JWT: login válido, token inválido, token expirado, sin token
+
+16.3 03_registro_jugadores.http
+  Tests por tipo de usuario con Factory+Strategy:
+  - Estudiante, Profesor, Graduado, Familiar, Personal
+  - Validación de emails por tipo
+  - Errores: duplicados, campos faltantes
+
+16.4 04_gestion_equipos.http
+  CRUD equipos, invitaciones, alineaciones:
+  - Crear equipo, invitar jugadores, aceptar/rechazar
+  - RN-11-3 (auto-rechazo)
+  - Configurar lineup, validar composición RN-03-4
+  - Plantilla congelada
+
+16.5 05_pagos.http
+  Ciclo completo de pagos:
+  - Upload comprobante, enviar a revisión, aprobar/rechazar
+  - Validaciones de tipo de archivo
+
+16.6 06_gestion_torneos.http
+  CRUD torneos y ciclo de vida:
+  - Crear, listar, activar, inscribir equipos
+  - Generar partidos, cuartos de final
+  - GAP-09 (pago requerido)
+  - Transiciones de estado (GAP-02)
+
+16.7 07_gestion_partidos.http — 35 requests
+  Ciclo completo de partido:
+  - SETUP: login, player, 2 teams, get IDs
+  - FLUJO BÁSICO (MAT-01 a MAT-16): crear → árbitro → En Curso → eventos → Finalizado → resultado
+  - ERRORES INPUT (MAT-17 a MAT-24): campos faltantes, tipo inválido
+  - ERRORES NEGOCIO (MAT-25 a MAT-30): resultado sin Finalizado, mismo equipo
+  - PERSISTENCIA (MAT-31 a MAT-35): verificación final de estados y GAP-13
+
+16.8 08_arbitros.http — 26 requests
+  Gestión de árbitros:
+  - SETUP: login, equipos, partido
+  - FLUJO BÁSICO (ARB-01 a ARB-07): registrar, listar, asignar, verificar
+  - ERRORES INPUT (ARB-08 a ARB-13): campos faltantes, validaciones
+  - ERRORES NEGOCIO (ARB-14 a ARB-17): duplicados, ID inexistente
+  - PERSISTENCIA (ARB-18 a ARB-20): verificación final
+
+16.9 09_estadisticas.http — 42 requests
+  Motor de estadísticas completo:
+  - SETUP (27 requests): jugadores, equipos, pagos, torneo, partido completo
+  - FLUJO BÁSICO (STATS-01 a STATS-07): goleadores, stats jugador/equipo, standings
+  - ERRORES (STATS-08 a STATS-11): ID inexistente, torneo vacío
+  - PERSISTENCIA (STATS-12 a STATS-15): GAP-13, GAP-14, FairPlay
+
+Cada flujo de prueba cubre 4 categorías (Sprint 5, sección 5):
+  1. Flujo Básico — happy path completo
+  2. Errores de Validación de Input — campos faltantes, formatos inválidos
+  3. Errores de Validaciones de Negocio — reglas RN-XX violadas
+  4. Evidencia de Persistencia — logging que confirma datos guardados en BD
+
+
+================================================================================
+17. EVOLUCIÓN SPRINT A SPRINT
+================================================================================
+
+SPRINT 1 (Semana 6):
+- Estructura base MVC con Maven
+- Modelos de dominio iniciales
+- Registro de jugadores con Factory Method + Strategy (validadores email)
+- Primeras pruebas unitarias
+- Datos simulados en listas (sin persistencia)
+- Diagramas: clases, componentes general y específico
+
+SPRINT 2 (Semana 7):
+- Swagger/OpenAPI integrado (springdoc-openapi)
+- Logging con SLF4J (configuración en application.yaml)
+- Mappers: DTO → Modelo y viceversa
+- GlobalExceptionHandler con excepciones personalizadas
+- Diagramas de secuencia
+- JaCoCo + SonarCloud para cobertura y análisis estático
+- Aún sin persistencia real (datos en memoria)
+
+SPRINT 3 (Semana 8):
+- PERSISTENCIA: PostgreSQL 16 + Spring Data JPA
+  - ddl-auto: update (Hibernate auto-crea tablas)
+  - SINGLE_TABLE inheritance para User
+  - Repositories JPA por entidad
+- SEGURIDAD:
+  - JWT (HS256, 1h, JwtService + JwtAuthenticationFilter)
+  - OAuth2 con Google
+  - HTTPS con certificado self-signed (keystore.p12)
+  - CORS configurado
+  - RBAC por roles en SecurityConfig
+- DatabaseSeeder (admin, organizador, árbitro)
+- Duplicación guard en registro: existsByEmail, existsByIdentification
+- normalizeIncomingRegistration() en PlayerService
+- Diagrama Entidad-Relación
+
+SPRINT 4 (Semanas 9-10, sprint largo hasta 12 abril):
+- DOCKER: Dockerfile + docker-compose.yml
+- CI/CD completo con GitHub Actions:
+  - maven.yml: build + test + JaCoCo + SonarCloud + Docker push
+  - deploy-qa.yml: despliegue automático a Azure QA
+  - deploy-prod.yml: despliegue con aprobación a Azure PROD
+- AZURE: ACR + App Service (QA/PROD) + PostgreSQL (QA/PROD)
+- Funcionalidades completadas:
+  - Pagos (upload, revisión, aprobación, rechazo)
+  - Torneos (CRUD, inscripción, generación partidos, cuartos final)
+  - Partidos (CRUD, eventos, resultado, asignación árbitro)
+  - Alineaciones (titulares, suplentes, formación)
+  - Estadísticas (goleadores, stats jugador/equipo, standings, FairPlay)
+- GAPs resueltos: 02, 06-16
+- 509 tests, 100% cobertura
+- Documento de arquitectura backend
+- Inicio pantallas frontend
+
+SPRINT 5 (Semana 11, hasta 17 abril — SPRINT FINAL):
+- Deuda técnica resuelta del Sprint 4
+- Pruebas funcionales HTTP exhaustivas (9 archivos, ~270 requests total)
+- Cada funcionalidad probada con 4 flujos:
+  1. Básico (happy path)
+  2. Errores de validación de input
+  3. Errores de validaciones de negocio
+  4. Evidencia de persistencia con logging
+- 100% backend completado
+- CI/CD 100% funcional
+- Documento técnico exhaustivo para NotebookLM
+- Preparación presentación final
+
+
+================================================================================
+18. DECISIONES ARQUITECTÓNICAS CLAVE
+================================================================================
+
+1. SINGLE_TABLE vs TABLE_PER_CLASS para Users:
+   Elegimos SINGLE_TABLE porque simplifica queries (especialmente para Spring
+   Security que necesita cargar cualquier tipo de usuario con una query).
+   Trade-off: columnas nullable para campos específicos de subtipo.
+
+2. Team.players como @Transient:
+   Evita problemas de lazy loading, serialización circular con Jackson, y
+   N+1 queries. Los jugadores siempre se cargan explícitamente via
+   userRepository.findByTeamId().
+
+3. Match.referee como String (no FK):
+   Decisión pragmática. Almacenar el nombre directamente simplifica queries
+   y evita joins innecesarios. assignReferee() mantiene la sincronización
+   bidireccional (match.referee + referee.assignedMatchIds).
+
+4. Match.events y Match.lineups como @Transient:
+   Se cargan por separado via sus propios endpoints/repositories.
+   Evita carga eager no deseada.
+
+5. Estadísticas inline en Team:
+   matchesPlayed, points, etc. se almacenan directamente en la tabla teams.
+   Se actualizan atómicamente en registerResult(). Esto permite consultas
+   rápidas para standings sin recalcular desde eventos.
+
+6. FairPlay calculado en runtime:
+   En lugar de persistir puntos FairPlay, se calculan dinámicamente en
+   StatsService. Esto garantiza consistencia y evita desincronización.
+
+7. Password encoding en el service (no en factory):
+   Las factories crean la entidad con password en texto plano.
+   PlayerService.registerPlayer() hace encode() antes de save().
+   Esto mantiene las factories agnósticas de seguridad.
+
+8. GlobalExceptionHandler + catch genérico en controllers:
+   El GlobalExceptionHandler maneja excepciones que propagan naturalmente.
+   Sin embargo, algunos controllers (Match, Referee, etc.) tienen catch(Exception)
+   que devuelve 400. Esto fue una decisión de simplicidad que implica que
+   BusinessRuleException en esos controllers NO llega al GlobalExceptionHandler.
+
+9. ddl-auto: update (NO flyway/liquibase):
+   Para este proyecto académico, Hibernate auto-update es suficiente.
+   En producción real se usarían migraciones versionadas.
+
+10. JWT stateless sin refresh tokens:
+    Simplifica la implementación. Token de 1h es suficiente para el contexto
+    académico. No se implementó blacklisting de tokens.
+
+11. BCrypt para passwords (no Base64):
+    Aunque el enunciado sugiere Base64, usamos BCrypt (industry standard)
+    via Spring Security's PasswordEncoder. BCrypt es one-way hashing,
+    mucho más seguro que encoding reversible.
+
+12. Credenciales CI hardcodeadas para DB de test:
+    La BD del pipeline CI es efímera (service container). Hardcodear
+    credenciales simplifica la configuración y evita el error
+    "password authentication failed" que ocurría con secrets.
+
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================
+
+Este documento cubre la totalidad del backend de TechCup Fútbol tal como
+está implementado al cierre del Sprint 5 (17 de abril de 2026). Cualquier
+compañero puede usar este archivo como referencia única para entender el
+sistema completo, desde la arquitectura hasta cada regla de negocio,
+endpoint, entidad, y decisión técnica tomada durante los 5 sprints.
+
+Para la presentación final (Sprint5.pdf, sección 8), este documento cubre:
+✓ Diagrama de componentes específico del backend
+✓ Diagrama de clases (jerarquía User → Player → subtipos)
+✓ Diagrama de persistencia (todas las tablas y relaciones)
+✓ Seguridad: integridad (HTTPS), autenticación (JWT/OAuth2), autorización (RBAC)
+✓ Pruebas, cobertura JaCoCo (100%), análisis estático SonarCloud
+✓ Pipeline CI/CD: QA y PROD con evidencia de despliegue
+✓ Flujos funcionales: básicos, errores de input, errores de negocio, persistencia

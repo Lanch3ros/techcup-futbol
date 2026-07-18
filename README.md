@@ -86,6 +86,12 @@ El despliegue es automático: cada push a `main` dispara el redeploy en Railway 
 | Árbitro | `arbitro@techcup.edu.co` | `Admin123*` |
 | Jugador | `jugador.stats.a@mail.escuelaing.edu.co` | `Techcup123*` |
 
+## Mantenimiento y Deploy
+
+- El backend fue desarrollado principalmente por Jose Lancheros ([Lanch3ros](https://github.com/Lanch3ros)), autor de la gran mayoría de los commits del repositorio, dentro del equipo JavaBurguers listado arriba.
+- La migración de la infraestructura de Azure a Railway + Vercel (julio 2026) fue realizada íntegramente por Jose Lancheros de forma independiente.
+- El deploy actual (backend en Railway, frontend en Vercel) es configurado y mantenido por Jose Lancheros.
+
 ---
 
 ### 1. ARQUITECTURA Y PATRONES DE DISEÑO

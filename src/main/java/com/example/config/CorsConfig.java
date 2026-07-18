@@ -18,7 +18,9 @@ public class CorsConfig {
                 "http://localhost:*",
                 "https://localhost:*",
                 "http://127.0.0.1:*",
-                "https://127.0.0.1:*"));
+                "https://127.0.0.1:*",
+                "https://techcup-futbol-fronted.vercel.app",
+                "https://*.vercel.app"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

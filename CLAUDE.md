@@ -267,37 +267,36 @@ When adding a dependency to a service constructor, update **all** test files tha
 
 **Jackson configuration note:** Spring Boot 4.x uses Jackson 3.x (`tools.jackson`). `ACCEPT_CASE_INSENSITIVE_ENUMS` is a `MapperFeature` (not `DeserializationFeature`) in Jackson 3.x. The correct `application.yaml` key is `spring.jackson.mapper.accept-case-insensitive-enums: true`.
 
-## CI/CD
+## CI/CD & Deployment (Railway + Vercel since July 2026)
 
-Three GitHub Actions workflows:
+**The original Azure infrastructure (App Service, PostgreSQL, ACR) is inactive — Azure for Students credits ran out. Production now runs on Railway (backend + DB) and Vercel (frontend).**
 
-### `.github/workflows/maven.yml` — CI (build & test)
+### Current production infrastructure
+- Backend: Railway, auto-deploys from `main` of `Lanch3ros/techcup-futbol` → `https://techcup-futbol-production.up.railway.app`
+- Frontend: Vercel, auto-deploys from `main` of `Lanch3ros/Techcup-Futbol-Fronted` → `https://techcup-futbol-fronted.vercel.app`
+- DB: PostgreSQL on Railway (internal network)
+- CORS (`CorsConfig.java`) allows `https://techcup-futbol-fronted.vercel.app` and `https://*.vercel.app` in addition to localhost origins
+- Railway runs the container from the repo `Dockerfile`; env vars (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, etc.) are set in the Railway service settings
+- QA environment: not yet set up on Railway (planned: second DB + second backend service)
+
+**Demo credentials (production):** `admin@techcup.edu.co`, `organizador@techcup.edu.co`, `arbitro@techcup.edu.co` (all `Admin123*`); player `jugador.stats.a@mail.escuelaing.edu.co` / `Techcup123*`.
+
+### GitHub Actions workflows
+
+### `.github/workflows/maven.yml` — CI (build & test) — **still active**
 - Triggers on push to `main` / `develop` / `feat/**` and PRs to `main` / `develop`
 - Spins up `postgres:16` as a service container (port 5433) with **hardcoded** credentials (`techcup`/`techcup`) — do NOT use secrets for the CI test database; it's ephemeral and this was the fix for the `password authentication failed` error
 - Runs `mvn clean test jacoco:report` — secrets injected: `JWT_SECRET`, `SSL_KEY_STORE_PASSWORD`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - Uploads JaCoCo HTML report as artifact (7-day retention)
 - Runs SonarCloud analysis via `SonarSource/sonarcloud-github-action@master` — **note: free plan only analyzes `main`; `develop` shows "Not analyzed"**
-- On `develop` or `main`: builds and pushes Docker image to ACR tagged with `github.sha` and `latest`
+- The ACR image push step targets the retired Azure registry and no longer serves deployment
 
-### `.github/workflows/deploy-qa.yml` — Deploy to QA
-- Triggers via `workflow_run` on CI completing successfully on `develop`
-- Deploys image `ACR/techcup-backend:${{ github.event.workflow_run.head_sha }}` to App Service `techcup-backend-qa-1`
-- Requires GitHub Secret: `AZURE_WEBAPP_PUBLISH_PROFILE_QA`
-- Runs health check against `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net/swagger-ui.html`
+### `.github/workflows/deploy-qa.yml` / `deploy-prod.yml` — **obsolete (Azure)**
+- Both target the retired Azure App Services (`techcup-backend-qa-1` / `techcup-backend-prod-1`) and depend on `AZURE_WEBAPP_PUBLISH_PROFILE_*` secrets
+- They are kept in the repo for reference but their deploys fail or are no-ops; Railway's GitHub integration replaced them
 
-### `.github/workflows/deploy-prod.yml` — Deploy to PROD
-- Triggers via `workflow_run` on CI completing successfully on `main`
-- Uses GitHub Environment `production` (branch protection on `main` enforces 3-reviewer PRs)
-- Deploys to App Service `techcup-backend-prod-1`
-- Requires GitHub Secret: `AZURE_WEBAPP_PUBLISH_PROFILE_PROD`
-- Runs health check against `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net/swagger-ui.html`
-
-### Azure infrastructure (Sprint 4)
-- ACR: `techcupacr.azurecr.io`
-- QA DB: `techcup-db-qa.postgres.database.azure.com` / user `techcup_qa`
-- PROD DB: `techcup-db-prod.postgres.database.azure.com` / user `techcup_prod`
-- QA App Service: `techcup-backend-qa-1` → `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net`
-- PROD App Service: `techcup-backend-prod-1` → `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net`
+### Legacy Azure infrastructure (Sprint 4, retired July 2026)
+- ACR `techcupacr.azurecr.io`; QA/PROD DBs `techcup-db-{qa,prod}.postgres.database.azure.com`; App Services `techcup-backend-{qa,prod}-1` (`*.azurewebsites.net` URLs) — all inactive
 
 ### Docker local run
 ```bash

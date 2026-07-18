@@ -62,26 +62,34 @@ feat/** ──► develop ──► main
 | Rama | Propósito |
 |------|-----------|
 | `feat/**` | Desarrollo de nuevas funcionalidades. El CI corre tests automáticamente. |
-| `develop` | Integración. Al hacer push, el CI corre y si pasa → deploy automático a QA. |
-| `main` | Producción. Solo se actualiza por PR con mínimo 3 revisores → deploy automático a PROD. |
+| `develop` | Integración. El CI corre tests en cada push. (El deploy automático a QA en Azure quedó inactivo.) |
+| `main` | Producción. Cada push dispara el redeploy automático en Railway. |
 
 ### Pipeline automático
-1. **Push a `develop`** → GitHub Actions corre `mvn clean test jacoco:report` + build Docker + push a ACR + deploy a QA
-2. **Merge a `main`** → mismo CI + deploy a PROD
+
+> **Migración (julio 2026):** el deploy en Azure quedó inactivo (créditos agotados). Producción corre en **Railway** (backend + PostgreSQL) y **Vercel** (frontend).
+
+1. **Push a `main`** → GitHub Actions corre `mvn clean test jacoco:report` (CI) y, en paralelo, Railway detecta el push y redespliega el backend desde el `Dockerfile`
+2. **Push a `main` del frontend** → Vercel redespliega automáticamente
+3. Los workflows `deploy-qa.yml` / `deploy-prod.yml` (Azure) quedaron obsoletos — se conservan solo como referencia
 
 ### Ambientes
 | Ambiente | URL | Swagger |
 |----------|-----|---------|
 | Local | `https://localhost:8443` | `https://localhost:8443/swagger-ui.html` |
-| QA | `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net` | `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net/swagger-ui.html` |
-| PROD | `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net` | `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net/swagger-ui.html` |
+| PROD (Railway) | `https://techcup-futbol-production.up.railway.app` | `https://techcup-futbol-production.up.railway.app/swagger-ui/index.html` |
+| Frontend PROD (Vercel) | `https://techcup-futbol-fronted.vercel.app` | — |
+| QA | _Pendiente de montar en Railway (segunda DB + segundo servicio backend)_ | — |
 
-### Apagar/encender servidores Azure (para ahorrar costos)
-Cuando no estés trabajando activamente en QA o PROD, puedes pausar los App Services desde el portal:
+### Gestión de servicios en Railway
+1. Entra a [railway.app](https://railway.app) → proyecto TechCup
+2. El servicio backend y la base PostgreSQL se administran desde el dashboard (variables de entorno, logs, redeploys manuales)
+3. Railway redespliega automáticamente en cada push a `main` de `Lanch3ros/techcup-futbol`
 
-1. Ve a [portal.azure.com](https://portal.azure.com) → grupo de recursos `techcup-rg`
-2. Entra a `techcup-backend-qa-1` o `techcup-backend-prod-1`
-3. Haz clic en **Stop** para pausar (no genera costo de cómputo)
-4. Haz clic en **Start** para reanudar cuando lo necesites
-
-> Los servidores de base de datos (`techcup-db-qa`, `techcup-db-prod`) también pueden pausarse desde su panel en Azure Portal.
+### Credenciales demo (producción)
+| Rol | Email | Contraseña |
+|-----|-------|------------|
+| Organizador | `organizador@techcup.edu.co` | `Admin123*` |
+| Admin | `admin@techcup.edu.co` | `Admin123*` |
+| Árbitro | `arbitro@techcup.edu.co` | `Admin123*` |
+| Jugador | `jugador.stats.a@mail.escuelaing.edu.co` | `Techcup123*` |

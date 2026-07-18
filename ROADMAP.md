@@ -1,5 +1,7 @@
 # ROADMAP Sprint 4 — Backend TechCup Fútbol
 
+> ⚠️ **DOCUMENTO HISTÓRICO — Azure retirado (julio 2026).** Este roadmap describe la infraestructura Azure montada en Sprint 4, que quedó inactiva al agotarse los créditos de Azure for Students. La infraestructura actual es **Railway** (backend `https://techcup-futbol-production.up.railway.app` + PostgreSQL) y **Vercel** (frontend `https://techcup-futbol-fronted.vercel.app`). Ver `OPERATIONS.md` y `CLAUDE.md` para el stack vigente. Se conserva sin modificar como evidencia del trabajo del sprint.
+
 Fases ordenadas por dependencias: cada fase asume que la anterior está completa.
 
 ---

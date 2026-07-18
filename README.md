@@ -66,14 +66,25 @@ Plataforma backend para la gestión integral del torneo semestral de fútbol de 
 
 ## Despliegues
 
-| Ambiente | URL API | Swagger |
-|----------|---------|---------|
-| **QA** | `https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net` | [Swagger QA](https://techcup-backend-qa-1-gva9hqfdeqard9bf.centralus-01.azurewebsites.net/swagger-ui/index.html) |
-| **PROD** | `https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net` | [Swagger PROD](https://techcup-backend-prod-1-awagabefhwadb2g9.centralus-01.azurewebsites.net/swagger-ui/index.html) |
+> **Nota de migración (julio 2026):** la infraestructura original en Azure (App Service, PostgreSQL y ACR) quedó inactiva al agotarse los créditos de Azure for Students. El stack actual es **Railway** (backend + base de datos) y **Vercel** (frontend).
 
-El despliegue es automático vía GitHub Actions:
-- Cada push a `develop` → deploy automático a **QA** (tras pasar el CI)
-- Cada merge a `main` → deploy automático a **PROD** (tras pasar el CI)
+| Componente | Plataforma | URL |
+|------------|-----------|-----|
+| **Backend (PROD)** | Railway — rama `main` de `Lanch3ros/techcup-futbol` | `https://techcup-futbol-production.up.railway.app` — [Swagger](https://techcup-futbol-production.up.railway.app/swagger-ui/index.html) |
+| **Frontend (PROD)** | Vercel — rama `main` de `Lanch3ros/Techcup-Futbol-Fronted` | `https://techcup-futbol-fronted.vercel.app` |
+| **Base de datos** | PostgreSQL en Railway (red interna) | — |
+| **QA** | _Pendiente de montar en Railway (segunda DB + segundo servicio)_ | — |
+
+El despliegue es automático: cada push a `main` dispara el redeploy en Railway (backend) y en Vercel (frontend). Los workflows de GitHub Actions hacia Azure (`deploy-qa.yml`, `deploy-prod.yml`) quedaron obsoletos; el CI de build y tests (`maven.yml`) sigue vigente.
+
+**Credenciales demo (producción):**
+
+| Rol | Email | Contraseña |
+|-----|-------|------------|
+| Organizador | `organizador@techcup.edu.co` | `Admin123*` |
+| Admin | `admin@techcup.edu.co` | `Admin123*` |
+| Árbitro | `arbitro@techcup.edu.co` | `Admin123*` |
+| Jugador | `jugador.stats.a@mail.escuelaing.edu.co` | `Techcup123*` |
 
 ---
 

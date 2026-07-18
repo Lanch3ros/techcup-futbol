@@ -4,6 +4,15 @@
       Sprint 5 — Presentación Final — 17 de abril de 2026
 ================================================================================
 
+NOTA DE MIGRACIÓN (julio 2026): la infraestructura Azure descrita en las
+secciones de CI/CD y despliegue (ACR, App Services, Azure PostgreSQL) quedó
+inactiva al agotarse los créditos de Azure for Students. Producción corre
+ahora en Railway (backend: https://techcup-futbol-production.up.railway.app
++ PostgreSQL interno) y Vercel (frontend:
+https://techcup-futbol-fronted.vercel.app). El resto del documento se
+conserva tal como se presentó en Sprint 5.
+================================================================================
+
 TABLA DE CONTENIDO
 ──────────────────
   1.  Contexto del Proyecto
